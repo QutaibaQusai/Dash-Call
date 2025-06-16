@@ -28,33 +28,40 @@ class _MainScreenState extends State<MainScreen> {
       appBar: AppBar(
         title: const Text('DashCall'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        actions: [
-          Consumer<SipService>(
-            builder: (context, sipService, child) {
-              return IconButton(
-                icon: Icon(
-                  sipService.status == SipConnectionStatus.connected
-                      ? Icons.phone_enabled
-                      : Icons.phone_disabled,
-                  color: sipService.status == SipConnectionStatus.connected
-                      ? Colors.green
-                      : Colors.red,
-                ),
-                onPressed: () {
-                  if (sipService.status == SipConnectionStatus.connected) {
-                    sipService.unregister();
-                  } else {
-                    sipService.register();
-                  }
-                },
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () => _showConfigDialog(),
-          ),
-        ],
+
+       // In your main_screen.dart - update the AppBar action button:
+
+actions: [
+  Consumer<SipService>(
+    builder: (context, sipService, child) {
+      print('🔘 [UI] Button status check: ${sipService.status}');
+      return IconButton(
+        icon: Icon(
+          sipService.status == SipConnectionStatus.connected
+              ? Icons.phone_enabled
+              : Icons.phone_disabled,
+          color: sipService.status == SipConnectionStatus.connected
+              ? Colors.green
+              : Colors.red,
+        ),
+        onPressed: () {
+          print('🔘 [UI] Button pressed! Current status: ${sipService.status}');
+          if (sipService.status == SipConnectionStatus.connected) {
+            print('🔘 [UI] Disconnecting...');
+            sipService.unregister();
+          } else {
+            print('🔘 [UI] Connecting...');
+            sipService.register();
+          }
+        },
+      );
+    },
+  ),
+  IconButton(
+    icon: const Icon(Icons.settings),
+    onPressed: () => _showConfigDialog(),
+  ),
+],
       ),
       body: Consumer<SipService>(
         builder: (context, sipService, child) {

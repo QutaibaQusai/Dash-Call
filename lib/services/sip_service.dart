@@ -25,12 +25,16 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
   String? _errorMessage;
   String? _statusMessage;
   
+  // Connection state tracking
+  bool _isConnecting = false;
+  bool _isRegistered = false;
+  
   // SIP Configuration
   String _sipServer = '';
   String _username = '';
   String _password = '';
   String _domain = '';
-  int _port = 5060;
+  int _port = 8088;  // Default to WebSocket port
   
   // Current call
   Call? _currentCall;
@@ -50,6 +54,8 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
   Call? get currentCall => _currentCall;
   String? get callNumber => _callNumber;
   DateTime? get callStartTime => _callStartTime;
+  bool get isConnecting => _isConnecting;
+  bool get isRegistered => _isRegistered;
 
   Future<void> initialize() async {
     try {
@@ -93,7 +99,7 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     _username = prefs.getString('sip_username') ?? '';
     _password = prefs.getString('sip_password') ?? '';
     _domain = prefs.getString('sip_domain') ?? '';
-    _port = prefs.getInt('sip_port') ?? 5060;
+    _port = prefs.getInt('sip_port') ?? 8088;  // Default to WebSocket port
     
     print('📋 [SipService] Loaded settings:');
     print('   Server: $_sipServer');
@@ -133,6 +139,17 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
   Future<bool> register() async {
     print('🔐 [SipService] Starting registration process...');
     
+    // Prevent multiple simultaneous connection attempts
+    if (_isConnecting) {
+      print('⚠️ [SipService] Already connecting, ignoring duplicate request');
+      return false;
+    }
+    
+    if (_isRegistered && _status == SipConnectionStatus.connected) {
+      print('✅ [SipService] Already registered and connected');
+      return true;
+    }
+    
     // Check helper with detailed logging
     print('🔍 [SipService] Checking _helper status: ${_helper != null ? 'NOT NULL' : 'NULL'}');
     if (_helper == null) {
@@ -150,6 +167,8 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
       return false;
     }
 
+    _isConnecting = true;
+    
     try {
       _setStatus(SipConnectionStatus.connecting);
       _setStatusMessage('Connecting to $_sipServer...');
@@ -197,6 +216,18 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
         print('   Setting register...');
         settings.register = true;
         
+        // CRITICAL: Set the transportType - this was missing!
+        print('   Setting transportType to WS...');
+        settings.transportType = TransportType.WS;
+        
+        // WebRTC-specific settings for Asterisk compatibility
+        print('   Setting WebRTC compatibility options...');
+        
+        // Use only basic audio codecs that Asterisk supports
+        settings.iceServers = [
+          {'urls': 'stun:stun.l.google.com:19302'},
+        ];
+        
         // Optional settings
         print('   Setting optional settings...');
         settings.dtmfMode = DtmfMode.RFC2833;
@@ -216,6 +247,7 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
       print('   Display Name: $displayName');
       print('   User Agent: DashCall 1.0');
       print('   Register: true');
+      print('   Transport Type: WS');
       print('   DTMF Mode: RFC2833');
       
       print('📡 [SipService] About to call _helper!.start()...');
@@ -224,6 +256,7 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
       if (_helper == null) {
         print('❌❌❌ [SipService] CRITICAL: _helper became null before start()!');
         _setError('SIP helper became null');
+        _isConnecting = false;
         return false;
       }
       
@@ -232,6 +265,8 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
         print('🚀 [SipService] Executing _helper.start(settings)...');
         await _helper!.start(settings);
         print('✅ [SipService] _helper.start() completed successfully');
+        
+        // Don't set _isConnecting = false here, wait for actual registration callback
         return true;
       } catch (startError, startStackTrace) {
         print('❌ [SipService] _helper.start() failed: $startError');
@@ -250,17 +285,24 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
       print('📍 [SipService] Full stack trace: $stackTrace');
       _setError('Registration failed: $e');
       _setStatus(SipConnectionStatus.error);
+      _isConnecting = false;
       return false;
     }
   }
 
   Future<void> unregister() async {
+    print('📤 [SipService] Starting unregistration...');
+    _isRegistered = false;
+    _isConnecting = false;
+    
     if (_helper != null) {
       try {
         _helper!.stop();
         _setStatus(SipConnectionStatus.disconnected);
         _setStatusMessage('Disconnected');
+        print('✅ [SipService] Successfully unregistered');
       } catch (e) {
+        print('❌ [SipService] Unregister error: $e');
         _setError('Failed to unregister: $e');
       }
     }
@@ -459,11 +501,14 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     switch (state.state) {
       case RegistrationStateEnum.REGISTERED:
         print('✅ [Registration] Successfully registered');
+        _isRegistered = true;
+        _isConnecting = false;
         _setStatus(SipConnectionStatus.connected);
         _setStatusMessage('Registered successfully');
         break;
       case RegistrationStateEnum.UNREGISTERED:
         print('📤 [Registration] Unregistered');
+        _isRegistered = false;
         _setStatus(SipConnectionStatus.disconnected);
         _setStatusMessage('Unregistered');
         break;
@@ -472,6 +517,8 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
         if (state.cause != null) {
           print('   Error details: ${state.cause}');
         }
+        _isRegistered = false;
+        _isConnecting = false;
         _setStatus(SipConnectionStatus.error);
         _setError('Registration failed: ${state.cause ?? 'Unknown error'}');
         break;
@@ -504,7 +551,9 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
         break;
       case TransportStateEnum.DISCONNECTED:
         print('❌ [Transport] Disconnected');
+        // Only change status if we were previously connected
         if (_status == SipConnectionStatus.connected) {
+          _isRegistered = false;
           _setStatus(SipConnectionStatus.disconnected);
           _setStatusMessage('Connection lost');
         }
@@ -540,11 +589,13 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
   }
 
   void _setStatus(SipConnectionStatus status) {
+    print('📊 [SipService] Status changed: $_status -> $status');
     _status = status;
     notifyListeners();
   }
 
   void _setCallStatus(CallStatus status) {
+    print('📱 [SipService] Call status changed: $_callStatus -> $status');
     _callStatus = status;
     notifyListeners();
   }
@@ -570,8 +621,17 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
 
   @override
   void dispose() {
+    print('🗑️ [SipService] Disposing SIP service...');
+    _isConnecting = false;
+    _isRegistered = false;
+    
     if (_helper != null) {
-      _helper!.stop();
+      try {
+        _helper!.stop();
+        print('✅ [SipService] SIP helper stopped successfully');
+      } catch (e) {
+        print('❌ [SipService] Error stopping SIP helper: $e');
+      }
     }
     super.dispose();
   }
