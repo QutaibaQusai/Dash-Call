@@ -53,31 +53,66 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
 
   Future<void> initialize() async {
     try {
+      print('🚀 [SipService] Starting initialization...');
       _setStatusMessage('Initializing SIP client...');
       
+      print('🔧 [SipService] Creating SIPUAHelper instance...');
       _helper = SIPUAHelper();
+      
+      if (_helper == null) {
+        print('❌❌❌ [SipService] CRITICAL: Failed to create SIPUAHelper - it\'s null!');
+        throw Exception('Failed to create SIPUAHelper instance');
+      }
+      
+      print('✅ [SipService] SIPUAHelper created successfully');
+      print('🎧 [SipService] Adding SipUaHelperListener...');
+      
       _helper!.addSipUaHelperListener(this);
+      print('✅ [SipService] SIPUAHelper listener added');
       
       // Load saved settings
+      print('📂 [SipService] Loading saved settings...');
       await _loadSettings();
+      print('✅ [SipService] Settings loaded from storage');
       
       _setStatusMessage('SIP client initialized. Configure settings to connect.');
-    } catch (e) {
+      print('🎉 [SipService] Initialization completed successfully');
+      print('🔍 [SipService] Final _helper status: ${_helper != null ? 'NOT NULL' : 'NULL'}');
+    } catch (e, stackTrace) {
+      print('❌ [SipService] Initialization failed: $e');
+      print('📍 [SipService] Full stack trace: $stackTrace');
       _setError('Failed to initialize SIP client: $e');
     }
   }
 
   Future<void> _loadSettings() async {
+    print('📂 [SipService] Loading settings from SharedPreferences...');
     final prefs = await SharedPreferences.getInstance();
+    
     _sipServer = prefs.getString('sip_server') ?? '';
     _username = prefs.getString('sip_username') ?? '';
     _password = prefs.getString('sip_password') ?? '';
     _domain = prefs.getString('sip_domain') ?? '';
     _port = prefs.getInt('sip_port') ?? 5060;
+    
+    print('📋 [SipService] Loaded settings:');
+    print('   Server: $_sipServer');
+    print('   Username: $_username');
+    print('   Password: ${_password.isNotEmpty ? '[${_password.length} chars]' : '[empty]'}');
+    print('   Domain: $_domain');
+    print('   Port: $_port');
+    
     notifyListeners();
   }
 
   Future<void> saveSettings(String server, String username, String password, String domain, int port) async {
+    print('💾 [SipService] Saving new settings...');
+    print('   Server: $server');
+    print('   Username: $username');
+    print('   Password: ${password.isNotEmpty ? '[${password.length} chars]' : '[empty]'}');
+    print('   Domain: $domain');
+    print('   Port: $port');
+    
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('sip_server', server);
     await prefs.setString('sip_username', username);
@@ -91,16 +126,26 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     _domain = domain;
     _port = port;
     
+    print('✅ [SipService] Settings saved to SharedPreferences');
     notifyListeners();
   }
 
   Future<bool> register() async {
+    print('🔐 [SipService] Starting registration process...');
+    
+    // Check helper with detailed logging
+    print('🔍 [SipService] Checking _helper status: ${_helper != null ? 'NOT NULL' : 'NULL'}');
     if (_helper == null) {
+      print('❌ [SipService] SIP client not initialized - _helper is null');
       _setError('SIP client not initialized');
       return false;
     }
 
     if (_sipServer.isEmpty || _username.isEmpty || _password.isEmpty) {
+      print('❌ [SipService] Missing required settings:');
+      print('   Server empty: ${_sipServer.isEmpty}');
+      print('   Username empty: ${_username.isEmpty}');
+      print('   Password empty: ${_password.isEmpty}');
       _setError('Please configure SIP settings first');
       return false;
     }
@@ -108,23 +153,101 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     try {
       _setStatus(SipConnectionStatus.connecting);
       _setStatusMessage('Connecting to $_sipServer...');
+      print('🌐 [SipService] Attempting to connect to $_sipServer:$_port');
       
-      // Create SIP UA settings
-      final settings = UaSettings();
+      // Create SIP UA settings with minimal required configuration
+      print('⚙️ [SipService] Creating UaSettings...');
+      UaSettings settings;
       
-      // WebSocket URL - adjust based on your Asterisk setup
-      settings.webSocketUrl = 'ws://$_sipServer:$_port/ws';
-      settings.uri = 'sip:$_username@${_domain.isEmpty ? _sipServer : _domain}';
-      settings.authorizationUser = _username;
-      settings.password = _password;
-      settings.displayName = _username;
-      settings.userAgent = 'DashCall 1.0';
-      settings.dtmfMode = DtmfMode.RFC2833;
-      settings.register = true;
+      try {
+        settings = UaSettings();
+        print('✅ [SipService] UaSettings created successfully');
+      } catch (e) {
+        print('❌ [SipService] Failed to create UaSettings: $e');
+        throw e;
+      }
       
-      await _helper!.start(settings);
-      return true;
-    } catch (e) {
+      // WebSocket URL and SIP URI
+      final wsUrl = 'ws://$_sipServer:$_port/ws';
+      final sipUri = 'sip:$_username@${_domain.isEmpty ? _sipServer : _domain}';
+      final displayName = _username.isNotEmpty ? _username : 'DashCall User';
+      
+      print('🔧 [SipService] Configuring settings...');
+      
+      // Set core required fields one by one with error checking
+      try {
+        print('   Setting webSocketUrl...');
+        settings.webSocketUrl = wsUrl;
+        
+        print('   Setting uri...');
+        settings.uri = sipUri;
+        
+        print('   Setting authorizationUser...');
+        settings.authorizationUser = _username;
+        
+        print('   Setting password...');
+        settings.password = _password;
+        
+        print('   Setting displayName...');
+        settings.displayName = displayName;
+        
+        print('   Setting userAgent...');
+        settings.userAgent = 'DashCall 1.0';
+        
+        print('   Setting register...');
+        settings.register = true;
+        
+        // Optional settings
+        print('   Setting optional settings...');
+        settings.dtmfMode = DtmfMode.RFC2833;
+        
+        print('✅ [SipService] All settings configured successfully');
+        
+      } catch (e) {
+        print('❌ [SipService] Error setting UaSettings properties: $e');
+        throw e;
+      }
+      
+      print('⚙️ [SipService] Final registration settings:');
+      print('   WebSocket URL: $wsUrl');
+      print('   SIP URI: $sipUri');
+      print('   Auth User: $_username');
+      print('   Password: ${_password.isNotEmpty ? '[SET]' : '[EMPTY]'}');
+      print('   Display Name: $displayName');
+      print('   User Agent: DashCall 1.0');
+      print('   Register: true');
+      print('   DTMF Mode: RFC2833');
+      
+      print('📡 [SipService] About to call _helper!.start()...');
+      print('🔍 [SipService] Double-checking _helper: ${_helper != null ? 'STILL NOT NULL' : 'NOW NULL!!!'}');
+      
+      if (_helper == null) {
+        print('❌❌❌ [SipService] CRITICAL: _helper became null before start()!');
+        _setError('SIP helper became null');
+        return false;
+      }
+      
+      // Try to call start with detailed error handling
+      try {
+        print('🚀 [SipService] Executing _helper.start(settings)...');
+        await _helper!.start(settings);
+        print('✅ [SipService] _helper.start() completed successfully');
+        return true;
+      } catch (startError, startStackTrace) {
+        print('❌ [SipService] _helper.start() failed: $startError');
+        print('📍 [SipService] Start error stack trace: $startStackTrace');
+        
+        // Try to provide more specific error information
+        if (startError.toString().contains('Null check operator')) {
+          print('🔍 [SipService] This is a null check error inside sip_ua package');
+          print('🔍 [SipService] Likely missing required UaSettings property');
+        }
+        
+        throw startError;
+      }
+    } catch (e, stackTrace) {
+      print('❌ [SipService] Registration failed with exception: $e');
+      print('📍 [SipService] Full stack trace: $stackTrace');
       _setError('Registration failed: $e');
       _setStatus(SipConnectionStatus.error);
       return false;
@@ -144,34 +267,37 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
   }
 
   Future<bool> makeCall(String phoneNumber) async {
+    print('📞 [SipService] Attempting to make call to: $phoneNumber');
+    
     if (_helper == null || _status != SipConnectionStatus.connected) {
+      print('❌ [SipService] Cannot make call:');
+      print('   Helper null: ${_helper == null}');
+      print('   Status: $_status');
       _setError('Not connected to SIP server');
       return false;
     }
 
     if (phoneNumber.isEmpty) {
+      print('❌ [SipService] Phone number is empty');
       _setError('Please enter a phone number');
       return false;
     }
 
     try {
+      print('🚀 [SipService] Starting call to $phoneNumber');
       _setStatusMessage('Calling $phoneNumber...');
       _callNumber = phoneNumber;
       _callStartTime = DateTime.now();
       
-      // Make call - using correct API
-      final callOptions = _helper!.buildCallOptions(false); // false = voice only
-      final call = await _helper!.call(phoneNumber, customOptions: callOptions);
-      
-      if (call != null) {
-        _currentCall = call as Call?;
-        _setCallStatus(CallStatus.calling);
-        return true;
-      } else {
-        _setError('Failed to initiate call');
-        return false;
-      }
+      // Make call - correct API usage for sip_ua
+      print('📡 [SipService] Calling _helper.call()...');
+      _helper!.call(phoneNumber);
+      print('✅ [SipService] Call initiated successfully');
+      _setCallStatus(CallStatus.calling);
+      return true;
     } catch (e) {
+      print('❌ [SipService] Call failed with exception: $e');
+      print('📍 [SipService] Stack trace: ${StackTrace.current}');
       _setError('Failed to make call: $e');
       return false;
     }
@@ -180,8 +306,7 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
   Future<void> answerCall() async {
     if (_currentCall != null) {
       try {
-        final callOptions = _helper!.buildCallOptions(false);
-        _currentCall!.answer(callOptions);
+        _currentCall!.answer(_helper!.buildCallOptions());
         _callStartTime = DateTime.now();
         _setCallStatus(CallStatus.active);
         _setStatusMessage('Call active');
@@ -250,18 +375,25 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
   // SipUaHelperListener implementations
   @override
   void callStateChanged(Call call, CallState state) {
+    print('📱 [SipService] Call state changed: ${state.state}');
+    print('   Call ID: ${call.id}');
+    print('   Remote identity: ${call.remote_identity}');
+    
     _currentCall = call;
     
     switch (state.state) {
       case CallStateEnum.CALL_INITIATION:
+        print('🚀 [CallState] Call initiation');
         _setCallStatus(CallStatus.calling);
         _setStatusMessage('Initiating call...');
         break;
       case CallStateEnum.PROGRESS:
+        print('📞 [CallState] Call in progress');
         _setStatusMessage('Call in progress...');
         break;
       case CallStateEnum.ACCEPTED:
       case CallStateEnum.CONFIRMED:
+        print('✅ [CallState] Call accepted/confirmed');
         _setCallStatus(CallStatus.active);
         _setStatusMessage('Call connected');
         if (_callStartTime == null) {
@@ -270,82 +402,115 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
         break;
       case CallStateEnum.ENDED:
       case CallStateEnum.FAILED:
+        print('❌ [CallState] Call ended/failed');
+        if (state.cause != null) {
+          print('   Cause: ${state.cause}');
+        }
         _endCall();
         break;
       case CallStateEnum.HOLD:
+        print('⏸️ [CallState] Call on hold');
         _setCallStatus(CallStatus.held);
         break;
       case CallStateEnum.UNHOLD:
+        print('▶️ [CallState] Call resumed from hold');
         _setCallStatus(CallStatus.active);
         break;
       case CallStateEnum.MUTED:
       case CallStateEnum.UNMUTED:
-        // Handle mute states if needed
+        print('🔇 [CallState] Mute state changed: ${state.state}');
         break;
       case CallStateEnum.STREAM:
-        // Handle media stream
+        print('🎵 [CallState] Media stream event');
         break;
       case CallStateEnum.REFER:
-        // Handle call transfer
+        print('🔄 [CallState] Call transfer/refer');
         break;
       case CallStateEnum.NONE:
-        // TODO: Handle this case.
-        throw UnimplementedError();
+        print('⚪ [CallState] No call state');
+        _setStatusMessage('Call state: none');
+        break;
       case CallStateEnum.CONNECTING:
-        // TODO: Handle this case.
-        throw UnimplementedError();
+        print('🔗 [CallState] Call connecting');
+        _setStatusMessage('Call connecting...');
+        break;
     }
   }
 
   @override
   void onNewCall(Call call) {
+    print('📲 [SipService] New incoming call');
+    print('   Call ID: ${call.id}');
+    print('   Remote identity: ${call.remote_identity ?? 'Unknown'}');
+    
     _currentCall = call;
-    _callNumber = call.remote_identity;
+    _callNumber = call.remote_identity ?? 'Unknown';
     _setCallStatus(CallStatus.incoming);
-    _setStatusMessage('Incoming call from ${call.remote_identity}');
+    _setStatusMessage('Incoming call from ${call.remote_identity ?? 'Unknown'}');
   }
 
   @override
   void registrationStateChanged(RegistrationState state) {
+    print('🔐 [SipService] Registration state changed: ${state.state}');
+    if (state.cause != null) {
+      print('   Cause: ${state.cause}');
+    }
+    
     switch (state.state) {
       case RegistrationStateEnum.REGISTERED:
+        print('✅ [Registration] Successfully registered');
         _setStatus(SipConnectionStatus.connected);
         _setStatusMessage('Registered successfully');
         break;
       case RegistrationStateEnum.UNREGISTERED:
+        print('📤 [Registration] Unregistered');
         _setStatus(SipConnectionStatus.disconnected);
         _setStatusMessage('Unregistered');
         break;
       case RegistrationStateEnum.REGISTRATION_FAILED:
+        print('❌ [Registration] Registration failed');
+        if (state.cause != null) {
+          print('   Error details: ${state.cause}');
+        }
         _setStatus(SipConnectionStatus.error);
         _setError('Registration failed: ${state.cause ?? 'Unknown error'}');
         break;
+      case RegistrationStateEnum.NONE:
+        print('⚪ [Registration] No registration state');
+        _setStatusMessage('Registration state: none');
+        break;
       case null:
+        print('❓ [Registration] Unknown registration state');
         _setStatusMessage('Registration state unknown');
         break;
-      case RegistrationStateEnum.NONE:
-        // TODO: Handle this case.
-        throw UnimplementedError();
     }
   }
 
   @override
   void transportStateChanged(TransportState state) {
+    print('🌐 [SipService] Transport state changed: ${state.state}');
+    if (state.cause != null) {
+      print('   Cause: ${state.cause}');
+    }
+    
     switch (state.state) {
       case TransportStateEnum.CONNECTED:
+        print('✅ [Transport] Connected');
         _setStatusMessage('Transport connected');
         break;
       case TransportStateEnum.CONNECTING:
+        print('🔗 [Transport] Connecting');
         _setStatusMessage('Connecting...');
         break;
       case TransportStateEnum.DISCONNECTED:
+        print('❌ [Transport] Disconnected');
         if (_status == SipConnectionStatus.connected) {
           _setStatus(SipConnectionStatus.disconnected);
           _setStatusMessage('Connection lost');
         }
         break;
       case TransportStateEnum.NONE:
-        // Handle no transport state
+        print('⚪ [Transport] No transport state');
         break;
     }
   }
@@ -353,22 +518,17 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
   // Required implementations for SipUaHelperListener
   @override
   void onNewMessage(SIPMessageRequest msg) {
-    // Handle incoming SIP messages if needed
-    // Using toString() since 'method' property might not exist
-    print('New SIP message received: ${msg.toString()}');
+    print('📨 [SipService] New SIP message received: ${msg.toString()}');
   }
 
   @override
   void onNewNotify(Notify ntf) {
-    // Handle SIP notifications if needed
-    // Using toString() since 'event' property might not exist
-    print('New SIP notify received: ${ntf.toString()}');
+    print('🔔 [SipService] New SIP notify received: ${ntf.toString()}');
   }
 
   @override
   void onNewReinvite(ReInvite reinvite) {
-    // Handle call re-invitations if needed
-    print('New re-invite received: ${reinvite.toString()}');
+    print('🔄 [SipService] New re-invite received: ${reinvite.toString()}');
   }
 
   void _endCall() {
@@ -390,12 +550,14 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
   }
 
   void _setError(String error) {
+    print('❌ [SipService] Error: $error');
     _errorMessage = error;
     _statusMessage = error;
     notifyListeners();
   }
 
   void _setStatusMessage(String message) {
+    print('📋 [SipService] Status: $message');
     _statusMessage = message;
     _errorMessage = null;
     notifyListeners();

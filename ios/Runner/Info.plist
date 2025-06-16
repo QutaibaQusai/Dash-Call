@@ -52,6 +52,10 @@
 	<key>NSMicrophoneUsageDescription</key>
 	<string>DashCall needs access to microphone for voice calls through Asterisk SIP server</string>
 	
+	<!-- Camera permission (required by WebRTC even for voice-only) -->
+	<key>NSCameraUsageDescription</key>
+	<string>DashCall may need camera access for video calling features</string>
+	
 	<!-- Background modes for VoIP functionality -->
 	<key>UIBackgroundModes</key>
 	<array>
@@ -72,7 +76,17 @@
 		<true/>
 		<key>NSExceptionDomains</key>
 		<dict>
-			<!-- Allow insecure connections to your Asterisk server if needed -->
+			<!-- Allow insecure connections to your Asterisk server -->
+			<key>pbx.dashcall.me</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSExceptionMinimumTLSVersion</key>
+				<string>TLSv1.0</string>
+				<key>NSExceptionRequiresForwardSecrecy</key>
+				<false/>
+			</dict>
+			<!-- Allow insecure connections to localhost for testing -->
 			<key>localhost</key>
 			<dict>
 				<key>NSExceptionAllowsInsecureHTTPLoads</key>

@@ -14,16 +14,32 @@ void main() async {
 }
 
 Future<void> _requestPermissions() async {
+  print('🔐 [Main] Requesting permissions...');
+  
   // Request microphone permission for voice calls
-  await Permission.microphone.request();
+  final micStatus = await Permission.microphone.request();
+  print('🎤 [Main] Microphone permission: $micStatus');
+  
+  // Request camera permission (required by WebRTC even for voice-only)
+  final cameraStatus = await Permission.camera.request();
+  print('📷 [Main] Camera permission: $cameraStatus');
   
   // Request phone permission (optional but recommended)
-  await Permission.phone.request();
+  final phoneStatus = await Permission.phone.request();
+  print('📞 [Main] Phone permission: $phoneStatus');
   
   // For Android, also request audio settings
   if (await Permission.microphone.isDenied) {
+    print('🎤 [Main] Microphone denied, requesting again...');
     await Permission.microphone.request();
   }
+  
+  if (await Permission.camera.isDenied) {
+    print('📷 [Main] Camera denied, requesting again...');
+    await Permission.camera.request();
+  }
+  
+  print('✅ [Main] Permission requests completed');
 }
 
 class DashCallApp extends StatelessWidget {
