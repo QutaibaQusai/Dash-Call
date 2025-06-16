@@ -45,5 +45,47 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	
+	<!-- ========== SIP and VoIP Permissions ========== -->
+	
+	<!-- Microphone permission for voice calls -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>DashCall needs access to microphone for voice calls through Asterisk SIP server</string>
+	
+	<!-- Background modes for VoIP functionality -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>voip</string>
+		<string>audio</string>
+	</array>
+	
+	<!-- Required device capabilities -->
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>microphone</string>
+	</array>
+	
+	<!-- Network security settings for SIP connections -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<!-- Allow insecure connections to your Asterisk server if needed -->
+			<key>localhost</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSExceptionMinimumTLSVersion</key>
+				<string>TLSv1.0</string>
+			</dict>
+		</dict>
+	</dict>
+	
+	<!-- Audio session configuration for better call quality -->
+	<key>UIRequiresFullScreen</key>
+	<false/>
+	
 </dict>
 </plist>
