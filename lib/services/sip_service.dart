@@ -187,7 +187,7 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
       }
       
       // WebSocket URL and SIP URI
-      final wsUrl = 'ws://$_sipServer:$_port/ws';
+      final wsUrl = 'wss://$_sipServer:$_port/ws';
       final sipUri = 'sip:$_username@${_domain.isEmpty ? _sipServer : _domain}';
       final displayName = _username.isNotEmpty ? _username : 'DashCall User';
       
