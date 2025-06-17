@@ -31,7 +31,6 @@ class _MainScreenState extends State<MainScreen> {
         actions: [
           Consumer<SipService>(
             builder: (context, sipService, child) {
-              print('🔘 [UI] Button status check: ${sipService.status}');
               return IconButton(
                 icon: Icon(
                   sipService.status == SipConnectionStatus.connected
@@ -42,12 +41,9 @@ class _MainScreenState extends State<MainScreen> {
                       : Colors.red,
                 ),
                 onPressed: sipService.isConnecting ? null : () async {
-                  print('🔘 [UI] Button pressed! Current status: ${sipService.status}');
                   if (sipService.status == SipConnectionStatus.connected) {
-                    print('🔘 [UI] Disconnecting...');
                     await sipService.unregister();
                   } else {
-                    print('🔘 [UI] Connecting...');
                     if (sipService.status == SipConnectionStatus.disconnected) {
                       await Future.delayed(const Duration(milliseconds: 200));
                     }
@@ -67,20 +63,20 @@ class _MainScreenState extends State<MainScreen> {
         builder: (context, sipService, child) {
           return Column(
             children: [
-              // Status Display
-              StatusDisplay(sipService: sipService),
+              // NEW: Enhanced status display with CallKit info
+              _buildStatusDisplayWithCallKitInfo(sipService),
               
-              // INCOMING CALL OVERLAY - This is the key fix!
-              if (sipService.callStatus == CallStatus.incoming)
+              // UPDATED: Incoming call overlay - Only show if NOT using native UI
+              if (sipService.callStatus == CallStatus.incoming && !sipService.useNativeCallUI)
                 Expanded(
                   child: _buildIncomingCallUI(sipService),
                 )
-              // ACTIVE/HELD/CALLING CALL CONTROLS  
+              // Active/held/calling call controls  
               else if (sipService.callStatus != CallStatus.idle)
                 Expanded(
                   child: CallControls(sipService: sipService),
                 )
-              // IDLE STATE - DIALER
+              // Idle state - dialer
               else ...[
                 // Phone Number Input
                 Padding(
@@ -174,13 +170,92 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  // NEW METHOD: Dedicated incoming call UI
+  // NEW: Enhanced status display with CallKit info
+  Widget _buildStatusDisplayWithCallKitInfo(SipService sipService) {
+    return Column(
+      children: [
+        // Original status display
+        StatusDisplay(sipService: sipService),
+        
+        // NEW: CallKit status indicator
+        if (sipService.useNativeCallUI)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              border: Border.all(color: Colors.green.shade200),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.phone_iphone, color: Colors.green.shade600, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Native iOS CallKit enabled',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.green.shade700,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                Icon(Icons.check_circle, color: Colors.green.shade600, size: 16),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  // UPDATED: Fallback incoming call UI (only used when native UI is disabled)
   Widget _buildIncomingCallUI(SipService sipService) {
     return Container(
       padding: const EdgeInsets.all(24.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          // NEW: Warning that native UI is disabled
+          Container(
+            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.only(bottom: 32),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.orange.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info, color: Colors.orange.shade600),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Custom Call Interface',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange.shade700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Enable Native iOS CallKit in settings for better experience',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.orange.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
           // Incoming call icon
           const Icon(
             Icons.phone_callback,

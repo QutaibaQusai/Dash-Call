@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sip_ua/sip_ua.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'callkit_service.dart'; // Import our new CallKit service
 
 enum SipConnectionStatus { 
   disconnected, 
@@ -40,6 +41,9 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
   Call? _currentCall;
   String? _callNumber;
   DateTime? _callStartTime;
+  
+  // CallKit integration - NEW
+  bool _useNativeCallUI = true; // Flag to enable/disable native UI
 
   // Getters
   SipConnectionStatus get status => _status;
@@ -56,11 +60,20 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
   DateTime? get callStartTime => _callStartTime;
   bool get isConnecting => _isConnecting;
   bool get isRegistered => _isRegistered;
+  bool get useNativeCallUI => _useNativeCallUI; // NEW getter
 
   Future<void> initialize() async {
     try {
       print('🚀 [SipService] Starting initialization...');
       _setStatusMessage('Initializing SIP client...');
+      
+      // Initialize CallKit service - NEW
+      await CallKitService.initialize();
+      
+      // Set up CallKit callbacks - NEW
+      CallKitService.onCallAccepted = _onCallKitAccepted;
+      CallKitService.onCallRejected = _onCallKitRejected;
+      CallKitService.onCallEnded = _onCallKitEnded;
       
       print('🔧 [SipService] Creating SIPUAHelper instance...');
       _helper = SIPUAHelper();
@@ -83,12 +96,27 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
       
       _setStatusMessage('SIP client initialized. Configure settings to connect.');
       print('🎉 [SipService] Initialization completed successfully');
-      print('🔍 [SipService] Final _helper status: ${_helper != null ? 'NOT NULL' : 'NULL'}');
     } catch (e, stackTrace) {
       print('❌ [SipService] Initialization failed: $e');
       print('📍 [SipService] Full stack trace: $stackTrace');
       _setError('Failed to initialize SIP client: $e');
     }
+  }
+
+  // NEW: CallKit callback handlers
+  void _onCallKitAccepted(String callUuid) {
+    print('🟢 [SipService] CallKit: User ACCEPTED call $callUuid');
+    answerCall();
+  }
+
+  void _onCallKitRejected(String callUuid) {
+    print('🔴 [SipService] CallKit: User REJECTED call $callUuid');
+    rejectCall();
+  }
+
+  void _onCallKitEnded(String callUuid) {
+    print('📞 [SipService] CallKit: Call ENDED $callUuid');
+    hangupCall();
   }
 
   Future<void> _loadSettings() async {
@@ -99,7 +127,8 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     _username = prefs.getString('sip_username') ?? '';
     _password = prefs.getString('sip_password') ?? '';
     _domain = prefs.getString('sip_domain') ?? '';
-    _port = prefs.getInt('sip_port') ?? 8088;  // Default to WebSocket port
+    _port = prefs.getInt('sip_port') ?? 8088;
+    _useNativeCallUI = prefs.getBool('use_native_call_ui') ?? true; // NEW
     
     print('📋 [SipService] Loaded settings:');
     print('   Server: $_sipServer');
@@ -107,17 +136,13 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     print('   Password: ${_password.isNotEmpty ? '[${_password.length} chars]' : '[empty]'}');
     print('   Domain: $_domain');
     print('   Port: $_port');
+    print('   Use Native UI: $_useNativeCallUI'); // NEW
     
     notifyListeners();
   }
 
   Future<void> saveSettings(String server, String username, String password, String domain, int port) async {
     print('💾 [SipService] Saving new settings...');
-    print('   Server: $server');
-    print('   Username: $username');
-    print('   Password: ${password.isNotEmpty ? '[${password.length} chars]' : '[empty]'}');
-    print('   Domain: $domain');
-    print('   Port: $port');
     
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('sip_server', server);
@@ -136,10 +161,18 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     notifyListeners();
   }
 
+  // NEW: Toggle between native and Flutter UI
+  Future<void> toggleNativeCallUI(bool useNative) async {
+    _useNativeCallUI = useNative;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('use_native_call_ui', useNative);
+    notifyListeners();
+    print('📱 [SipService] Native call UI: ${useNative ? 'ENABLED' : 'DISABLED'}');
+  }
+
   Future<bool> register() async {
     print('🔐 [SipService] Starting registration process...');
     
-    // Prevent multiple simultaneous connection attempts
     if (_isConnecting) {
       print('⚠️ [SipService] Already connecting, ignoring duplicate request');
       return false;
@@ -151,10 +184,7 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     }
 
     if (_sipServer.isEmpty || _username.isEmpty || _password.isEmpty) {
-      print('❌ [SipService] Missing required settings:');
-      print('   Server empty: ${_sipServer.isEmpty}');
-      print('   Username empty: ${_username.isEmpty}');
-      print('   Password empty: ${_password.isEmpty}');
+      print('❌ [SipService] Missing required settings');
       _setError('Please configure SIP settings first');
       return false;
     }
@@ -166,54 +196,33 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
       _setStatusMessage('Connecting to $_sipServer...');
       print('🌐 [SipService] Attempting to connect to $_sipServer:$_port');
       
-      // CRITICAL FIX: Properly stop and clean up any existing connection
       await _cleanupExistingConnection();
       
-      // CRITICAL FIX: Create a completely fresh SIPUAHelper instance
       print('🔄 [SipService] Creating fresh SIPUAHelper instance...');
       _helper = SIPUAHelper();
       _helper!.addSipUaHelperListener(this);
-      print('✅ [SipService] Fresh SIPUAHelper created and listener added');
       
-      // Create SIP UA settings with minimal required configuration
       print('⚙️ [SipService] Creating UaSettings...');
       UaSettings settings = UaSettings();
       
-      // WebSocket URL and SIP URI
       final wsUrl = 'wss://$_sipServer:$_port/ws';
       final sipUri = 'sip:$_username@${_domain.isEmpty ? _sipServer : _domain}';
       final displayName = _username.isNotEmpty ? _username : 'DashCall User';
       
-      print('🔧 [SipService] Configuring settings...');
-      
-      // Set core required fields
       settings.webSocketUrl = wsUrl;
       settings.uri = sipUri;
       settings.authorizationUser = _username;
       settings.password = _password;
       settings.displayName = displayName;
       settings.userAgent = 'DashCall 1.0';
-      settings.register = true;  // This ensures we register, not unregister
+      settings.register = true;
       settings.transportType = TransportType.WS;
       
-      // WebRTC-specific settings for Asterisk compatibility
       settings.iceServers = [
         {'urls': 'stun:stun.l.google.com:19302'},
       ];
       
-      // Optional settings
       settings.dtmfMode = DtmfMode.RFC2833;
-      
-      print('⚙️ [SipService] Final registration settings:');
-      print('   WebSocket URL: $wsUrl');
-      print('   SIP URI: $sipUri');
-      print('   Auth User: $_username');
-      print('   Password: ${_password.isNotEmpty ? '[SET]' : '[EMPTY]'}');
-      print('   Display Name: $displayName');
-      print('   User Agent: DashCall 1.0');
-      print('   Register: true');
-      print('   Transport Type: WS');
-      print('   DTMF Mode: RFC2833');
       
       print('🚀 [SipService] Executing _helper.start(settings)...');
       await _helper!.start(settings);
@@ -222,7 +231,6 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
       return true;
     } catch (e, stackTrace) {
       print('❌ [SipService] Registration failed with exception: $e');
-      print('📍 [SipService] Full stack trace: $stackTrace');
       _setError('Registration failed: $e');
       _setStatus(SipConnectionStatus.error);
       _isConnecting = false;
@@ -230,24 +238,15 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     }
   }
 
-  // CRITICAL FIX: Add proper cleanup method
   Future<void> _cleanupExistingConnection() async {
     print('🧹 [SipService] Cleaning up existing connection...');
     
     if (_helper != null) {
       try {
-        // Reset registration state
         _isRegistered = false;
-        
-        print('🛑 [SipService] Stopping existing SIP helper...');
         _helper!.stop();
-        
-        // Give the connection time to properly close
         await Future.delayed(const Duration(milliseconds: 100));
-        
-        print('🗑️ [SipService] Removing listener from old helper...');
         _helper!.removeSipUaHelperListener(this);
-        
         _helper = null;
         print('✅ [SipService] Old connection cleaned up successfully');
       } catch (e) {
@@ -264,10 +263,7 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     if (_helper != null) {
       try {
         _helper!.stop();
-        
-        // Give time for proper disconnection
         await Future.delayed(const Duration(milliseconds: 100));
-        
         _setStatus(SipConnectionStatus.disconnected);
         _setStatusMessage('Disconnected');
         print('✅ [SipService] Successfully unregistered');
@@ -282,9 +278,7 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     print('📞 [SipService] Attempting to make call to: $phoneNumber');
     
     if (_helper == null || _status != SipConnectionStatus.connected) {
-      print('❌ [SipService] Cannot make call:');
-      print('   Helper null: ${_helper == null}');
-      print('   Status: $_status');
+      print('❌ [SipService] Cannot make call');
       _setError('Not connected to SIP server');
       return false;
     }
@@ -301,15 +295,20 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
       _callNumber = phoneNumber;
       _callStartTime = DateTime.now();
       
-      // Make call - correct API usage for sip_ua
-      print('📡 [SipService] Calling _helper.call()...');
+      // Show native outgoing call UI if enabled - NEW
+      if (_useNativeCallUI) {
+        await CallKitService.startCall(
+          callerName: phoneNumber,
+          callerNumber: phoneNumber,
+        );
+      }
+      
       _helper!.call(phoneNumber);
       print('✅ [SipService] Call initiated successfully');
       _setCallStatus(CallStatus.calling);
       return true;
     } catch (e) {
       print('❌ [SipService] Call failed with exception: $e');
-      print('📍 [SipService] Stack trace: ${StackTrace.current}');
       _setError('Failed to make call: $e');
       return false;
     }
@@ -324,6 +323,12 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
         _callStartTime = DateTime.now();
         _setCallStatus(CallStatus.active);
         _setStatusMessage('Call active');
+        
+        // Mark call as connected in CallKit - NEW
+        if (_useNativeCallUI) {
+          await CallKitService.setCallConnected();
+        }
+        
         print('✅ [SipService] Call answered successfully');
       } catch (e) {
         print('❌ [SipService] Failed to answer call: $e');
@@ -341,6 +346,12 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
       try {
         print('📞 [SipService] Calling hangup() to reject call');
         _currentCall!.hangup();
+        
+        // End call in CallKit - NEW
+        if (_useNativeCallUI) {
+          await CallKitService.endCall();
+        }
+        
         _endCall();
         print('✅ [SipService] Call rejected successfully');
       } catch (e) {
@@ -357,6 +368,12 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     if (_currentCall != null) {
       try {
         _currentCall!.hangup();
+        
+        // End call in CallKit - NEW
+        if (_useNativeCallUI) {
+          await CallKitService.endCall();
+        }
+        
         _endCall();
       } catch (e) {
         _setError('Failed to hangup call: $e');
@@ -398,7 +415,7 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     }
   }
 
-  // SipUaHelperListener implementations
+  // CRITICAL: Updated call state handling
   @override
   void callStateChanged(Call call, CallState state) {
     print('📱 [SipService] Call state changed: ${state.state}');
@@ -408,14 +425,22 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     
     _currentCall = call;
     
-    // CRITICAL FIX: Check if this is an incoming call
-    // Note: Direction is UPPERCASE 'INCOMING' and state is CALL_INITIATION
+    // CRITICAL: Check if this is an incoming call - UPDATED FOR CALLKIT
     if (call.direction == 'INCOMING' && state.state == CallStateEnum.CALL_INITIATION) {
       print('📲 [SipService] 🚨 INCOMING CALL DETECTED! 🚨');
-      print('   Setting call status to INCOMING');
       _callNumber = call.remote_identity ?? 'Unknown';
-      _setCallStatus(CallStatus.incoming);
-      _setStatusMessage('Incoming call from ${call.remote_identity ?? 'Unknown'}');
+      
+      if (_useNativeCallUI) {
+        // Show native CallKit UI instead of Flutter UI - NEW
+        print('📱 [SipService] Showing native CallKit incoming call screen');
+        _showNativeIncomingCall(call.remote_identity ?? 'Unknown');
+        // Don't set to incoming status - let CallKit handle the UI
+      } else {
+        // Use Flutter UI - FALLBACK
+        print('📱 [SipService] Using Flutter incoming call UI');
+        _setCallStatus(CallStatus.incoming);
+        _setStatusMessage('Incoming call from ${call.remote_identity ?? 'Unknown'}');
+      }
       return;
     }
     
@@ -426,14 +451,12 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
           _setCallStatus(CallStatus.calling);
           _setStatusMessage('Initiating call...');
         }
-        // Incoming calls are handled above
         break;
       case CallStateEnum.PROGRESS:
         print('📞 [CallState] Call in progress');
         if (call.direction == 'OUTGOING') {
           _setStatusMessage('Call in progress...');
         }
-        // For incoming calls, show ringing status but keep as incoming
         if (call.direction == 'INCOMING' && _callStatus == CallStatus.incoming) {
           _setStatusMessage('Incoming call ringing...');
         }
@@ -446,6 +469,11 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
         if (_callStartTime == null) {
           _callStartTime = DateTime.now();
         }
+        
+        // Mark as connected in CallKit - NEW
+        if (_useNativeCallUI) {
+          CallKitService.setCallConnected();
+        }
         break;
       case CallStateEnum.ENDED:
       case CallStateEnum.FAILED:
@@ -453,6 +481,12 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
         if (state.cause != null) {
           print('   Cause: ${state.cause}');
         }
+        
+        // End call in CallKit - NEW
+        if (_useNativeCallUI) {
+          CallKitService.endCall();
+        }
+        
         _endCall();
         break;
       case CallStateEnum.HOLD:
@@ -484,8 +518,25 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     }
   }
 
-  // NOTE: onNewCall method doesn't exist in sip_ua package
-  // Incoming calls are detected in callStateChanged method above
+  // NEW: Show native incoming call using CallKit
+  Future<void> _showNativeIncomingCall(String callerNumber) async {
+    try {
+      String callerName = callerNumber;
+      
+      await CallKitService.showIncomingCall(
+        callerName: callerName,
+        callerNumber: callerNumber,
+        avatarUrl: null,
+      );
+      
+      print('✅ [SipService] Native incoming call UI displayed');
+    } catch (e) {
+      print('❌ [SipService] Failed to show native incoming call: $e');
+      // Fallback to Flutter UI
+      _setCallStatus(CallStatus.incoming);
+      _setStatusMessage('Incoming call from $callerNumber');
+    }
+  }
 
   @override
   void registrationStateChanged(RegistrationState state) {
@@ -505,7 +556,6 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
       case RegistrationStateEnum.UNREGISTERED:
         print('📤 [Registration] Unregistered');
         _isRegistered = false;
-        // Only change to disconnected if we're not in the middle of connecting
         if (!_isConnecting) {
           _setStatus(SipConnectionStatus.disconnected);
           _setStatusMessage('Unregistered');
@@ -550,7 +600,6 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
         break;
       case TransportStateEnum.DISCONNECTED:
         print('❌ [Transport] Disconnected');
-        // Only change status if we were previously connected
         if (_status == SipConnectionStatus.connected) {
           _isRegistered = false;
           _setStatus(SipConnectionStatus.disconnected);
@@ -563,7 +612,6 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     }
   }
 
-  // Required implementations for SipUaHelperListener
   @override
   void onNewMessage(SIPMessageRequest msg) {
     print('📨 [SipService] New SIP message received: ${msg.toString()}');

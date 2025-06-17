@@ -16,6 +16,7 @@ class _SipConfigDialogState extends State<SipConfigDialog> {
   late TextEditingController _passwordController;
   late TextEditingController _domainController;
   late TextEditingController _portController;
+  late bool _useNativeCallUI; // NEW
 
   @override
   void initState() {
@@ -27,6 +28,7 @@ class _SipConfigDialogState extends State<SipConfigDialog> {
     _passwordController = TextEditingController(text: sipService.password);
     _domainController = TextEditingController(text: sipService.domain);
     _portController = TextEditingController(text: sipService.port.toString());
+    _useNativeCallUI = sipService.useNativeCallUI; // NEW
   }
 
   @override
@@ -42,7 +44,7 @@ class _SipConfigDialogState extends State<SipConfigDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Asterisk SIP Configuration'),
+      title: const Text('DashCall Configuration'),
       content: SizedBox(
         width: double.maxFinite,
         child: Form(
@@ -138,66 +140,95 @@ class _SipConfigDialogState extends State<SipConfigDialog> {
                     helperText: 'SIP domain (optional)',
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
                 
-                // // Asterisk Configuration Examples
-                // Card(
-                //   color: Colors.blue.shade50,
-                //   child: Padding(
-                //     padding: const EdgeInsets.all(12.0),
-                //     child: Column(
-                //       crossAxisAlignment: CrossAxisAlignment.start,
-                //       children: [
-                //         Text(
-                //           'Asterisk Configuration Examples:',
-                //           style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                //             fontWeight: FontWeight.bold,
-                //           ),
-                //         ),
-                //         const SizedBox(height: 8),
-                //         const Text(
-                //           '• Server: asterisk.company.com\n'
-                //           '• Port: 5060 (default)\n'
-                //           '• Username: 101, 102, 1001, etc.\n'
-                //           '• Password: Set in Asterisk config\n'
-                //           '• Domain: Usually same as server',
-                //           style: TextStyle(fontSize: 12),
-                //         ),
-                //       ],
-                //     ),
-                //   ),
-                // ),
-                
-                // const SizedBox(height: 8),
-                
-                // // Quick Test Settings
-                // Card(
-                //   color: Colors.green.shade50,
-                //   child: Padding(
-                //     padding: const EdgeInsets.all(12.0),
-                //     child: Column(
-                //       crossAxisAlignment: CrossAxisAlignment.start,
-                //       children: [
-                //         Text(
-                //           'For Testing:',
-                //           style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                //             fontWeight: FontWeight.bold,
-                //           ),
-                //         ),
-                //         const SizedBox(height: 8),
-                //         const Text(
-                //           '• Use your Asterisk server IP or domain\n'
-                //           '• Get extension and password from admin\n'
-                //           '• Test with internal extensions first\n'
-                //           '• Check firewall settings if connection fails',
-                //           style: TextStyle(fontSize: 12),
-                //         ),
-                //       ],
-                //     ),
-                //   ),
-                // ),
-             
-             
+                // NEW: Native Call UI Toggle Section
+                Card(
+                  color: Colors.blue.shade50,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Call Interface',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        SwitchListTile(
+                          title: const Text('Native iOS Call Screen'),
+                          subtitle: const Text(
+                            'Use system CallKit for incoming calls (recommended)',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          value: _useNativeCallUI,
+                          onChanged: (value) {
+                            setState(() {
+                              _useNativeCallUI = value;
+                            });
+                          },
+                          activeColor: Colors.green,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        if (_useNativeCallUI) ...[
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            margin: const EdgeInsets.only(top: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.green.shade200),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.check_circle, 
+                                     color: Colors.green.shade600, size: 20),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Incoming calls will show the native iOS call screen',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.green.shade700,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ] else ...[
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            margin: const EdgeInsets.only(top: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.orange.shade200),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.info, 
+                                     color: Colors.orange.shade600, size: 20),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Incoming calls will use custom app interface',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.orange.shade700,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -229,6 +260,9 @@ class _SipConfigDialogState extends State<SipConfigDialog> {
       _domainController.text.trim(),
       int.parse(_portController.text.trim()),
     );
+    
+    // NEW: Save native UI preference
+    await sipService.toggleNativeCallUI(_useNativeCallUI);
 
     if (mounted) {
       Navigator.pop(context);
