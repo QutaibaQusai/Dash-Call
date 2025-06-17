@@ -316,26 +316,40 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
   }
 
   Future<void> answerCall() async {
+    print('✅ [SipService] Attempting to answer call...');
     if (_currentCall != null) {
       try {
+        print('📞 [SipService] Calling answer() on current call');
         _currentCall!.answer(_helper!.buildCallOptions());
         _callStartTime = DateTime.now();
         _setCallStatus(CallStatus.active);
         _setStatusMessage('Call active');
+        print('✅ [SipService] Call answered successfully');
       } catch (e) {
+        print('❌ [SipService] Failed to answer call: $e');
         _setError('Failed to answer call: $e');
       }
+    } else {
+      print('❌ [SipService] No current call to answer');
+      _setError('No incoming call to answer');
     }
   }
 
   Future<void> rejectCall() async {
+    print('❌ [SipService] Attempting to reject call...');
     if (_currentCall != null) {
       try {
+        print('📞 [SipService] Calling hangup() to reject call');
         _currentCall!.hangup();
         _endCall();
+        print('✅ [SipService] Call rejected successfully');
       } catch (e) {
+        print('❌ [SipService] Failed to reject call: $e');
         _setError('Failed to reject call: $e');
       }
+    } else {
+      print('❌ [SipService] No current call to reject');
+      _setError('No incoming call to reject');
     }
   }
 
@@ -390,18 +404,39 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     print('📱 [SipService] Call state changed: ${state.state}');
     print('   Call ID: ${call.id}');
     print('   Remote identity: ${call.remote_identity}');
+    print('   Direction: ${call.direction}');
     
     _currentCall = call;
+    
+    // CRITICAL FIX: Check if this is an incoming call
+    // Note: Direction is UPPERCASE 'INCOMING' and state is CALL_INITIATION
+    if (call.direction == 'INCOMING' && state.state == CallStateEnum.CALL_INITIATION) {
+      print('📲 [SipService] 🚨 INCOMING CALL DETECTED! 🚨');
+      print('   Setting call status to INCOMING');
+      _callNumber = call.remote_identity ?? 'Unknown';
+      _setCallStatus(CallStatus.incoming);
+      _setStatusMessage('Incoming call from ${call.remote_identity ?? 'Unknown'}');
+      return;
+    }
     
     switch (state.state) {
       case CallStateEnum.CALL_INITIATION:
         print('🚀 [CallState] Call initiation');
-        _setCallStatus(CallStatus.calling);
-        _setStatusMessage('Initiating call...');
+        if (call.direction == 'OUTGOING') {
+          _setCallStatus(CallStatus.calling);
+          _setStatusMessage('Initiating call...');
+        }
+        // Incoming calls are handled above
         break;
       case CallStateEnum.PROGRESS:
         print('📞 [CallState] Call in progress');
-        _setStatusMessage('Call in progress...');
+        if (call.direction == 'OUTGOING') {
+          _setStatusMessage('Call in progress...');
+        }
+        // For incoming calls, show ringing status but keep as incoming
+        if (call.direction == 'INCOMING' && _callStatus == CallStatus.incoming) {
+          _setStatusMessage('Incoming call ringing...');
+        }
         break;
       case CallStateEnum.ACCEPTED:
       case CallStateEnum.CONFIRMED:
@@ -449,17 +484,8 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     }
   }
 
-  @override
-  void onNewCall(Call call) {
-    print('📲 [SipService] New incoming call');
-    print('   Call ID: ${call.id}');
-    print('   Remote identity: ${call.remote_identity ?? 'Unknown'}');
-    
-    _currentCall = call;
-    _callNumber = call.remote_identity ?? 'Unknown';
-    _setCallStatus(CallStatus.incoming);
-    _setStatusMessage('Incoming call from ${call.remote_identity ?? 'Unknown'}');
-  }
+  // NOTE: onNewCall method doesn't exist in sip_ua package
+  // Incoming calls are detected in callStateChanged method above
 
   @override
   void registrationStateChanged(RegistrationState state) {
