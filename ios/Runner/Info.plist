@@ -50,8 +50,9 @@
 			</dict>
 		</dict>
 	</dict>
+	<!-- UPDATED: Enhanced camera permission description for QR scanning -->
 	<key>NSCameraUsageDescription</key>
-	<string>DashCall may need camera access for video calling features</string>
+	<string>DashCall needs camera access to scan QR codes for login and for video calling features</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>DashCall needs access to microphone for voice calls through Asterisk SIP server</string>
 	<!-- NEW: CallKit permission -->

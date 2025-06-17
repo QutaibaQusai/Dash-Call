@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'services/sip_service.dart';
 import 'screens/main_screen.dart';
+import 'screens/qr_login_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,7 +21,7 @@ Future<void> _requestPermissions() async {
   final micStatus = await Permission.microphone.request();
   print('🎤 [Main] Microphone permission: $micStatus');
   
-  // Request camera permission (required by WebRTC even for voice-only)
+  // Request camera permission (required by WebRTC and QR scanner)
   final cameraStatus = await Permission.camera.request();
   print('📷 [Main] Camera permission: $cameraStatus');
   
@@ -59,7 +60,12 @@ class DashCallApp extends StatelessWidget {
             elevation: 2,
           ),
         ),
-        home: const MainScreen(),
+        // Start with QR login screen
+        home: const QRLoginScreen(),
+        routes: {
+          '/main': (context) => const MainScreen(),
+          '/qr-login': (context) => const QRLoginScreen(),
+        },
         debugShowCheckedModeBanner: false,
       ),
     );
