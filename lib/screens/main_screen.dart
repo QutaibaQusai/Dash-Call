@@ -28,9 +28,6 @@ class _MainScreenState extends State<MainScreen> {
       appBar: AppBar(
         title: const Text('DashCall'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-
-       // In your main_screen.dart - update the AppBar action button:
-
 actions: [
   Consumer<SipService>(
     builder: (context, sipService, child) {
@@ -44,14 +41,18 @@ actions: [
               ? Colors.green
               : Colors.red,
         ),
-        onPressed: () {
+        onPressed: sipService.isConnecting ? null : () async {
           print('🔘 [UI] Button pressed! Current status: ${sipService.status}');
           if (sipService.status == SipConnectionStatus.connected) {
             print('🔘 [UI] Disconnecting...');
-            sipService.unregister();
+            await sipService.unregister();
           } else {
             print('🔘 [UI] Connecting...');
-            sipService.register();
+            // Add a small delay if we just disconnected
+            if (sipService.status == SipConnectionStatus.disconnected) {
+              await Future.delayed(const Duration(milliseconds: 200));
+            }
+            await sipService.register();
           }
         },
       );
@@ -62,6 +63,7 @@ actions: [
     onPressed: () => _showConfigDialog(),
   ),
 ],
+   
       ),
       body: Consumer<SipService>(
         builder: (context, sipService, child) {
@@ -123,8 +125,7 @@ actions: [
                                     borderRadius: BorderRadius.circular(30),
                                   ),
                                 ),
-                                onPressed: sipService.status == SipConnectionStatus.connected &&
-                                    _phoneController.text.isNotEmpty
+                                onPressed: sipService.status == SipConnectionStatus.connected 
                                     ? () => sipService.makeCall(_phoneController.text)
                                     : null,
                               ),
