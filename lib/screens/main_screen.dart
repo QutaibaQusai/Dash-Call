@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/sip_service.dart';
-import '../widgets/sip_config_dialog.dart';
-import '../widgets/dialer_pad.dart';
 import '../widgets/call_controls.dart';
 import 'contacts_tab.dart';
 import 'history_tab.dart';

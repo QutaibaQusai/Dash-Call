@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_fonts/google_fonts.dart';  // Add this import
 import 'services/sip_service.dart';
 import 'screens/main_screen.dart';
 import 'screens/qr_login_screen.dart';
@@ -56,9 +57,63 @@ class DashCallApp extends StatelessWidget {
         theme: ThemeData(
           primarySwatch: Colors.blue,
           useMaterial3: true,
-          appBarTheme: const AppBarTheme(
+          // Apply Tajawal font to the entire app
+          textTheme: GoogleFonts.tajawalTextTheme(
+            Theme.of(context).textTheme,
+          ),
+          // Also apply to primary text theme for app bars, etc.
+          primaryTextTheme: GoogleFonts.tajawalTextTheme(
+            Theme.of(context).primaryTextTheme,
+          ),
+          appBarTheme: AppBarTheme(
             centerTitle: true,
             elevation: 2,
+            // Ensure app bar text also uses Tajawal
+            titleTextStyle: GoogleFonts.tajawal(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+          // Apply Tajawal to elevated button text
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              textStyle: GoogleFonts.tajawal(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          // Apply Tajawal to text button text
+          textButtonTheme: TextButtonThemeData(
+            style: TextButton.styleFrom(
+              textStyle: GoogleFonts.tajawal(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          // Apply Tajawal to outlined button text
+          outlinedButtonTheme: OutlinedButtonThemeData(
+            style: OutlinedButton.styleFrom(
+              textStyle: GoogleFonts.tajawal(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          // Apply Tajawal to input decoration
+          inputDecorationTheme: InputDecorationTheme(
+            labelStyle: GoogleFonts.tajawal(),
+            hintStyle: GoogleFonts.tajawal(),
+            helperStyle: GoogleFonts.tajawal(),
+            errorStyle: GoogleFonts.tajawal(),
+          ),
+          // Apply Tajawal to bottom navigation bar
+          bottomNavigationBarTheme: BottomNavigationBarThemeData(
+            selectedLabelStyle: GoogleFonts.tajawal(
+              fontWeight: FontWeight.w600,
+            ),
+            unselectedLabelStyle: GoogleFonts.tajawal(
+              fontWeight: FontWeight.w400,
+            ),
           ),
         ),
         // Use LoginCheckScreen to determine initial route

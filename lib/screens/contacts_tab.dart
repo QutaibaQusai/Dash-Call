@@ -245,7 +245,7 @@ class _ContactsTabState extends State<ContactsTab> {
             
             // Contact avatar and name
             CircleAvatar(
-              backgroundColor: const Color(0xFF1501FF).withOpacity(0.1),
+              backgroundColor: const Color(0xFF0077F9).withOpacity(0.1),
               radius: 40,
               child: Text(
                 contact.avatar,
@@ -322,7 +322,6 @@ class _ContactsTabState extends State<ContactsTab> {
                 );
               },
             ),
-            
             SizedBox(height: MediaQuery.of(context).padding.bottom),
           ],
         ),
