@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sip_ua/sip_ua.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'callkit_service.dart'; // Import our new CallKit service
+import 'callkit_service.dart'; // Import our CallKit service
 
 enum SipConnectionStatus { 
   disconnected, 
@@ -41,9 +41,6 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
   Call? _currentCall;
   String? _callNumber;
   DateTime? _callStartTime;
-  
-  // CallKit integration - NEW
-  bool _useNativeCallUI = true; // Flag to enable/disable native UI
 
   // Getters
   SipConnectionStatus get status => _status;
@@ -60,17 +57,16 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
   DateTime? get callStartTime => _callStartTime;
   bool get isConnecting => _isConnecting;
   bool get isRegistered => _isRegistered;
-  bool get useNativeCallUI => _useNativeCallUI; // NEW getter
 
   Future<void> initialize() async {
     try {
       print('🚀 [SipService] Starting initialization...');
       _setStatusMessage('Initializing SIP client...');
       
-      // Initialize CallKit service - NEW
+      // Initialize CallKit service
       await CallKitService.initialize();
       
-      // Set up CallKit callbacks - NEW
+      // Set up CallKit callbacks
       CallKitService.onCallAccepted = _onCallKitAccepted;
       CallKitService.onCallRejected = _onCallKitRejected;
       CallKitService.onCallEnded = _onCallKitEnded;
@@ -103,7 +99,7 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     }
   }
 
-  // NEW: CallKit callback handlers
+  // CallKit callback handlers
   void _onCallKitAccepted(String callUuid) {
     print('🟢 [SipService] CallKit: User ACCEPTED call $callUuid');
     answerCall();
@@ -128,7 +124,6 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     _password = prefs.getString('sip_password') ?? '';
     _domain = prefs.getString('sip_domain') ?? '';
     _port = prefs.getInt('sip_port') ?? 8088;
-    _useNativeCallUI = prefs.getBool('use_native_call_ui') ?? true; // NEW
     
     print('📋 [SipService] Loaded settings:');
     print('   Server: $_sipServer');
@@ -136,7 +131,6 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     print('   Password: ${_password.isNotEmpty ? '[${_password.length} chars]' : '[empty]'}');
     print('   Domain: $_domain');
     print('   Port: $_port');
-    print('   Use Native UI: $_useNativeCallUI'); // NEW
     
     notifyListeners();
   }
@@ -159,15 +153,6 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     
     print('✅ [SipService] Settings saved to SharedPreferences');
     notifyListeners();
-  }
-
-  // NEW: Toggle between native and Flutter UI
-  Future<void> toggleNativeCallUI(bool useNative) async {
-    _useNativeCallUI = useNative;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('use_native_call_ui', useNative);
-    notifyListeners();
-    print('📱 [SipService] Native call UI: ${useNative ? 'ENABLED' : 'DISABLED'}');
   }
 
   Future<bool> register() async {
@@ -295,13 +280,11 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
       _callNumber = phoneNumber;
       _callStartTime = DateTime.now();
       
-      // Show native outgoing call UI if enabled - NEW
-      if (_useNativeCallUI) {
-        await CallKitService.startCall(
-          callerName: phoneNumber,
-          callerNumber: phoneNumber,
-        );
-      }
+      // Show native outgoing call UI
+      await CallKitService.startCall(
+        callerName: phoneNumber,
+        callerNumber: phoneNumber,
+      );
       
       _helper!.call(phoneNumber);
       print('✅ [SipService] Call initiated successfully');
@@ -324,10 +307,8 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
         _setCallStatus(CallStatus.active);
         _setStatusMessage('Call active');
         
-        // Mark call as connected in CallKit - NEW
-        if (_useNativeCallUI) {
-          await CallKitService.setCallConnected();
-        }
+        // Mark call as connected in CallKit
+        await CallKitService.setCallConnected();
         
         print('✅ [SipService] Call answered successfully');
       } catch (e) {
@@ -347,10 +328,8 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
         print('📞 [SipService] Calling hangup() to reject call');
         _currentCall!.hangup();
         
-        // End call in CallKit - NEW
-        if (_useNativeCallUI) {
-          await CallKitService.endCall();
-        }
+        // End call in CallKit
+        await CallKitService.endCall();
         
         _endCall();
         print('✅ [SipService] Call rejected successfully');
@@ -369,10 +348,8 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
       try {
         _currentCall!.hangup();
         
-        // End call in CallKit - NEW
-        if (_useNativeCallUI) {
-          await CallKitService.endCall();
-        }
+        // End call in CallKit
+        await CallKitService.endCall();
         
         _endCall();
       } catch (e) {
@@ -415,7 +392,7 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     }
   }
 
-  // CRITICAL: Updated call state handling
+  // Updated call state handling - Always use CallKit
   @override
   void callStateChanged(Call call, CallState state) {
     print('📱 [SipService] Call state changed: ${state.state}');
@@ -425,22 +402,15 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     
     _currentCall = call;
     
-    // CRITICAL: Check if this is an incoming call - UPDATED FOR CALLKIT
+    // Check if this is an incoming call - Always use CallKit
     if (call.direction == 'INCOMING' && state.state == CallStateEnum.CALL_INITIATION) {
       print('📲 [SipService] 🚨 INCOMING CALL DETECTED! 🚨');
       _callNumber = call.remote_identity ?? 'Unknown';
       
-      if (_useNativeCallUI) {
-        // Show native CallKit UI instead of Flutter UI - NEW
-        print('📱 [SipService] Showing native CallKit incoming call screen');
-        _showNativeIncomingCall(call.remote_identity ?? 'Unknown');
-        // Don't set to incoming status - let CallKit handle the UI
-      } else {
-        // Use Flutter UI - FALLBACK
-        print('📱 [SipService] Using Flutter incoming call UI');
-        _setCallStatus(CallStatus.incoming);
-        _setStatusMessage('Incoming call from ${call.remote_identity ?? 'Unknown'}');
-      }
+      // Always show native CallKit UI
+      print('📱 [SipService] Showing native CallKit incoming call screen');
+      _showNativeIncomingCall(call.remote_identity ?? 'Unknown');
+      // Don't set to incoming status - let CallKit handle everything
       return;
     }
     
@@ -457,9 +427,6 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
         if (call.direction == 'OUTGOING') {
           _setStatusMessage('Call in progress...');
         }
-        if (call.direction == 'INCOMING' && _callStatus == CallStatus.incoming) {
-          _setStatusMessage('Incoming call ringing...');
-        }
         break;
       case CallStateEnum.ACCEPTED:
       case CallStateEnum.CONFIRMED:
@@ -470,10 +437,8 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
           _callStartTime = DateTime.now();
         }
         
-        // Mark as connected in CallKit - NEW
-        if (_useNativeCallUI) {
-          CallKitService.setCallConnected();
-        }
+        // Mark as connected in CallKit
+        CallKitService.setCallConnected();
         break;
       case CallStateEnum.ENDED:
       case CallStateEnum.FAILED:
@@ -482,10 +447,8 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
           print('   Cause: ${state.cause}');
         }
         
-        // End call in CallKit - NEW
-        if (_useNativeCallUI) {
-          CallKitService.endCall();
-        }
+        // End call in CallKit
+        CallKitService.endCall();
         
         _endCall();
         break;
@@ -518,7 +481,7 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     }
   }
 
-  // NEW: Show native incoming call using CallKit
+  // Show native incoming call using CallKit
   Future<void> _showNativeIncomingCall(String callerNumber) async {
     try {
       String callerName = callerNumber;
@@ -532,9 +495,8 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
       print('✅ [SipService] Native incoming call UI displayed');
     } catch (e) {
       print('❌ [SipService] Failed to show native incoming call: $e');
-      // Fallback to Flutter UI
-      _setCallStatus(CallStatus.incoming);
-      _setStatusMessage('Incoming call from $callerNumber');
+      // Even on error, don't fallback to Flutter UI - just log the error
+      _setError('Failed to show incoming call: $e');
     }
   }
 

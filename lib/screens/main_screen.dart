@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/sip_service.dart';
 import '../widgets/sip_config_dialog.dart';
 import '../widgets/dialer_pad.dart';
@@ -57,22 +58,35 @@ class _MainScreenState extends State<MainScreen> {
             icon: const Icon(Icons.settings),
             onPressed: () => _showConfigDialog(),
           ),
+          // Logout button
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'logout') {
+                _logout();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Logout', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
+              ),
+            ],
+            icon: const Icon(Icons.more_vert),
+          ),
         ],
       ),
       body: Consumer<SipService>(
         builder: (context, sipService, child) {
           return Column(
             children: [
-              // NEW: Enhanced status display with CallKit info
-              _buildStatusDisplayWithCallKitInfo(sipService),
               
-              // UPDATED: Incoming call overlay - Only show if NOT using native UI
-              if (sipService.callStatus == CallStatus.incoming && !sipService.useNativeCallUI)
-                Expanded(
-                  child: _buildIncomingCallUI(sipService),
-                )
-              // Active/held/calling call controls  
-              else if (sipService.callStatus != CallStatus.idle)
+              if (sipService.callStatus != CallStatus.idle)
                 Expanded(
                   child: CallControls(sipService: sipService),
                 )
@@ -170,191 +184,58 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  // NEW: Enhanced status display with CallKit info
-  Widget _buildStatusDisplayWithCallKitInfo(SipService sipService) {
-    return Column(
-      children: [
-        // Original status display
-        StatusDisplay(sipService: sipService),
-        
-        // NEW: CallKit status indicator
-        if (sipService.useNativeCallUI)
-          Container(
-            width: double.infinity,
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.green.shade50,
-              border: Border.all(color: Colors.green.shade200),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.phone_iphone, color: Colors.green.shade600, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Native iOS CallKit enabled',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.green.shade700,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                Icon(Icons.check_circle, color: Colors.green.shade600, size: 16),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
 
-  // UPDATED: Fallback incoming call UI (only used when native UI is disabled)
-  Widget _buildIncomingCallUI(SipService sipService) {
-    return Container(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // NEW: Warning that native UI is disabled
-          Container(
-            padding: const EdgeInsets.all(16),
-            margin: const EdgeInsets.only(bottom: 32),
-            decoration: BoxDecoration(
-              color: Colors.orange.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.orange.shade200),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.info, color: Colors.orange.shade600),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Custom Call Interface',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange.shade700,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Enable Native iOS CallKit in settings for better experience',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.orange.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          // Incoming call icon
-          const Icon(
-            Icons.phone_callback,
-            size: 80,
-            color: Colors.blue,
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // "Incoming Call" text
-          Text(
-            'Incoming Call',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // Caller number/name
-          if (sipService.callNumber != null)
-            Text(
-              sipService.callNumber!,
-              style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Colors.blue,
-              ),
-            ),
-          
-          const SizedBox(height: 48),
-          
-          // Accept/Reject buttons
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              // REJECT BUTTON
-              Column(
-                children: [
-                  FloatingActionButton.large(
-                    onPressed: () {
-                      print('🔴 [UI] Reject button pressed');
-                      sipService.rejectCall();
-                    },
-                    backgroundColor: Colors.red,
-                    heroTag: "reject_incoming",
-                    child: const Icon(
-                      Icons.call_end, 
-                      color: Colors.white, 
-                      size: 36
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Reject',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.red,
-                    ),
-                  ),
-                ],
-              ),
-              
-              // ACCEPT BUTTON  
-              Column(
-                children: [
-                  FloatingActionButton.large(
-                    onPressed: () {
-                      print('🟢 [UI] Accept button pressed');
-                      sipService.answerCall();
-                    },
-                    backgroundColor: Colors.green,
-                    heroTag: "accept_incoming",
-                    child: const Icon(
-                      Icons.call, 
-                      color: Colors.white, 
-                      size: 36
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Accept',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
   void _showConfigDialog() {
     showDialog(
       context: context,
       builder: (context) => const SipConfigDialog(),
     );
+  }
+
+  // Logout functionality
+  Future<void> _logout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout? You will need to scan a QR code again to login.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      print('🚪 [MainScreen] User confirmed logout');
+      
+      // Disconnect from SIP if connected
+      final sipService = Provider.of<SipService>(context, listen: false);
+      if (sipService.status == SipConnectionStatus.connected) {
+        await sipService.unregister();
+      }
+
+      // Clear login status
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isLoggedIn', false);
+      
+      print('✅ [MainScreen] Logout completed, navigating to QR login');
+      
+      // Navigate back to QR login screen
+      if (mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          '/qr-login',
+          (route) => false, // Remove all previous routes
+        );
+      }
+    }
   }
 }

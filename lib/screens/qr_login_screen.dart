@@ -648,7 +648,7 @@ class _QRLoginScreenState extends State<QRLoginScreen> with TickerProviderStateM
     }
   }
 
-  Future<void> _saveCredentials(String username, String password, String domain, int port) async {
+Future<void> _saveCredentials(String username, String password, String domain, int port) async {
     print('💾 [QRLogin] Saving credentials to SharedPreferences...');
     
     final prefs = await SharedPreferences.getInstance();
@@ -658,9 +658,11 @@ class _QRLoginScreenState extends State<QRLoginScreen> with TickerProviderStateM
     await prefs.setString('sip_domain', domain);
     await prefs.setInt('sip_port', port);
     
-    print('✅ [QRLogin] Credentials saved successfully');
+    // NEW: Set login status to true
+    await prefs.setBool('isLoggedIn', true);
+    
+    print('✅ [QRLogin] Credentials saved successfully with login status = true');
   }
-
   void _retryScanning() {
     setState(() {
       errorMessage = null;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'services/sip_service.dart';
 import 'screens/main_screen.dart';
 import 'screens/qr_login_screen.dart';
@@ -60,14 +61,65 @@ class DashCallApp extends StatelessWidget {
             elevation: 2,
           ),
         ),
-        // Start with QR login screen
-        home: const QRLoginScreen(),
+        // Use LoginCheckScreen to determine initial route
+        home: const LoginCheckScreen(),
         routes: {
           '/main': (context) => const MainScreen(),
           '/qr-login': (context) => const QRLoginScreen(),
         },
         debugShowCheckedModeBanner: false,
       ),
+    );
+  }
+}
+
+// NEW: Screen to check login status and navigate accordingly
+class LoginCheckScreen extends StatefulWidget {
+  const LoginCheckScreen({super.key});
+
+  @override
+  State<LoginCheckScreen> createState() => _LoginCheckScreenState();
+}
+
+class _LoginCheckScreenState extends State<LoginCheckScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginStatus();
+  }
+
+  Future<void> _checkLoginStatus() async {
+    print('🔍 [LoginCheck] Checking login status...');
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+      
+      print('📱 [LoginCheck] Login status: $isLoggedIn');
+      
+      if (mounted) {
+        if (isLoggedIn) {
+          print('✅ [LoginCheck] User is logged in, navigating to MainScreen');
+          Navigator.of(context).pushReplacementNamed('/main');
+        } else {
+          print('🔐 [LoginCheck] User not logged in, navigating to QR Login');
+          Navigator.of(context).pushReplacementNamed('/qr-login');
+        }
+      }
+    } catch (e) {
+      print('❌ [LoginCheck] Error checking login status: $e');
+      // On error, default to login screen
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed('/qr-login');
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Return empty container while checking, navigation will happen immediately
+    return const Scaffold(
+      body: SizedBox.shrink(),
     );
   }
 }
