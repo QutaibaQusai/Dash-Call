@@ -50,12 +50,10 @@
 			</dict>
 		</dict>
 	</dict>
-	<!-- UPDATED: Enhanced camera permission description for QR scanning -->
 	<key>NSCameraUsageDescription</key>
 	<string>DashCall needs camera access to scan QR codes for login and for video calling features</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>DashCall needs access to microphone for voice calls through Asterisk SIP server</string>
-	<!-- NEW: CallKit permission -->
 	<key>NSContactsUsageDescription</key>
 	<string>DashCall uses contacts to display caller information during calls</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
@@ -64,8 +62,11 @@
 	<array>
 		<string>voip</string>
 		<string>audio</string>
-		<!-- NEW: Add background processing for CallKit -->
-		<string>background-processing</string>
+		<string>processing</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.dashcall.refresh</string>
 	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
