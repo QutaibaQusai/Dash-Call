@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../services/sip_service.dart';
 
 class DialerTab extends StatefulWidget {
@@ -22,192 +23,170 @@ class _DialerTabState extends State<DialerTab> {
   Widget build(BuildContext context) {
     return Consumer<SipService>(
       builder: (context, sipService, child) {
-        return Column(
+        return Container(
+          color: Colors.white,
+          child: Column(
             children: [
-              // Phone Number Display
+              // Phone Number Display Area
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
-                child: Container(
-                  height: 60,
-                  alignment: Alignment.center,
+                height: 120,
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                child: Center(
                   child: Text(
                     _phoneController.text.isEmpty 
                         ? '' 
                         : _formatPhoneNumber(_phoneController.text),
                     style: const TextStyle(
+                      fontSize: 38,
+                      fontWeight: FontWeight.w600, // Much bolder like iOS
                       color: Colors.black,
-                      fontSize: 40,
-                      fontWeight: FontWeight.w300,
-                      letterSpacing: 1.5,
+                      letterSpacing: 1.0,
+                      fontFamily: '.SF UI Text', // iOS system font
                     ),
                     textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
               
               // Dialer Pad
               Expanded(
-                child: _buildNativeDialerPad(),
-              ),
-              
-              // Action Buttons
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 40),
-                child: Row(
-                  children: [
-                    // Left spacer to center the call button
-                    Expanded(child: Container()),
-                    
-                    // Call Button - Always centered
-                    _buildCallButton(sipService),
-                    
-                    // Right side - Delete button or spacer
-                    Expanded(
-                      child: _phoneController.text.isNotEmpty
-                          ? Align(
-                              alignment: Alignment.centerRight,
-                              child: _buildActionButton(
-                                icon: Icons.backspace_outlined,
-                                onTap: () {
-                                  setState(() {
-                                    if (_phoneController.text.isNotEmpty) {
-                                      _phoneController.text = _phoneController.text
-                                          .substring(0, _phoneController.text.length - 1);
-                                    }
-                                  });
-                                },
-                              ),
-                            )
-                          : Container(), // Empty container when no text
-                    ),
-                  ],
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 30),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Row 1: 1, 2, 3
+                      _buildDialerRow(['1', '2', '3'], ['', 'ABC', 'DEF']),
+                      const SizedBox(height: 20),
+                      
+                      // Row 2: 4, 5, 6
+                      _buildDialerRow(['4', '5', '6'], ['GHI', 'JKL', 'MNO']),
+                      const SizedBox(height: 20),
+                      
+                      // Row 3: 7, 8, 9
+                      _buildDialerRow(['7', '8', '9'], ['PQRS', 'TUV', 'WXYZ']),
+                      const SizedBox(height: 20),
+                      
+                      // Row 4: *, 0, #
+                      _buildDialerRow(['*', '0', '#'], ['', '+', '']),
+                      
+                      // Reduced spacing between keypad and call button
+                      const SizedBox(height: 35),
+                      
+                      // Call button row
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Left spacer
+                          Expanded(child: Container()),
+                          
+                          // Call Button
+                          _buildCallButton(sipService),
+                          
+                          // Right side - Delete button or spacer
+                          Expanded(
+                            child: _phoneController.text.isNotEmpty
+                                ? Align(
+                                    alignment: Alignment.centerRight,
+                                    child: _buildDeleteButton(),
+                                  )
+                                : Container(),
+                          ),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 40), // Bottom padding
+                    ],
+                  ),
                 ),
               ),
             ],
+          ),
         );
       },
     );
   }
 
-  Widget _buildNativeDialerPad() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 30),
-      child: Column(
-        children: [
-          // Row 1: 1, 2, 3
-          _buildDialerRow(['1', '2', '3'], ['', 'ABC', 'DEF']),
-          
-          const SizedBox(height: 10),
-          
-          // Row 2: 4, 5, 6
-          _buildDialerRow(['4', '5', '6'], ['GHI', 'JKL', 'MNO']),
-          
-          const SizedBox(height: 10),
-          
-          // Row 3: 7, 8, 9
-          _buildDialerRow(['7', '8', '9'], ['PQRS', 'TUV', 'WXYZ']),
-          
-          const SizedBox(height: 10),
-          
-          // Row 4: *, 0, #
-          _buildDialerRow(['*', '0', '#'], ['', '+', '']),
-        ],
-      ),
-    );
-  }
-
   Widget _buildDialerRow(List<String> numbers, List<String> letters) {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: numbers.asMap().entries.map((entry) {
         int index = entry.key;
         String number = entry.value;
         String letter = letters[index];
         
-        return Expanded(
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 12),
-            child: _buildDialerButton(number, letter),
-          ),
-        );
+        return _buildDialerButton(number, letter);
       }).toList(),
     );
   }
 
   Widget _buildDialerButton(String number, String letters) {
     return Container(
+      width: 80,
       height: 80,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFFD8D8DC), // Perfect iOS button gray
         shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 1.5),
-          ),
-        ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-            splashColor: Colors.transparent,
-  highlightColor: Colors.transparent,
-  hoverColor: Colors.transparent,
           borderRadius: BorderRadius.circular(40),
+          splashColor: Colors.black.withOpacity(0.1),
+          highlightColor: Colors.black.withOpacity(0.05),
           onTap: () {
             setState(() {
               _phoneController.text += number;
             });
           },
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                number,
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontSize: 32,
-                  fontWeight: FontWeight.w300,
-                ),
-              ),
-              if (letters.isNotEmpty)
-                Text(
-                  letters,
-                  style: const TextStyle(
-                    color: Color(0xFF6D6D70),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 1,
+          child: Container(
+            width: 80,
+            height: 80,
+            child: Stack(
+              children: [
+                // Number - positioned in upper center
+                Positioned(
+                  top: letters.isNotEmpty ? 18 : 28,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Text(
+                      number,
+                      style: const TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.w600, // Much bolder
+                        color: Colors.black,
+                        height: 1.0,
+                        fontFamily: '.SF UI Text', // iOS system font
+                      ),
+                    ),
                   ),
                 ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionButton({required IconData icon, VoidCallback? onTap}) {
-    return Container(
-      width: 65,
-      height: 65,
-      decoration: BoxDecoration(
-        color: onTap != null ? Colors.white : Colors.white.withOpacity(0.5),
-        shape: BoxShape.circle,
-
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-            splashColor: Colors.transparent,
-  highlightColor: Colors.transparent,
-  hoverColor: Colors.transparent,
-          borderRadius: BorderRadius.circular(32.5),
-          onTap: onTap,
-          child: Icon(
-            icon,
-            color: onTap != null ? const Color(0xFF6D6D70) : const Color(0xFF6D6D70).withOpacity(0.4),
-            size: 26,
+                // Letters - positioned in lower center
+                if (letters.isNotEmpty)
+                  Positioned(
+                    bottom: 15,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: Text(
+                        letters,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800, // Extra bold
+                          color: Colors.black,
+                          letterSpacing: 2.0,
+                          height: 1.0,
+                          fontFamily: '.SF UI Text', // iOS system font
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -222,38 +201,66 @@ class _DialerTabState extends State<DialerTab> {
       width: 80,
       height: 80,
       decoration: BoxDecoration(
-        color:  const Color(0xFF34C759) ,
+        color:  const Color(0xFF34C759), 
         shape: BoxShape.circle,
-   
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-        splashColor: Colors.transparent,
-        highlightColor: Colors.transparent,
-        hoverColor: Colors.transparent,
-        borderRadius: BorderRadius.circular(40),
-        onTap: canCall ? () => _makeCall(sipService) : null,
-        child: Icon(
-            Icons.call,
-            color:  Colors.white ,
-            size: 32,
+          borderRadius: BorderRadius.circular(33),
+          splashColor: Colors.white.withOpacity(0.2),
+          highlightColor: Colors.white.withOpacity(0.1),
+          onTap: canCall ? () => _makeCall(sipService) : null,
+          child: Icon(
+            Icons.phone,
+            color: Colors.white,
+            size: 35,
           ),
         ),
       ),
     );
   }
 
+  Widget _buildDeleteButton() {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          if (_phoneController.text.isNotEmpty) {
+            _phoneController.text = _phoneController.text
+                .substring(0, _phoneController.text.length - 1);
+          }
+        });
+      },
+      onLongPress: () {
+        setState(() {
+          _phoneController.clear();
+        });
+      },
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          Icons.backspace,
+          color: Colors.black.withOpacity(0.6),
+          size: 24,
+        ),
+      ),
+    );
+  }
+
   String _formatPhoneNumber(String number) {
-    // Simple formatting for display
+    // iOS-style phone number formatting
     if (number.length <= 3) {
       return number;
     } else if (number.length <= 6) {
-      return '${number.substring(0, 3)} ${number.substring(3)}';
+      return '${number.substring(0, 3)}-${number.substring(3)}';
     } else if (number.length <= 10) {
-      return '${number.substring(0, 3)} ${number.substring(3, 6)} ${number.substring(6)}';
+      return '(${number.substring(0, 3)}) ${number.substring(3, 6)}-${number.substring(6)}';
     } else {
-      return '${number.substring(0, 3)} ${number.substring(3, 6)} ${number.substring(6, 10)} ${number.substring(10)}';
+      return '+${number.substring(0, number.length - 10)} (${number.substring(number.length - 10, number.length - 7)}) ${number.substring(number.length - 7, number.length - 4)}-${number.substring(number.length - 4)}';
     }
   }
 
@@ -266,7 +273,7 @@ class _DialerTabState extends State<DialerTab> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(sipService.errorMessage ?? 'Failed to make call'),
-            backgroundColor: const Color(0xFFFF3B30),
+            backgroundColor: const Color(0xFFFF3B30), // iOS red
             behavior: SnackBarBehavior.floating,
             margin: const EdgeInsets.all(16),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
