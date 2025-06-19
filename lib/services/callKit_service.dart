@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 
 class CallKitService {
   static String? _currentCallUuid;
+  static bool _isOutgoingCall = false; // NEW: Track call direction
   
   // Callback functions that will be set by SipService
   static Function(String)? onCallAccepted;
@@ -18,7 +19,7 @@ class CallKitService {
     print('📱 [CallKit] Initializing CallKit service...');
     
     try {
-      // Listen to CallKit events - FIXED: Use correct class name
+      // Listen to CallKit events
       FlutterCallkitIncoming.onEvent.listen((CallEvent? event) {
         print('📱 [CallKit] Event received: ${event?.event}');
         
@@ -44,6 +45,7 @@ class CallKitService {
     try {
       // Generate unique call ID
       _currentCallUuid = const Uuid().v4();
+      _isOutgoingCall = false; // Mark as incoming call
       
       // Configure CallKit parameters
       final callKitParams = CallKitParams(
@@ -59,6 +61,7 @@ class CallKitService {
         extra: <String, dynamic>{
           'callerId': callerNumber,
           'timestamp': DateTime.now().millisecondsSinceEpoch,
+          'direction': 'incoming', // NEW: Mark direction
         },
         headers: <String, dynamic>{
           'source': 'sip',
@@ -109,6 +112,7 @@ class CallKitService {
       try {
         await FlutterCallkitIncoming.endCall(_currentCallUuid!);
         _currentCallUuid = null;
+        _isOutgoingCall = false; // Reset direction
         print('✅ [CallKit] Call ended successfully');
       } catch (e) {
         print('❌ [CallKit] Failed to end call: $e');
@@ -125,6 +129,7 @@ class CallKitService {
     
     try {
       _currentCallUuid = const Uuid().v4();
+      _isOutgoingCall = true; // Mark as outgoing call
       
       final callKitParams = CallKitParams(
         id: _currentCallUuid!,
@@ -133,7 +138,7 @@ class CallKitService {
         type: 1, // Outgoing call
         extra: <String, dynamic>{
           'callerId': callerNumber,
-          'direction': 'outgoing',
+          'direction': 'outgoing', // NEW: Mark direction
         },
         ios: const IOSParams(
           handleType: 'generic',
@@ -161,7 +166,7 @@ class CallKitService {
     }
   }
 
-  /// Handle CallKit events - FIXED: Use correct class name
+  /// Handle CallKit events - FIXED: Only answer incoming calls
   static void _handleCallKitEvent(CallEvent event) {
     print('📱 [CallKit] Handling event: ${event.event}');
     
@@ -176,8 +181,13 @@ class CallKitService {
         
       case Event.actionCallAccept:
         print('📱 [CallKit] 🟢 Call ACCEPTED by user');
-        if (onCallAccepted != null && event.body?['id'] != null) {
+        
+        // FIXED: Only answer incoming calls, ignore accept events for outgoing calls
+        if (!_isOutgoingCall && onCallAccepted != null && event.body?['id'] != null) {
+          print('📞 [CallKit] Processing accept for incoming call');
           onCallAccepted!(event.body!['id']);
+        } else {
+          print('⚠️ [CallKit] Ignoring accept event for outgoing call or missing callback');
         }
         break;
         
@@ -187,6 +197,7 @@ class CallKitService {
           onCallRejected!(event.body!['id']);
         }
         _currentCallUuid = null;
+        _isOutgoingCall = false;
         break;
         
       case Event.actionCallEnded:
@@ -195,11 +206,13 @@ class CallKitService {
           onCallEnded!(event.body!['id']);
         }
         _currentCallUuid = null;
+        _isOutgoingCall = false;
         break;
         
       case Event.actionCallTimeout:
         print('📱 [CallKit] Call timeout');
         _currentCallUuid = null;
+        _isOutgoingCall = false;
         break;
         
       case Event.actionCallCallback:
@@ -237,4 +250,7 @@ class CallKitService {
   
   /// Check if there's an active call
   static bool get hasActiveCall => _currentCallUuid != null;
+  
+  /// Check if current call is outgoing
+  static bool get isOutgoingCall => _isOutgoingCall;
 }

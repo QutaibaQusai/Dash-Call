@@ -3,7 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/sip_service.dart';
-import '../widgets/call_controls.dart';
+import '../screens/call_screen.dart'; // Import the new call screen
 import 'contacts_tab.dart';
 import 'history_tab.dart';
 import 'settings_tab.dart';
@@ -17,24 +17,18 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0; 
-  
-
 
   @override
   Widget build(BuildContext context) {
     return Consumer<SipService>(
       builder: (context, sipService, child) {
+        // Show full-screen call interface when there's an active call
         if (sipService.callStatus != CallStatus.idle) {
-          return Scaffold(
-            backgroundColor: Colors.white,
-            body: SafeArea(
-              child: CallControls(sipService: sipService),
-            ),
-          );
+          return CallScreen(sipService: sipService);
         }
 
         return Scaffold(
-          backgroundColor:_currentIndex==3? const Color(0xFFF2F2F7):Colors.white,
+          backgroundColor: _currentIndex == 3 ? const Color(0xFFF2F2F7) : Colors.white,
           appBar: _buildAppBar(sipService),
           body: _buildBody(),
           bottomNavigationBar: _buildBottomNavigationBar(),
@@ -44,11 +38,10 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   PreferredSizeWidget _buildAppBar(SipService sipService) {
-    final List<String> titles = ['Dash Call', 'Contacts', 'History', 'Settings',];
+    final List<String> titles = ['Dash Call', 'Contacts', 'History', 'Settings'];
     
     return AppBar(
-      backgroundColor:_currentIndex==3? const Color(0xFFF2F2F7):Colors.white,
-      
+      backgroundColor: _currentIndex == 3 ? const Color(0xFFF2F2F7) : Colors.white,
       elevation: 0,
       centerTitle: false,
       title: Text(
@@ -69,7 +62,6 @@ class _MainScreenState extends State<MainScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: _getConnectionStatusColor(sipService.status),
-               
               ),
             ),
             onPressed: sipService.isConnecting ? null : () async {
@@ -81,8 +73,6 @@ class _MainScreenState extends State<MainScreen> {
             },
           ),
         ),
-  
-      
       ],
     );
   }
@@ -102,102 +92,99 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-
-Widget _buildBottomNavigationBar() {
-  return Container(
-    decoration: const BoxDecoration(
-      color: Colors.white,
-    ),
-    child: BottomNavigationBar(
-  currentIndex: _currentIndex,
-  onTap: (index) {
-    setState(() {
-      _currentIndex = index;
-    });
-  },
-  type: BottomNavigationBarType.fixed,
-  backgroundColor: Colors.transparent,
-  elevation: 0,
-  selectedItemColor: Color(0xFF0077F9),
-  unselectedItemColor: Colors.grey.shade600,
-  selectedFontSize: 12,
-  unselectedFontSize: 12,
-  selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
-  items: const [
-    BottomNavigationBarItem(
-      icon: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(CupertinoIcons.circle_grid_3x3),
-          SizedBox(height: 3),
+  Widget _buildBottomNavigationBar() {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+      ),
+      child: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        selectedItemColor: const Color(0xFF0077F9),
+        unselectedItemColor: Colors.grey.shade600,
+        selectedFontSize: 12,
+        unselectedFontSize: 12,
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
+        items: const [
+          BottomNavigationBarItem(
+            icon: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(CupertinoIcons.circle_grid_3x3),
+                SizedBox(height: 3),
+              ],
+            ),
+            activeIcon: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(CupertinoIcons.circle_grid_3x3_fill),
+                SizedBox(height: 3),
+              ],
+            ),
+            label: 'Keypad',
+          ),
+          BottomNavigationBarItem(
+            icon: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(CupertinoIcons.person_2),
+                SizedBox(height: 3),
+              ],
+            ),
+            activeIcon: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(CupertinoIcons.person_2_fill),
+                SizedBox(height: 3),
+              ],
+            ),
+            label: 'Contacts',
+          ),
+          BottomNavigationBarItem(
+            icon: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(CupertinoIcons.time),
+                SizedBox(height: 3),
+              ],
+            ),
+            activeIcon: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(CupertinoIcons.time_solid),
+                SizedBox(height: 3),
+              ],
+            ),
+            label: 'Recent',
+          ),
+          BottomNavigationBarItem(
+            icon: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(CupertinoIcons.settings),
+                SizedBox(height: 3),
+              ],
+            ),
+            activeIcon: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(CupertinoIcons.settings_solid),
+                SizedBox(height: 3),
+              ],
+            ),
+            label: 'Settings',
+          ),
         ],
       ),
-      activeIcon: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(CupertinoIcons.circle_grid_3x3_fill),
-          SizedBox(height: 3),
-        ],
-      ),
-      label: 'Keypad',
-    ),
-    BottomNavigationBarItem(
-      icon: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(CupertinoIcons.person_2),
-          SizedBox(height: 3),
-        ],
-      ),
-      activeIcon: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(CupertinoIcons.person_2_fill),
-          SizedBox(height: 3),
-        ],
-      ),
-      label: 'Contacts',
-    ),
-    BottomNavigationBarItem(
-      icon: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(CupertinoIcons.time),
-          SizedBox(height: 3),
-        ],
-      ),
-      activeIcon: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(CupertinoIcons.time_solid),
-          SizedBox(height: 3),
-        ],
-      ),
-      label: 'Recent',
-    ),
-    BottomNavigationBarItem(
-      icon: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(CupertinoIcons.settings),
-          SizedBox(height: 3),
-        ],
-      ),
-      activeIcon: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(CupertinoIcons.settings_solid),
-          SizedBox(height: 3),
-        ],
-      ),
-      label: 'Settings',
-    ),
-  ],
-)
-
-  );
-}
- 
+    );
+  }
  
   Color _getConnectionStatusColor(SipConnectionStatus status) {
     switch (status) {
@@ -211,6 +198,4 @@ Widget _buildBottomNavigationBar() {
         return Colors.grey.shade400;
     }
   }
-
-
 }

@@ -42,6 +42,11 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
   String? _callNumber;
   DateTime? _callStartTime;
 
+  // Audio control state
+bool _isMuted = false;
+bool _isSpeakerOn = false;
+
+
   // Getters
   SipConnectionStatus get status => _status;
   CallStatus get callStatus => _callStatus;
@@ -57,7 +62,54 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
   DateTime? get callStartTime => _callStartTime;
   bool get isConnecting => _isConnecting;
   bool get isRegistered => _isRegistered;
+  // Getters for audio state
+bool get isMuted => _isMuted;
+bool get isSpeakerOn => _isSpeakerOn;
+// Toggle microphone mute
+Future<void> toggleMute() async {
+  if (_currentCall != null && _callStatus == CallStatus.active) {
+    try {
+      _isMuted = !_isMuted;
+      
+      if (_isMuted) {
+        print('🔇 [SipService] Muting call');
+        _currentCall!.mute();
+      } else {
+        print('🎤 [SipService] Unmuting call');
+        _currentCall!.unmute();
+      }
+      
+      notifyListeners();
+      print('✅ [SipService] Mute toggled to: $_isMuted');
+    } catch (e) {
+      print('❌ [SipService] Failed to toggle mute: $e');
+      _setError('Failed to toggle mute: $e');
+    }
+  } else {
+    print('⚠️ [SipService] Cannot toggle mute - no active call');
+  }
+}
 
+/// Toggle speaker phone
+Future<void> toggleSpeaker() async {
+  try {
+    _isSpeakerOn = !_isSpeakerOn;
+    
+    // Note: WebRTC speaker control is typically handled by the browser/system
+    // For mobile apps, you might need to use platform channels or audio plugins
+    print('🔊 [SipService] Speaker toggled to: $_isSpeakerOn');
+    
+    // For now, we'll just track the state
+    // In a real implementation, you'd use something like:
+    // await FlutterWebRTC.setSpeakerphoneOn(_isSpeakerOn);
+    
+    notifyListeners();
+    print('✅ [SipService] Speaker state updated');
+  } catch (e) {
+    print('❌ [SipService] Failed to toggle speaker: $e');
+    _setError('Failed to toggle speaker: $e');
+  }
+}
   Future<void> initialize() async {
     try {
       print('🚀 [SipService] Starting initialization...');
@@ -297,30 +349,37 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     }
   }
 
-  Future<void> answerCall() async {
-    print('✅ [SipService] Attempting to answer call...');
-    if (_currentCall != null) {
-      try {
-        print('📞 [SipService] Calling answer() on current call');
-        _currentCall!.answer(_helper!.buildCallOptions());
-        _callStartTime = DateTime.now();
-        _setCallStatus(CallStatus.active);
-        _setStatusMessage('Call active');
-        
-        // Mark call as connected in CallKit
-        await CallKitService.setCallConnected();
-        
-        print('✅ [SipService] Call answered successfully');
-      } catch (e) {
-        print('❌ [SipService] Failed to answer call: $e');
-        _setError('Failed to answer call: $e');
-      }
-    } else {
-      print('❌ [SipService] No current call to answer');
-      _setError('No incoming call to answer');
-    }
+  // In your SipService.answerCall() method, add this check at the beginning:
+Future<void> answerCall() async {
+  print('✅ [SipService] Attempting to answer call...');
+  
+  // SAFETY CHECK: Don't answer if call is already active
+  if (_callStatus == CallStatus.active) {
+    print('⚠️ [SipService] Call is already active, ignoring answer request');
+    return;
   }
-
+  
+  if (_currentCall != null) {
+    try {
+      print('📞 [SipService] Calling answer() on current call');
+      _currentCall!.answer(_helper!.buildCallOptions());
+      _callStartTime = DateTime.now();
+      _setCallStatus(CallStatus.active);
+      _setStatusMessage('Call active');
+      
+      // Mark call as connected in CallKit
+      await CallKitService.setCallConnected();
+      
+      print('✅ [SipService] Call answered successfully');
+    } catch (e) {
+      print('❌ [SipService] Failed to answer call: $e');
+      _setError('Failed to answer call: $e');
+    }
+  } else {
+    print('❌ [SipService] No current call to answer');
+    _setError('No incoming call to answer');
+  }
+}
   Future<void> rejectCall() async {
     print('❌ [SipService] Attempting to reject call...');
     if (_currentCall != null) {
@@ -392,95 +451,98 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     }
   }
 
-  // Updated call state handling - Always use CallKit
-  @override
-  void callStateChanged(Call call, CallState state) {
-    print('📱 [SipService] Call state changed: ${state.state}');
-    print('   Call ID: ${call.id}');
-    print('   Remote identity: ${call.remote_identity}');
-    print('   Direction: ${call.direction}');
+@override
+void callStateChanged(Call call, CallState state) {
+  print('📱 [SipService] Call state changed: ${state.state}');
+  print('   Call ID: ${call.id}');
+  print('   Remote identity: ${call.remote_identity}');
+  print('   Direction: ${call.direction}');
+  
+  _currentCall = call;
+  
+  // Check if this is an incoming call - Always use CallKit
+  if (call.direction == 'INCOMING' && state.state == CallStateEnum.CALL_INITIATION) {
+    print('📲 [SipService] 🚨 INCOMING CALL DETECTED! 🚨');
+    _callNumber = call.remote_identity ?? 'Unknown';
     
-    _currentCall = call;
-    
-    // Check if this is an incoming call - Always use CallKit
-    if (call.direction == 'INCOMING' && state.state == CallStateEnum.CALL_INITIATION) {
-      print('📲 [SipService] 🚨 INCOMING CALL DETECTED! 🚨');
-      _callNumber = call.remote_identity ?? 'Unknown';
-      
-      // Always show native CallKit UI
-      print('📱 [SipService] Showing native CallKit incoming call screen');
-      _showNativeIncomingCall(call.remote_identity ?? 'Unknown');
-      // Don't set to incoming status - let CallKit handle everything
-      return;
-    }
-    
-    switch (state.state) {
-      case CallStateEnum.CALL_INITIATION:
-        print('🚀 [CallState] Call initiation');
-        if (call.direction == 'OUTGOING') {
-          _setCallStatus(CallStatus.calling);
-          _setStatusMessage('Initiating call...');
-        }
-        break;
-      case CallStateEnum.PROGRESS:
-        print('📞 [CallState] Call in progress');
-        if (call.direction == 'OUTGOING') {
-          _setStatusMessage('Call in progress...');
-        }
-        break;
-      case CallStateEnum.ACCEPTED:
-      case CallStateEnum.CONFIRMED:
-        print('✅ [CallState] Call accepted/confirmed');
-        _setCallStatus(CallStatus.active);
-        _setStatusMessage('Call connected');
-        if (_callStartTime == null) {
-          _callStartTime = DateTime.now();
-        }
-        
-        // Mark as connected in CallKit
-        CallKitService.setCallConnected();
-        break;
-      case CallStateEnum.ENDED:
-      case CallStateEnum.FAILED:
-        print('❌ [CallState] Call ended/failed');
-        if (state.cause != null) {
-          print('   Cause: ${state.cause}');
-        }
-        
-        // End call in CallKit
-        CallKitService.endCall();
-        
-        _endCall();
-        break;
-      case CallStateEnum.HOLD:
-        print('⏸️ [CallState] Call on hold');
-        _setCallStatus(CallStatus.held);
-        break;
-      case CallStateEnum.UNHOLD:
-        print('▶️ [CallState] Call resumed from hold');
-        _setCallStatus(CallStatus.active);
-        break;
-      case CallStateEnum.MUTED:
-      case CallStateEnum.UNMUTED:
-        print('🔇 [CallState] Mute state changed: ${state.state}');
-        break;
-      case CallStateEnum.STREAM:
-        print('🎵 [CallState] Media stream event');
-        break;
-      case CallStateEnum.REFER:
-        print('🔄 [CallState] Call transfer/refer');
-        break;
-      case CallStateEnum.NONE:
-        print('⚪ [CallState] No call state');
-        _setStatusMessage('Call state: none');
-        break;
-      case CallStateEnum.CONNECTING:
-        print('🔗 [CallState] Call connecting');
-        _setStatusMessage('Call connecting...');
-        break;
-    }
+    // Always show native CallKit UI
+    print('📱 [SipService] Showing native CallKit incoming call screen');
+    _showNativeIncomingCall(call.remote_identity ?? 'Unknown');
+    return;
   }
-
+  
+  switch (state.state) {
+    case CallStateEnum.CALL_INITIATION:
+      print('🚀 [CallState] Call initiation');
+      if (call.direction == 'OUTGOING') {
+        _setCallStatus(CallStatus.calling);
+        _setStatusMessage('Initiating call...');
+      }
+      break;
+    case CallStateEnum.PROGRESS:
+      print('📞 [CallState] Call in progress');
+      if (call.direction == 'OUTGOING') {
+        _setStatusMessage('Call in progress...');
+      }
+      break;
+    case CallStateEnum.ACCEPTED:
+    case CallStateEnum.CONFIRMED:
+      print('✅ [CallState] Call accepted/confirmed');
+      _setCallStatus(CallStatus.active);
+      _setStatusMessage('Call connected');
+      if (_callStartTime == null) {
+        _callStartTime = DateTime.now();
+      }
+      
+      // Mark as connected in CallKit
+      CallKitService.setCallConnected();
+      break;
+    case CallStateEnum.ENDED:
+    case CallStateEnum.FAILED:
+      print('❌ [CallState] Call ended/failed');
+      if (state.cause != null) {
+        print('   Cause: ${state.cause}');
+      }
+      
+      // End call in CallKit
+      CallKitService.endCall();
+      
+      _endCall();
+      break;
+    case CallStateEnum.HOLD:
+      print('⏸️ [CallState] Call on hold');
+      _setCallStatus(CallStatus.held);
+      break;
+    case CallStateEnum.UNHOLD:
+      print('▶️ [CallState] Call resumed from hold');
+      _setCallStatus(CallStatus.active);
+      break;
+    case CallStateEnum.MUTED:
+      print('🔇 [CallState] Call muted');
+      _isMuted = true;
+      notifyListeners();
+      break;
+    case CallStateEnum.UNMUTED:
+      print('🎤 [CallState] Call unmuted');
+      _isMuted = false;
+      notifyListeners();
+      break;
+    case CallStateEnum.STREAM:
+      print('🎵 [CallState] Media stream event');
+      break;
+    case CallStateEnum.REFER:
+      print('🔄 [CallState] Call transfer/refer');
+      break;
+    case CallStateEnum.NONE:
+      print('⚪ [CallState] No call state');
+      _setStatusMessage('Call state: none');
+      break;
+    case CallStateEnum.CONNECTING:
+      print('🔗 [CallState] Call connecting');
+      _setStatusMessage('Call connecting...');
+      break;
+  }
+}
   // Show native incoming call using CallKit
   Future<void> _showNativeIncomingCall(String callerNumber) async {
     try {
@@ -589,13 +651,20 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     print('🔄 [SipService] New re-invite received: ${reinvite.toString()}');
   }
 
-  void _endCall() {
-    _currentCall = null;
-    _callNumber = null;
-    _callStartTime = null;
-    _setCallStatus(CallStatus.idle);
-    _setStatusMessage('Call ended');
-  }
+ void _endCall() {
+  _currentCall = null;
+  _callNumber = null;
+  _callStartTime = null;
+  
+  // Reset audio states
+  _isMuted = false;
+  _isSpeakerOn = false;
+  
+  _setCallStatus(CallStatus.idle);
+  _setStatusMessage('Call ended');
+  notifyListeners();
+}
+
 
   void _setStatus(SipConnectionStatus status) {
     print('📊 [SipService] Status changed: $_status -> $status');
