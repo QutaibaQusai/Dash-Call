@@ -139,52 +139,7 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
       children: [
         const Spacer(),
         
-        // Contact avatar with pulse animation
-        AnimatedBuilder(
-          animation: _pulseAnimation,
-          builder: (context, child) {
-            return Transform.scale(
-              scale: widget.sipService.callStatus == CallStatus.active && widget.sipService.callStatus != CallStatus.held
-                  ? _pulseAnimation.value
-                  : 1.0,
-              child: Container(
-                width: 200,
-                height: 200,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFF3A3A3C),
-                      Color(0xFF2C2C2E),
-                    ],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.5),
-                      blurRadius: 30,
-                      spreadRadius: 5,
-                      offset: const Offset(0, 10),
-                    ),
-                    BoxShadow(
-                      color: Colors.white.withOpacity(0.1),
-                      blurRadius: 20,
-                      spreadRadius: -5,
-                      offset: const Offset(-5, -5),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  CupertinoIcons.person_fill,
-                  size: 90,
-                  color: Color(0xFF8E8E93),
-                ),
-              ),
-            );
-          },
-        ),
-        
+  
         const SizedBox(height: 40),
         
         // Contact name/number
