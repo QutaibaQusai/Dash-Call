@@ -27,7 +27,6 @@ class _DialerTabState extends State<DialerTab> {
           color: Colors.white,
           child: Column(
             children: [
-              // Phone Number Display Area
               Container(
                 height: 120,
                 width: double.infinity,
@@ -39,10 +38,10 @@ class _DialerTabState extends State<DialerTab> {
                         : _formatPhoneNumber(_phoneController.text),
                     style: const TextStyle(
                       fontSize: 38,
-                      fontWeight: FontWeight.w600, // Much bolder like iOS
+                      fontWeight: FontWeight.w600,
                       color: Colors.black,
                       letterSpacing: 1.0,
-                      fontFamily: '.SF UI Text', // iOS system font
+                      fontFamily: '.SF UI Text', 
                     ),
                     textAlign: TextAlign.center,
                     maxLines: 1,
@@ -59,7 +58,7 @@ class _DialerTabState extends State<DialerTab> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       // Row 1: 1, 2, 3
-                      _buildDialerRow(['1', '2', '3'], ['', 'ABC', 'DEF']),
+                      _buildDialerRow(['1', '2', '3'], ['.', 'ABC', 'DEF']),
                       const SizedBox(height: 20),
                       
                       // Row 2: 4, 5, 6
@@ -71,7 +70,7 @@ class _DialerTabState extends State<DialerTab> {
                       const SizedBox(height: 20),
                       
                       // Row 4: *, 0, #
-                      _buildDialerRow(['*', '0', '#'], ['', '+', '']),
+                      _buildDialerRow(['*', '0', '#'], ['', '+', '.']),
                       
                       const SizedBox(height: 35),
                       
@@ -126,7 +125,7 @@ class _DialerTabState extends State<DialerTab> {
       width: 84,
       height: 84,
       decoration: BoxDecoration(
-        color: const Color(0xFFE5E5E5), // Perfect iOS button gray
+        color: const Color(0xFFE5E5E5), 
         shape: BoxShape.circle,
       ),
       child: Material(
@@ -174,11 +173,11 @@ class _DialerTabState extends State<DialerTab> {
                         letters,
                         style: const TextStyle(
                           fontSize: 10,
-                          fontWeight: FontWeight.w800, // Extra bold
+                          fontWeight: FontWeight.w800,
                           color: Colors.black,
                           letterSpacing: 2.0,
                           height: 1.0,
-                          fontFamily: '.SF UI Text', // iOS system font
+                          fontFamily: '.SF UI Text', 
                         ),
                       ),
                     ),

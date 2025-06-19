@@ -41,7 +41,11 @@ class _ContactsTabState extends State<ContactsTab> {
     }).toList();
   }
 
-
+  // Generate first letter from name
+  String _getInitials(String name) {
+    if (name.isEmpty) return '';
+    return name[0].toUpperCase();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -158,18 +162,33 @@ class _ContactsTabState extends State<ContactsTab> {
       child: Column(
         children: [
           ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-            leading: null, 
-            title: Padding(
-              padding: const EdgeInsets.only(left: 0),
-              child: Text(
-                contact.name,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.black,
-                  fontFamily: '.SF UI Text',
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            leading: Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                color: Color(0xFF8E8E93),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  _getInitials(contact.name),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    fontFamily: '.SF UI Text',
+                  ),
                 ),
+              ),
+            ),
+            title: Text(
+              contact.name,
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w400,
+                color: Colors.black,
+                fontFamily: '.SF UI Text',
               ),
             ),
             onTap: () => _showContactDetails(contact),
@@ -179,7 +198,7 @@ class _ContactsTabState extends State<ContactsTab> {
           if (!isLast)
             Container(
               height: 0.5,
-              margin: const EdgeInsets.only(left: 16),
+              margin: const EdgeInsets.only(left: 72),
               color: const Color(0xFFC6C6C8),
             ),
         ],
@@ -206,7 +225,7 @@ class _ContactsTabState extends State<ContactsTab> {
               height: 5,
               margin: const EdgeInsets.only(top: 5),
               decoration: BoxDecoration(
-                color: const Color.fromARGB(255, 254, 254, 255),
+                color: const Color(0xFFC6C6C8),
                 borderRadius: BorderRadius.circular(3),
               ),
             ),
@@ -274,13 +293,13 @@ class _ContactsTabState extends State<ContactsTab> {
                         Container(
                           width: 120,
                           height: 120,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFC6C6C8),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF8E8E93),
                             shape: BoxShape.circle,
                           ),
                           child: Center(
                             child: Text(
-                              contact.name.isNotEmpty ? contact.name[0].toUpperCase() : '',
+                              _getInitials(contact.name),
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 54,

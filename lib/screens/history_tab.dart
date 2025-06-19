@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/sip_service.dart';
@@ -85,246 +86,304 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
   List<CallRecord> get _allCalls => _callHistory;
   List<CallRecord> get _missedCalls => _callHistory.where((call) => call.type == CallType.missed).toList();
 
+  String _getInitials(String? name) {
+    if (name == null || name.isEmpty) return '';
+    return name[0].toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Tab bar - iOS style with smaller width
-        Container(
-          margin: const EdgeInsets.all(16),
-          child: Center(
-            child: Container(
-              width: 180, // Fixed small width like iOS
-              height: 32, // Compact height
-              decoration: BoxDecoration(
-                color: Colors.grey.shade200,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: TabBar(
-                controller: _tabController,
-                indicator: BoxDecoration(
-                  color: const Color(0xFF0077F9),
-                  borderRadius: BorderRadius.circular(6),
+    return Container(
+      color: const Color(0xFFF2F2F7), 
+      child: Column(
+        children: [
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            child: Center(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE5E5EA),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                indicatorSize: TabBarIndicatorSize.tab,
-                indicatorPadding: const EdgeInsets.all(2),
-                dividerColor: Colors.transparent,
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.black54,
-                labelStyle: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildTabButton('All', 0),
+                    _buildTabButton('Missed', 1),
+                  ],
                 ),
-                unselectedLabelStyle: const TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 13,
-                ),
-                tabs: const [
-                  Tab(text: 'All'),
-                  Tab(text: 'Missed'),
-                ],
               ),
             ),
           ),
-        ),
-        
-        // Tab content
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              _buildCallList(_allCalls),
-              _buildCallList(_missedCalls),
-            ],
+          
+          // Tab content
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildCallList(_allCalls),
+                _buildCallList(_missedCalls),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
+  Widget _buildTabButton(String text, int index) {
+ bool isSelected = _tabController.index == index;
+ 
+ return Expanded(
+   child: GestureDetector(
+     onTap: () {
+       setState(() {
+         _tabController.animateTo(index);
+       });
+     },
+     child: Container(
+       margin: const EdgeInsets.all(2),
+       padding: const EdgeInsets.symmetric(vertical: 6),
+       decoration: BoxDecoration(
+         color: isSelected ? Colors.white : Colors.transparent,
+         borderRadius: BorderRadius.circular(6),
+         boxShadow: isSelected ? [
+           BoxShadow(
+             color: Colors.black.withOpacity(0.04),
+             blurRadius: 2,
+             offset: const Offset(0, 1),
+           ),
+         ] : null,
+       ),
+       child: Text(
+         text,
+         textAlign: TextAlign.center,
+         style: TextStyle(
+           color: isSelected ? Colors.black : const Color(0xFF8E8E93),
+           fontSize: 13,
+           fontWeight: FontWeight.w500,
+         ),
+       ),
+     ),
+   ),
+ );
+}
   Widget _buildCallList(List<CallRecord> calls) {
     if (calls.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.call_outlined,
-              size: 64,
-              color: Colors.grey.shade400,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No calls yet',
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey.shade600,
-                fontWeight: FontWeight.w500,
+      return Container(
+        color: const Color(0xFFF2F2F7),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                CupertinoIcons.phone,
+                size: 64,
+                color: Colors.grey.shade400,
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Your call history will appear here',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade500,
+              const SizedBox(height: 16),
+              Text(
+                'No calls yet',
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                'Your call history will appear here',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade500,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: calls.length,
-      itemBuilder: (context, index) {
-        final call = calls[index];
-        return _buildCallTile(call);
-      },
+    return Container(
+      color:Colors.white,
+      child: ListView.builder(
+        padding: EdgeInsets.zero,
+        itemCount: calls.length,
+        itemBuilder: (context, index) {
+          final call = calls[index];
+          return _buildCallTile(call, index == calls.length - 1);
+        },
+      ),
     );
   }
 
-  Widget _buildCallTile(CallRecord call) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: call.type == CallType.missed
-            ? Border.all(color: Colors.red.withOpacity(0.2))
-            : null,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: Stack(
-          children: [
-            CircleAvatar(
-              backgroundColor: _getCallTypeColor(call.type).withOpacity(0.1),
-              radius: 24,
-              child: Text(
-                call.avatar,
-                style: const TextStyle(fontSize: 20),
-              ),
-            ),
-            Positioned(
-              bottom: 0,
-              right: 0,
-              child: Container(
-                width: 16,
-                height: 16,
-                decoration: BoxDecoration(
-                  color: _getCallTypeColor(call.type),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-                child: Icon(
-                  _getCallTypeIcon(call.type),
-                  color: Colors.white,
-                  size: 8,
-                ),
-              ),
-            ),
-          ],
-        ),
-        title: Text(
-          call.name ?? call.number,
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 16,
-            color: call.type == CallType.missed ? Colors.red : Colors.black87,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (call.name != null) ...[
-              Text(
-                call.number,
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontSize: 13,
-                ),
-              ),
-              const SizedBox(height: 2),
-            ],
-            Text(
-              '${_formatTime(call.timestamp)} • ${_formatDuration(call.duration)}',
-              style: TextStyle(
-                color: Colors.grey.shade500,
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-        trailing: Consumer<SipService>(
-          builder: (context, sipService, child) {
-            return Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                gradient: sipService.status == SipConnectionStatus.connected
-                    ? const LinearGradient(
-                        begin: Alignment(-0.05, -1.0),
-                        end: Alignment(0.05, 1.0),
-                        colors: [Color(0xFF1501FF), Color(0xFF00A3FF)],
-                      )
-                    : null,
-                color: sipService.status != SipConnectionStatus.connected
-                    ? Colors.grey.shade300
-                    : null,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Material(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.circular(20),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(20),
-                  onTap: sipService.status == SipConnectionStatus.connected
-                      ? () => sipService.makeCall(call.number)
-                      : null,
-                  child: Icon(
-                    Icons.call,
-                    color: sipService.status == SipConnectionStatus.connected
-                        ? Colors.white
-                        : Colors.grey.shade500,
-                    size: 18,
+  Widget _buildCallTile(CallRecord call, bool isLast) {
+    return InkWell(
+      onTap: (){
+                                _showCallDetails(call);
+
+      },
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                // Avatar with initials
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFC6C6C8),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: call.name != null 
+                        ? Text(
+                            _getInitials(call.name),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          )
+                        : const Icon(
+                            CupertinoIcons.person_fill,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                   ),
                 ),
-              ),
-            );
-          },
-        ),
+                
+                const SizedBox(width: 12),
+                
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          // Call direction icon
+                          Icon(
+                            _getCallDirectionIcon(call.type),
+                            color: call.type == CallType.missed ? const Color(0xFFFF3B30) : const Color(0xFF8E8E93),
+                            size: 16,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              call.name ?? call.number,
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w400,
+                                color: call.type == CallType.missed ? const Color(0xFFFF3B30) : Colors.black,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (call.name != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          'Number',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            color: Color(0xFF8E8E93),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      _formatRelativeTime(call.timestamp),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        color: Color(0xFF8E8E93),
+                      ),
+                    ),
+                   
+                  ],
+                ),
+              ],
+            ),
+          ),
+          
+          // iOS separator line
+          if (!isLast)
+            Container(
+              height: 0.5,
+              margin: const EdgeInsets.only(left: 68),
+              color: const Color(0xFFC6C6C8),
+            ),
+        ],
       ),
     );
   }
 
-  Color _getCallTypeColor(CallType type) {
+  IconData _getCallDirectionIcon(CallType type) {
     switch (type) {
       case CallType.incoming:
-        return Colors.green;
+        return CupertinoIcons.arrow_down_left;
       case CallType.outgoing:
-        return Colors.blue;
+        return CupertinoIcons.arrow_up_right;
       case CallType.missed:
-        return Colors.red;
+        return CupertinoIcons.arrow_down_left;
     }
   }
 
-  IconData _getCallTypeIcon(CallType type) {
-    switch (type) {
-      case CallType.incoming:
-        return Icons.call_received;
-      case CallType.outgoing:
-        return Icons.call_made;
-      case CallType.missed:
-        return Icons.call_missed;
+  void _showCallDetails(CallRecord call) {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (BuildContext context) => CupertinoActionSheet(
+        title: Text(call.name ?? call.number),
+        message: Text('${_formatTime(call.timestamp)} • ${_formatDuration(call.duration)}'),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              // Make call
+              final sipService = Provider.of<SipService>(context, listen: false);
+              if (sipService.status == SipConnectionStatus.connected) {
+                sipService.makeCall(call.number);
+              }
+            },
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(CupertinoIcons.phone, color: Color(0xFF007AFF)),
+                SizedBox(width: 8),
+                Text('Call',style: TextStyle(color:Color(0xFF007AFF) ),),
+              ],
+            ),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(context),
+          isDefaultAction: true,
+          child: const Text('Cancel',style: TextStyle(color:Color(0xFF007AFF) ),
+        ),
+      ),
+    ));
+  }
+
+  String _formatRelativeTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+    
+    if (difference.inDays >= 1) {
+      return 'Yesterday';
+    } else if (difference.inHours >= 1) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inMinutes >= 1) {
+      return '${difference.inMinutes}m ago';
+    } else {
+      return 'Just now';
     }
   }
 

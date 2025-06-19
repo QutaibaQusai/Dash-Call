@@ -44,7 +44,7 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   PreferredSizeWidget _buildAppBar(SipService sipService) {
-    final List<String> titles = ['Dialer', 'Contacts', 'History', 'Settings',];
+    final List<String> titles = ['Dash Call', 'Contacts', 'History', 'Settings',];
     
     return AppBar(
       backgroundColor:_currentIndex==3? const Color(0xFFF2F2F7):Colors.white,
