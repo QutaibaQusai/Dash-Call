@@ -16,13 +16,6 @@ void main() async {
 }
 
 Future<void> _requestPermissions() async {
-  
-  final micStatus = await Permission.microphone.request();
-  
-  final cameraStatus = await Permission.camera.request();
-  
-  final phoneStatus = await Permission.phone.request();
-  
   if (await Permission.microphone.isDenied) {
     await Permission.microphone.request();
   }
@@ -31,6 +24,9 @@ Future<void> _requestPermissions() async {
     await Permission.camera.request();
   }
   
+  if (await Permission.phone.isDenied) {
+    await Permission.phone.request();
+  }
 }
 
 class DashCallApp extends StatelessWidget {
