@@ -1,12 +1,11 @@
+import 'package:dash_call/screens/dialer_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../services/sip_service.dart';
 import '../widgets/call_controls.dart';
 import 'contacts_tab.dart';
 import 'history_tab.dart';
 import 'settings_tab.dart';
-import 'dialer_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -16,17 +15,9 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _currentIndex = 0;
+  int _currentIndex = 0; // Start with dialer tab
   
-  // Define the gradient colors
-  static const Color gradientStart = Color(0xFF1501FF);
-  static const Color gradientEnd = Color(0xFF00A3FF);
-  
-  static const LinearGradient primaryGradient = LinearGradient(
-    begin: Alignment(-0.05, -1.0), // 183 degrees approximation
-    end: Alignment(0.05, 1.0),
-    colors: [gradientStart, gradientEnd],
-  );
+
 
   @override
   Widget build(BuildContext context) {
@@ -43,24 +34,22 @@ class _MainScreenState extends State<MainScreen> {
         }
 
         return Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor:_currentIndex==3? const Color(0xFFF2F2F7):Colors.white,
           appBar: _buildAppBar(sipService),
           body: _buildBody(),
           bottomNavigationBar: _buildBottomNavigationBar(),
-          floatingActionButton: _buildDialerFAB(),
-          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         );
       },
     );
   }
 
   PreferredSizeWidget _buildAppBar(SipService sipService) {
-    final List<String> titles = ['Contacts', 'History', 'Settings'];
+    final List<String> titles = ['Dialer', 'Contacts', 'History', 'Settings',];
     
     return AppBar(
-      backgroundColor: Colors.white,
-      elevation: 0.5,
-      shadowColor: Colors.black12,
+      backgroundColor:_currentIndex==3? const Color(0xFFF2F2F7):Colors.white,
+      
+      elevation: 0,
       centerTitle: false,
       title: Text(
         titles[_currentIndex],
@@ -71,7 +60,6 @@ class _MainScreenState extends State<MainScreen> {
         ),
       ),
       actions: [
-        // Connection status indicator
         Container(
           margin: const EdgeInsets.only(right: 8),
           child: IconButton(
@@ -93,45 +81,8 @@ class _MainScreenState extends State<MainScreen> {
             },
           ),
         ),
-        
-        // Menu button
-        PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert, color: Colors.black54),
-          onSelected: (value) {
-            if (value == 'logout') {
-              _logout();
-            } else if (value == 'connection') {
-              _showConnectionInfo(sipService);
-            }
-          },
-          itemBuilder: (context) => [
-            PopupMenuItem(
-              value: 'connection',
-              child: Row(
-                children: [
-                  Icon(
-                    _getConnectionStatusIcon(sipService.status),
-                    color: _getConnectionStatusColor(sipService.status),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(_getConnectionStatusText(sipService.status)),
-                ],
-              ),
-            ),
-            const PopupMenuDivider(),
-            const PopupMenuItem(
-              value: 'logout',
-              child: Row(
-                children: [
-                  Icon(Icons.logout, color: Colors.red, size: 20),
-                  SizedBox(width: 12),
-                  Text('Logout', style: TextStyle(color: Colors.red)),
-                ],
-              ),
-            ),
-          ],
-        ),
+  
+      
       ],
     );
   }
@@ -139,13 +90,15 @@ class _MainScreenState extends State<MainScreen> {
   Widget _buildBody() {
     switch (_currentIndex) {
       case 0:
-        return const ContactsTab();
+        return const DialerTab();
       case 1:
-        return const HistoryTab();
+        return const ContactsTab();
       case 2:
+        return const HistoryTab();
+      case 3:
         return const SettingsTab();
       default:
-        return const ContactsTab();
+        return const DialerTab();
     }
   }
 
@@ -172,6 +125,11 @@ class _MainScreenState extends State<MainScreen> {
         selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
         items: const [
           BottomNavigationBarItem(
+            icon: Icon(Icons.dialpad_outlined),
+            activeIcon: Icon(Icons.dialpad),
+            label: 'Dialer',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.contacts_outlined),
             activeIcon: Icon(Icons.contacts),
             label: 'Contacts',
@@ -191,40 +149,6 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  Widget _buildDialerFAB() {
-    return Container(
-      width: 64,
-      height: 64,
-      decoration: BoxDecoration(
-        gradient: primaryGradient,
-        borderRadius: BorderRadius.circular(32),
-   
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(32),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(32),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const DialerScreen(),
-              ),
-            );
-          },
-          child: const Center(
-            child: Icon(
-              Icons.dialpad,
-              color: Colors.white,
-              size: 28,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Color _getConnectionStatusColor(SipConnectionStatus status) {
     switch (status) {
       case SipConnectionStatus.connected:
@@ -238,126 +162,5 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  IconData _getConnectionStatusIcon(SipConnectionStatus status) {
-    switch (status) {
-      case SipConnectionStatus.connected:
-        return Icons.wifi;
-      case SipConnectionStatus.connecting:
-        return Icons.wifi_outlined;
-      case SipConnectionStatus.error:
-        return Icons.wifi_off;
-      case SipConnectionStatus.disconnected:
-        return Icons.wifi_off_outlined;
-    }
-  }
 
-  String _getConnectionStatusText(SipConnectionStatus status) {
-    switch (status) {
-      case SipConnectionStatus.connected:
-        return 'Connected';
-      case SipConnectionStatus.connecting:
-        return 'Connecting...';
-      case SipConnectionStatus.error:
-        return 'Connection Error';
-      case SipConnectionStatus.disconnected:
-        return 'Not Connected';
-    }
-  }
-
-  void _showConnectionInfo(SipService sipService) {
-    String message = '';
-    Color color = Colors.grey;
-    
-    switch (sipService.status) {
-      case SipConnectionStatus.connected:
-        message = 'Connected to ${sipService.sipServer}';
-        color = Colors.green;
-        break;
-      case SipConnectionStatus.connecting:
-        message = 'Connecting to ${sipService.sipServer}...';
-        color = Colors.orange;
-        break;
-      case SipConnectionStatus.error:
-        message = sipService.errorMessage ?? 'Connection failed';
-        color = Colors.red;
-        break;
-      case SipConnectionStatus.disconnected:
-        message = 'Not connected. Configure settings to connect.';
-        color = Colors.grey;
-        break;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-    );
-  }
-
-  Future<void> _logout() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Logout',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-        content: const Text(
-          'Are you sure you want to logout? You will need to scan a QR code again to login.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
-          ),
-          Container(
-            decoration: BoxDecoration(
-              gradient: primaryGradient,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text(
-                'Logout',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      print('🚪 [MainScreen] User confirmed logout');
-      
-      // Disconnect from SIP if connected
-      final sipService = Provider.of<SipService>(context, listen: false);
-      if (sipService.status == SipConnectionStatus.connected) {
-        await sipService.unregister();
-      }
-
-      // Clear login status
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('isLoggedIn', false);
-      
-      print('✅ [MainScreen] Logout completed, navigating to QR login');
-      
-      // Navigate back to QR login screen
-      if (mounted) {
-        Navigator.of(context).pushNamedAndRemoveUntil(
-          '/qr-login',
-          (route) => false,
-        );
-      }
-    }
-  }
 }

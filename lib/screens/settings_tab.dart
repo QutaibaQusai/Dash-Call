@@ -14,22 +14,18 @@ class _SettingsTabState extends State<SettingsTab> {
   Widget build(BuildContext context) {
     return Consumer<SipService>(
       builder: (context, sipService, child) {
-        return SingleChildScrollView(
-          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header Container - iOS Style
-              _buildHeaderContainer(),
-              
-              const SizedBox(height: 32),
-              
-              // Settings List - iOS Style
-              _buildSettingsSection(sipService),
-              
-              const SizedBox(height: 40),
-            ],
-          ),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeaderContainer(),
+            
+            const SizedBox(height: 32),
+            
+            _buildSettingsSection(sipService),
+            
+            const SizedBox(height: 40),
+            
+          ],
         );
       },
     );
@@ -41,7 +37,7 @@ class _SettingsTabState extends State<SettingsTab> {
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
      
       ),
@@ -106,7 +102,6 @@ class _SettingsTabState extends State<SettingsTab> {
       ),
       child: Column(
         children: [
-          // About Item (which is actually the Configuration)
           _buildSettingsItem(
             icon: Icons.info_outline,
             iconColor: Colors.blue,
@@ -115,7 +110,14 @@ class _SettingsTabState extends State<SettingsTab> {
                 ? sipService.username 
                 : 'Not configured',
             trailing: _buildConnectionStatusBadge(sipService),
-            onTap: () => _showConfigurationPage(sipService),
+            onTap: () {
+                Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => _ConfigurationPage(sipService: sipService),
+      ),
+    );
+            },
           ),
         ],
       ),
@@ -194,59 +196,16 @@ class _SettingsTabState extends State<SettingsTab> {
   }
 
   Widget _buildConnectionStatusBadge(SipService sipService) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: _getConnectionStatusColor(sipService.status).withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: _getConnectionStatusColor(sipService.status).withOpacity(0.3),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              color: _getConnectionStatusColor(sipService.status),
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Icon(
-            Icons.chevron_right,
-            color: Colors.grey.shade600,
-            size: 16,
-          ),
-        ],
-      ),
+    return Icon(
+      Icons.chevron_right,
+      color: Colors.grey.shade600,
+      size: 16,
     );
   }
 
-  void _showConfigurationPage(SipService sipService) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => _ConfigurationPage(sipService: sipService),
-      ),
-    );
-  }
 
-  // Helper methods
-  Color _getConnectionStatusColor(SipConnectionStatus status) {
-    switch (status) {
-      case SipConnectionStatus.connected:
-        return Colors.green;
-      case SipConnectionStatus.connecting:
-        return Colors.orange;
-      case SipConnectionStatus.error:
-        return Colors.red;
-      case SipConnectionStatus.disconnected:
-        return Colors.grey.shade500;
-    }
-  }
+
+
 }
 
 // Configuration Page (Previously About Page)
@@ -267,7 +226,6 @@ class _ConfigurationPageState extends State<_ConfigurationPage> {
   late TextEditingController _domainController;
   late TextEditingController _portController;
   
-  bool _isPasswordVisible = false;
 
   @override
   void initState() {
@@ -318,6 +276,7 @@ class _ConfigurationPageState extends State<_ConfigurationPage> {
         key: _formKey,
         child: ListView(
           physics: const BouncingScrollPhysics(),
+          
           children: [
             const SizedBox(height: 20),
             
@@ -326,82 +285,14 @@ class _ConfigurationPageState extends State<_ConfigurationPage> {
               title: 'ACCOUNT INFORMATION',
               children: [
                 _buildNativeInfoRow('Server', widget.sipService.sipServer.isNotEmpty ? widget.sipService.sipServer : 'Not configured'),
-                _buildNativeInfoRow('Username', widget.sipService.username.isNotEmpty ? widget.sipService.username : 'Not configured'),
-                _buildNativeInfoRow('Status', _getConnectionStatusText(widget.sipService.status), 
-                  statusColor: _getConnectionStatusColor(widget.sipService.status)),
+                _buildNativeInfoRow('Extension', widget.sipService.username.isNotEmpty ? widget.sipService.username : 'Not configured'),
+             
               ],
             ),
             
             const SizedBox(height: 35),
             
-            // Configuration Section
-            _buildNativeSection(
-              title: 'CONFIGURATION',
-              children: [
-                _buildNativeInputRow(
-                  label: 'Server Address',
-                  controller: _serverController,
-                  placeholder: 'sip.example.com',
-                  keyboardType: TextInputType.url,
-                ),
-                _buildNativeInputRow(
-                  label: 'Username',
-                  controller: _usernameController,
-                  placeholder: '1001',
-                ),
-                _buildNativeInputRow(
-                  label: 'Password',
-                  controller: _passwordController,
-                  placeholder: 'Enter password',
-                  isPassword: true,
-                ),
-                _buildNativeInputRow(
-                  label: 'Port',
-                  controller: _portController,
-                  placeholder: '8088',
-                  keyboardType: TextInputType.number,
-                ),
-                _buildNativeInputRow(
-                  label: 'Domain',
-                  controller: _domainController,
-                  placeholder: 'Optional',
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 35),
-            
-            // Save Button
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(10),
-                    onTap: _saveConfiguration,
-                    child: Container(
-                      height: 50,
-                      alignment: Alignment.center,
-                      child: const Text(
-                        'Save & Connect',
-                        style: TextStyle(
-                          color: Color(0xFF007AFF),
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 35),
+        
             
             // Delete Account Section
             _buildNativeSection(
@@ -534,73 +425,6 @@ class _ConfigurationPageState extends State<_ConfigurationPage> {
     );
   }
 
-  Widget _buildNativeInputRow({
-    required String label,
-    required TextEditingController controller,
-    required String placeholder,
-    TextInputType? keyboardType,
-    bool isPassword = false,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: const Color(0xFFC6C6C8).withOpacity(0.3), width: 0.5),
-        ),
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: Colors.black,
-                fontSize: 17,
-                fontWeight: FontWeight.w400,
-              ),
-            ),
-          ),
-          Expanded(
-            child: TextFormField(
-              controller: controller,
-              keyboardType: keyboardType,
-              obscureText: isPassword && !_isPasswordVisible,
-              style: const TextStyle(
-                color: Colors.black,
-                fontSize: 17,
-                fontWeight: FontWeight.w400,
-              ),
-              decoration: InputDecoration(
-                hintText: placeholder,
-                hintStyle: const TextStyle(
-                  color: Color(0xFFC7C7CC),
-                  fontSize: 17,
-                  fontWeight: FontWeight.w400,
-                ),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                suffixIcon: isPassword 
-                  ? IconButton(
-                      icon: Icon(
-                        _isPasswordVisible ? Icons.visibility_off : Icons.visibility,
-                        color: const Color(0xFFC7C7CC),
-                        size: 20,
-                      ),
-                      onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
-                    )
-                  : null,
-              ),
-              validator: label != 'Domain' 
-                ? (value) => value?.isEmpty == true ? 'Required' : null 
-                : null,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showDeleteAccountDialog() {
     showDialog(
       context: context,
@@ -676,70 +500,5 @@ class _ConfigurationPageState extends State<_ConfigurationPage> {
   //   );
   // }
 
-  void _saveConfiguration() async {
-    if (!_formKey.currentState!.validate()) return;
 
-    await widget.sipService.saveSettings(
-      _serverController.text.trim(),
-      _usernameController.text.trim(),
-      _passwordController.text.trim(),
-      _domainController.text.trim(),
-      int.parse(_portController.text.trim()),
-    );
-
-    if (mounted) {
-      Navigator.pop(context);
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('✅ Settings saved successfully!'),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-      );
-      
-      final success = await widget.sipService.register();
-      
-      if (mounted && !success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('⚠️ Settings saved but connection failed'),
-            backgroundColor: Colors.orange,
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.all(16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
-    }
-  }
-
-  String _getConnectionStatusText(SipConnectionStatus status) {
-    switch (status) {
-      case SipConnectionStatus.connected:
-        return 'Connected';
-      case SipConnectionStatus.connecting:
-        return 'Connecting...';
-      case SipConnectionStatus.error:
-        return 'Connection Failed';
-      case SipConnectionStatus.disconnected:
-        return 'Not Connected';
-    }
-  }
-
-  Color _getConnectionStatusColor(SipConnectionStatus status) {
-    switch (status) {
-      case SipConnectionStatus.connected:
-        return Colors.green;
-      case SipConnectionStatus.connecting:
-        return Colors.orange;
-      case SipConnectionStatus.error:
-        return Colors.red;
-      case SipConnectionStatus.disconnected:
-        return Colors.grey.shade500;
-    }
-  }
 }

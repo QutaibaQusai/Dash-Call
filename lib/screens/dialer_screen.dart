@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/sip_service.dart';
-import '../widgets/dialer_pad.dart';
 
-class DialerScreen extends StatefulWidget {
-  const DialerScreen({super.key});
+class DialerTab extends StatefulWidget {
+  const DialerTab({super.key});
 
   @override
-  State<DialerScreen> createState() => _DialerScreenState();
+  State<DialerTab> createState() => _DialerTabState();
 }
 
-class _DialerScreenState extends State<DialerScreen> {
+class _DialerTabState extends State<DialerTab> {
   final TextEditingController _phoneController = TextEditingController();
 
   @override
@@ -21,28 +20,9 @@ class _DialerScreenState extends State<DialerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F7),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFF2F2F7),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF007AFF), size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Keypad',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: Consumer<SipService>(
-        builder: (context, sipService, child) {
-          return Column(
+    return Consumer<SipService>(
+      builder: (context, sipService, child) {
+        return Column(
             children: [
               // Phone Number Display
               Container(
@@ -74,83 +54,38 @@ class _DialerScreenState extends State<DialerScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 40),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    // Delete Button
-                    _buildActionButton(
-                      icon: Icons.backspace_outlined,
-                      onTap: _phoneController.text.isNotEmpty ? () {
-                        setState(() {
-                          if (_phoneController.text.isNotEmpty) {
-                            _phoneController.text = _phoneController.text
-                                .substring(0, _phoneController.text.length - 1);
-                          }
-                        });
-                      } : null,
-                    ),
+                    // Left spacer to center the call button
+                    Expanded(child: Container()),
                     
-                    // Call Button
+                    // Call Button - Always centered
                     _buildCallButton(sipService),
                     
-                    // Add Contact Button
-                    _buildActionButton(
-                      icon: Icons.person_add_outlined,
-                      onTap: _phoneController.text.isNotEmpty ? () {
-                        // Add contact functionality
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text('Add contact feature'),
-                            backgroundColor: const Color(0xFF007AFF),
-                            behavior: SnackBarBehavior.floating,
-                            margin: const EdgeInsets.all(16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        );
-                      } : null,
+                    // Right side - Delete button or spacer
+                    Expanded(
+                      child: _phoneController.text.isNotEmpty
+                          ? Align(
+                              alignment: Alignment.centerRight,
+                              child: _buildActionButton(
+                                icon: Icons.backspace_outlined,
+                                onTap: () {
+                                  setState(() {
+                                    if (_phoneController.text.isNotEmpty) {
+                                      _phoneController.text = _phoneController.text
+                                          .substring(0, _phoneController.text.length - 1);
+                                    }
+                                  });
+                                },
+                              ),
+                            )
+                          : Container(), // Empty container when no text
                     ),
                   ],
                 ),
               ),
             ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildConnectionStatus(SipService sipService) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: _getConnectionStatusColor(sipService.status).withOpacity(0.15),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-          color: _getConnectionStatusColor(sipService.status).withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              color: _getConnectionStatusColor(sipService.status),
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            _getConnectionStatusText(sipService.status),
-            style: TextStyle(
-              color: _getConnectionStatusColor(sipService.status),
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -208,13 +143,16 @@ class _DialerScreenState extends State<DialerScreen> {
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
             blurRadius: 4,
-            offset: const Offset(0, 2),
+            offset: const Offset(0, 1.5),
           ),
         ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
+            splashColor: Colors.transparent,
+  highlightColor: Colors.transparent,
+  hoverColor: Colors.transparent,
           borderRadius: BorderRadius.circular(40),
           onTap: () {
             setState(() {
@@ -256,18 +194,14 @@ class _DialerScreenState extends State<DialerScreen> {
       decoration: BoxDecoration(
         color: onTap != null ? Colors.white : Colors.white.withOpacity(0.5),
         shape: BoxShape.circle,
-        boxShadow: onTap != null ? [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-            spreadRadius: 1,
-          ),
-        ] : null,
+
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
+            splashColor: Colors.transparent,
+  highlightColor: Colors.transparent,
+  hoverColor: Colors.transparent,
           borderRadius: BorderRadius.circular(32.5),
           onTap: onTap,
           child: Icon(
@@ -288,27 +222,21 @@ class _DialerScreenState extends State<DialerScreen> {
       width: 80,
       height: 80,
       decoration: BoxDecoration(
-        color: canCall ? const Color(0xFF34C759) : Colors.white,
+        color:  const Color(0xFF34C759) ,
         shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: canCall 
-                ? const Color(0xFF34C759).withOpacity(0.3)
-                : Colors.black.withOpacity(0.1),
-            blurRadius: canCall ? 20 : 4,
-            offset:  Offset(0, canCall ? 4 : 2),
-            spreadRadius: canCall ? 2 : 0,
-          ),
-        ],
+   
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(40),
-          onTap: canCall ? () => _makeCall(sipService) : null,
-          child:           Icon(
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+        hoverColor: Colors.transparent,
+        borderRadius: BorderRadius.circular(40),
+        onTap: canCall ? () => _makeCall(sipService) : null,
+        child: Icon(
             Icons.call,
-            color: canCall ? Colors.white : const Color(0xFF6D6D70).withOpacity(0.3),
+            color:  Colors.white ,
             size: 32,
           ),
         ),
@@ -329,40 +257,12 @@ class _DialerScreenState extends State<DialerScreen> {
     }
   }
 
-  Color _getConnectionStatusColor(SipConnectionStatus status) {
-    switch (status) {
-      case SipConnectionStatus.connected:
-        return const Color(0xFF34C759); // iOS green
-      case SipConnectionStatus.connecting:
-        return const Color(0xFFFF9F0A); // iOS orange
-      case SipConnectionStatus.error:
-        return const Color(0xFFFF3B30); // iOS red
-      case SipConnectionStatus.disconnected:
-        return const Color(0xFF8E8E93); // iOS gray
-    }
-  }
-
-  String _getConnectionStatusText(SipConnectionStatus status) {
-    switch (status) {
-      case SipConnectionStatus.connected:
-        return 'Ready to call';
-      case SipConnectionStatus.connecting:
-        return 'Connecting...';
-      case SipConnectionStatus.error:
-        return 'Connection error';
-      case SipConnectionStatus.disconnected:
-        return 'Not connected';
-    }
-  }
-
   void _makeCall(SipService sipService) async {
     final number = _phoneController.text.trim();
     if (number.isNotEmpty) {
       final success = await sipService.makeCall(number);
       
-      if (success && mounted) {
-        Navigator.pop(context);
-      } else if (mounted) {
+      if (!success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(sipService.errorMessage ?? 'Failed to make call'),
