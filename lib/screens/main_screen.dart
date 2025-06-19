@@ -1,4 +1,5 @@
 import 'package:dash_call/screens/dialer_screen.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/sip_service.dart';
@@ -15,7 +16,7 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _currentIndex = 0; // Start with dialer tab
+  int _currentIndex = 0; 
   
 
 
@@ -23,7 +24,6 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Consumer<SipService>(
       builder: (context, sipService, child) {
-        // If there's an active call, show call controls instead
         if (sipService.callStatus != CallStatus.idle) {
           return Scaffold(
             backgroundColor: Colors.white,
@@ -102,53 +102,103 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  Widget _buildBottomNavigationBar() {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-    
-      ),
-      child: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        selectedItemColor: Color(0XFF0077f9),
-        unselectedItemColor: Colors.grey.shade600,
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dialpad_outlined),
-            activeIcon: Icon(Icons.dialpad),
-            label: 'Dialer',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.contacts_outlined),
-            activeIcon: Icon(Icons.contacts),
-            label: 'Contacts',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history_outlined),
-            activeIcon: Icon(Icons.history),
-            label: 'History',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings_outlined),
-            activeIcon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
+
+Widget _buildBottomNavigationBar() {
+  return Container(
+    decoration: const BoxDecoration(
+      color: Colors.white,
+    ),
+    child: BottomNavigationBar(
+  currentIndex: _currentIndex,
+  onTap: (index) {
+    setState(() {
+      _currentIndex = index;
+    });
+  },
+  type: BottomNavigationBarType.fixed,
+  backgroundColor: Colors.transparent,
+  elevation: 0,
+  selectedItemColor: Color(0xFF0077F9),
+  unselectedItemColor: Colors.grey.shade600,
+  selectedFontSize: 12,
+  unselectedFontSize: 12,
+  selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
+  items: const [
+    BottomNavigationBarItem(
+      icon: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(CupertinoIcons.circle_grid_3x3),
+          SizedBox(height: 3),
         ],
       ),
-    );
-  }
+      activeIcon: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(CupertinoIcons.circle_grid_3x3_fill),
+          SizedBox(height: 3),
+        ],
+      ),
+      label: 'Keypad',
+    ),
+    BottomNavigationBarItem(
+      icon: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(CupertinoIcons.person_2),
+          SizedBox(height: 3),
+        ],
+      ),
+      activeIcon: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(CupertinoIcons.person_2_fill),
+          SizedBox(height: 3),
+        ],
+      ),
+      label: 'Contacts',
+    ),
+    BottomNavigationBarItem(
+      icon: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(CupertinoIcons.time),
+          SizedBox(height: 3),
+        ],
+      ),
+      activeIcon: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(CupertinoIcons.time_solid),
+          SizedBox(height: 3),
+        ],
+      ),
+      label: 'Recent',
+    ),
+    BottomNavigationBarItem(
+      icon: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(CupertinoIcons.settings),
+          SizedBox(height: 3),
+        ],
+      ),
+      activeIcon: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(CupertinoIcons.settings_solid),
+          SizedBox(height: 3),
+        ],
+      ),
+      label: 'Settings',
+    ),
+  ],
+)
 
+  );
+}
+ 
+ 
   Color _getConnectionStatusColor(SipConnectionStatus status) {
     switch (status) {
       case SipConnectionStatus.connected:

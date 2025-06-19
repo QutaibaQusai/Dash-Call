@@ -15,14 +15,14 @@ class _ContactsTabState extends State<ContactsTab> {
 
   // Sample contacts data - in a real app, this would come from a database or API
   final List<Contact> _contacts = [
-    Contact(name: 'John Doe', number: '101', avatar: '👤'),
-    Contact(name: 'Jane Smith', number: '102', avatar: '👩'),
-    Contact(name: 'Mike Johnson', number: '103', avatar: '👨'),
-    Contact(name: 'Sarah Wilson', number: '104', avatar: '👩‍💼'),
-    Contact(name: 'David Brown', number: '105', avatar: '👨‍💻'),
-    Contact(name: 'Emma Davis', number: '106', avatar: '👩‍🎨'),
-    Contact(name: 'Alex Miller', number: '107', avatar: '👨‍🎤'),
-    Contact(name: 'Lisa Garcia', number: '108', avatar: '👩‍🔬'),
+    Contact(name: 'John Doe', number: '101'),
+    Contact(name: 'Jane Smith', number: '102'),
+    Contact(name: 'Mike Johnson', number: '103'),
+    Contact(name: 'Sarah Wilson', number: '104'),
+    Contact(name: 'David Brown', number: '105'),
+    Contact(name: 'Emma Davis', number: '106'),
+    Contact(name: 'Alex Miller', number: '107'),
+    Contact(name: 'Lisa Garcia', number: '108'),
   ];
 
   @override
@@ -41,180 +41,148 @@ class _ContactsTabState extends State<ContactsTab> {
     }).toList();
   }
 
+
+
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Search bar
-        Container(
-          margin: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: TextField(
-            controller: _searchController,
-            onChanged: (value) {
-              setState(() {
-                _searchQuery = value;
-              });
-            },
-            decoration: InputDecoration(
-              hintText: 'Search ',
-              hintStyle: TextStyle(color: Colors.grey.shade500),
-              prefixIcon: Icon(Icons.search, color: Colors.grey.shade500),
-              suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(
-                      icon: Icon(Icons.clear, color: Colors.grey.shade500),
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() {
-                          _searchQuery = '';
-                        });
-                      },
-                    )
-                  : null,
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
+    return Container(
+      color: Colors.white, 
+      child: Column(
+        children: [
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            height: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE5E5EA),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+              },
+              style: const TextStyle(
+                fontSize: 17,
+                fontFamily: '.SF UI Text',
+              ),
+              decoration: InputDecoration(
+                hintText: 'Search',
+                hintStyle: TextStyle(
+                  color: const Color(0xFF8E8E93),
+                  fontSize: 17,
+                  fontFamily: '.SF UI Text',
+                ),
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: Color(0xFF8E8E93),
+                  size: 20,
+                ),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 8,
+                ),
               ),
             ),
           ),
-        ),
-        
-        // Contacts list
-        Expanded(
-          child: _filteredContacts.isEmpty
-              ? _buildEmptyState()
-              : ListView.builder(
-                  itemCount: _filteredContacts.length,
-                  itemBuilder: (context, index) {
-                    final contact = _filteredContacts[index];
-                    return _buildContactTile(contact);
-                  },
-                ),
-        ),
-      ],
+          
+          Expanded(
+            child: _filteredContacts.isEmpty
+                ? _buildEmptyState()
+                : Container(
+                    color: Colors.white,
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: ListView.builder(
+                            itemCount: _filteredContacts.length,
+                            itemBuilder: (context, index) {
+                              final contact = _filteredContacts[index];
+                              return _buildContactTile(contact, index == _filteredContacts.length - 1);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildEmptyState() {
-    return Center(
-     
-     
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.search_off_outlined,
-            size: 64,
-            color: Colors.grey.shade400,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            _searchQuery.isEmpty ? 'No contacts found' : 'No results for "$_searchQuery"',
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey.shade600,
-              fontWeight: FontWeight.w500,
+    return Container(
+      color: Colors.white,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.person_outline,
+              size: 64,
+              color: Colors.grey.shade400,
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _searchQuery.isEmpty 
-                ? 'Add some contacts to get started'
-                : 'Try searching for something else',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade500,
+            const SizedBox(height: 16),
+            Text(
+              _searchQuery.isEmpty ? 'No contacts found' : 'No results for "$_searchQuery"',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w500,
+                fontFamily: '.SF UI Text',
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              _searchQuery.isEmpty 
+                  ? 'Add some contacts to get started'
+                  : 'Try searching for something else',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade500,
+                fontFamily: '.SF UI Text',
+              ),
+            ),
+          ],
+        ),
       ),
-    
     );
   }
 
-  Widget _buildContactTile(Contact contact) {
+  Widget _buildContactTile(Contact contact, bool isLast) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        leading: CircleAvatar(
-          backgroundColor: const Color(0xFF1501FF).withOpacity(0.1),
-          radius: 24,
-          child: Text(
-            contact.avatar,
-            style: const TextStyle(fontSize: 20),
-          ),
-        ),
-        title: Text(
-          contact.name,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 16,
-          ),
-        ),
-        subtitle: Text(
-          contact.number,
-          style: TextStyle(
-            color: Colors.grey.shade600,
-            fontSize: 14,
-          ),
-        ),
-        trailing: Consumer<SipService>(
-          builder: (context, sipService, child) {
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Call button
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment(-0.05, -1.0),
-                      end: Alignment(0.05, 1.0),
-                      colors: [Color(0xFF1501FF), Color(0xFF00A3FF)],
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
-                    borderRadius: BorderRadius.circular(20),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(20),
-                      onTap: sipService.status == SipConnectionStatus.connected
-                          ? () => sipService.makeCall(contact.number)
-                          : null,
-                      child: const Icon(
-                        Icons.call,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
+      color: Colors.white,
+      child: Column(
+        children: [
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+            leading: null, 
+            title: Padding(
+              padding: const EdgeInsets.only(left: 0),
+              child: Text(
+                contact.name,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.black,
+                  fontFamily: '.SF UI Text',
                 ),
-                const SizedBox(width: 8),
-                // More options
-                IconButton(
-                  icon: Icon(
-                    Icons.more_vert,
-                    color: Colors.grey.shade500,
-                    size: 20,
-                  ),
-                  onPressed: () => _showContactOptions(contact),
-                ),
-              ],
-            );
-          },
-        ),
-        onTap: () => _showContactDetails(contact),
+              ),
+            ),
+            onTap: () => _showContactDetails(contact),
+          ),
+          
+          // iOS-style separator line
+          if (!isLast)
+            Container(
+              height: 0.5,
+              margin: const EdgeInsets.only(left: 16),
+              color: const Color(0xFFC6C6C8),
+            ),
+        ],
       ),
     );
   }
@@ -223,154 +191,183 @@ class _ContactsTabState extends State<ContactsTab> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
+        height: MediaQuery.of(context).size.height * 0.9,
         decoration: const BoxDecoration(
-          color: Colors.white,
+          color: Color(0xFFF2F2F7),
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
             // Handle bar
             Container(
-              width: 40,
-              height: 4,
+              width: 36,
+              height: 5,
+              margin: const EdgeInsets.only(top: 5),
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
+                color: const Color.fromARGB(255, 254, 254, 255),
+                borderRadius: BorderRadius.circular(3),
               ),
             ),
-            const SizedBox(height: 24),
             
-            // Contact avatar and name
-            CircleAvatar(
-              backgroundColor: const Color(0xFF0077F9).withOpacity(0.1),
-              radius: 40,
-              child: Text(
-                contact.avatar,
-                style: const TextStyle(fontSize: 32),
+            // Header
+            Container(
+              height: 44,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(
+                        fontSize: 17,
+                        color: Color(0xFF007AFF),
+                        fontFamily: '.SF UI Text',
+                      ),
+                    ),
+                  ),
+                  const Text(
+                    'Contact',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                      fontFamily: '.SF UI Text',
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      // TODO: Edit contact
+                    },
+                    child: const Text(
+                      'Edit',
+                      style: TextStyle(
+                        fontSize: 17,
+                        color: Color(0xFF007AFF),
+                        fontFamily: '.SF UI Text',
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              contact.name,
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              contact.number,
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey.shade600,
-              ),
-            ),
-            const SizedBox(height: 32),
             
-            // Action buttons
-            Consumer<SipService>(
-              builder: (context, sipService, child) {
-                return Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        height: 56,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            begin: Alignment(-0.05, -1.0),
-                            end: Alignment(0.05, 1.0),
-                            colors: [Color(0xFF1501FF), Color(0xFF00A3FF)],
+            const SizedBox(height: 20),
+            
+            // Contact info section
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                children: [
+                  // Contact avatar and name
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 120,
+                          height: 120,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFC6C6C8),
+                            shape: BoxShape.circle,
                           ),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Material(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.circular(16),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(16),
-                            onTap: sipService.status == SipConnectionStatus.connected
-                                ? () {
-                                    Navigator.pop(context);
-                                    sipService.makeCall(contact.number);
-                                  }
-                                : null,
-                            child: const Center(
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.call, color: Colors.white),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Call',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
+                          child: Center(
+                            child: Text(
+                              contact.name.isNotEmpty ? contact.name[0].toUpperCase() : '',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 54,
+                                fontWeight: FontWeight.w300,
+                                fontFamily: '.SF UI Text',
                               ),
                             ),
                           ),
                         ),
+                        const SizedBox(height: 16),
+                        Text(
+                          contact.name,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black,
+                            fontFamily: '.SF UI Text',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  // Phone section
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: const BoxDecoration(
+                      border: Border(
+                        top: BorderSide(color: Color(0xFFC6C6C8), width: 0.5),
                       ),
                     ),
-                  ],
-                );
-              },
-            ),
-            SizedBox(height: MediaQuery.of(context).padding.bottom),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showContactOptions(Contact contact) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Handle bar
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
+                    child: Row(
+                      children: [
+                        const Text(
+                          'mobile',
+                          style: TextStyle(
+                            fontSize: 17,
+                            color: Color(0xFF007AFF),
+                            fontFamily: '.SF UI Text',
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Text(
+                            contact.number,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              color: Colors.black,
+                              fontFamily: '.SF UI Text',
+                            ),
+                          ),
+                        ),
+                        Consumer<SipService>(
+                          builder: (context, sipService, child) {
+                            return IconButton(
+                              onPressed: sipService.status == SipConnectionStatus.connected
+                                  ? () {
+                                      Navigator.pop(context);
+                                      sipService.makeCall(contact.number);
+                                    }
+                                  : null,
+                              icon: Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: sipService.status == SipConnectionStatus.connected
+                                      ? const Color(0xFF34C759)
+                                      : const Color(0xFFE5E5EA),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.phone,
+                                  color: sipService.status == SipConnectionStatus.connected
+                                      ? Colors.white
+                                      : const Color(0xFF8E8E93),
+                                  size: 18,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 16),
-            
-            ListTile(
-              leading: const Icon(Icons.edit, color: Color(0xFF1501FF)),
-              title: const Text('Edit Contact'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: Implement edit contact
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete, color: Colors.red),
-              title: const Text('Delete Contact'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: Implement delete contact
-              },
-            ),
-            
-            SizedBox(height: MediaQuery.of(context).padding.bottom),
           ],
         ),
       ),
@@ -381,11 +378,9 @@ class _ContactsTabState extends State<ContactsTab> {
 class Contact {
   final String name;
   final String number;
-  final String avatar;
 
   Contact({
     required this.name,
     required this.number,
-    required this.avatar,
   });
 }

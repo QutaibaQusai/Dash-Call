@@ -1,6 +1,6 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../services/sip_service.dart';
 
 class DialerTab extends StatefulWidget {
@@ -73,32 +73,30 @@ class _DialerTabState extends State<DialerTab> {
                       // Row 4: *, 0, #
                       _buildDialerRow(['*', '0', '#'], ['', '+', '']),
                       
-                      // Reduced spacing between keypad and call button
                       const SizedBox(height: 35),
                       
-                      // Call button row
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          // Left spacer
                           Expanded(child: Container()),
                           
-                          // Call Button
                           _buildCallButton(sipService),
                           
-                          // Right side - Delete button or spacer
                           Expanded(
                             child: _phoneController.text.isNotEmpty
-                                ? Align(
-                                    alignment: Alignment.centerRight,
-                                    child: _buildDeleteButton(),
-                                  )
+                                ? Padding(
+                                  padding: const EdgeInsets.only(right: 40),
+                                  child: Align(
+                                      alignment: Alignment.centerRight,
+                                      child: _buildDeleteButton(),
+                                    ),
+                                )
                                 : Container(),
                           ),
                         ],
                       ),
                       
-                      const SizedBox(height: 40), // Bottom padding
+                      const SizedBox(height: 40), 
                     ],
                   ),
                 ),
@@ -125,10 +123,10 @@ class _DialerTabState extends State<DialerTab> {
 
   Widget _buildDialerButton(String number, String letters) {
     return Container(
-      width: 80,
-      height: 80,
+      width: 84,
+      height: 84,
       decoration: BoxDecoration(
-        color: const Color(0xFFD8D8DC), // Perfect iOS button gray
+        color: const Color(0xFFE5E5E5), // Perfect iOS button gray
         shape: BoxShape.circle,
       ),
       child: Material(
@@ -201,7 +199,7 @@ class _DialerTabState extends State<DialerTab> {
       width: 80,
       height: 80,
       decoration: BoxDecoration(
-        color:  const Color(0xFF34C759), 
+        color:  const Color(0xFF34C85A), 
         shape: BoxShape.circle,
       ),
       child: Material(
@@ -212,7 +210,7 @@ class _DialerTabState extends State<DialerTab> {
           highlightColor: Colors.white.withOpacity(0.1),
           onTap: canCall ? () => _makeCall(sipService) : null,
           child: Icon(
-            Icons.phone,
+            CupertinoIcons.phone_fill,
             color: Colors.white,
             size: 35,
           ),
@@ -237,15 +235,15 @@ class _DialerTabState extends State<DialerTab> {
         });
       },
       child: Container(
-        width: 40,
-        height: 40,
+        width: 50,
+        height: 50,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
         ),
         child: Icon(
           Icons.backspace,
-          color: Colors.black.withOpacity(0.6),
-          size: 24,
+          color: const Color(0xFFE5E5E5),
+          size: 28,
         ),
       ),
     );

@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/sip_service.dart';
@@ -43,18 +44,18 @@ class _SettingsTabState extends State<SettingsTab> {
       ),
       child: Column(
         children: [
-          // Settings Icon
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.grey.shade400,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(
-              Icons.settings,
-              size: 40,
-              color: Colors.white,
-            ),
+       child: const Icon(
+  CupertinoIcons.settings_solid,
+  size: 40,
+  color: Colors.white,
+)
+
           ),
           
           const SizedBox(height: 16),
@@ -103,7 +104,7 @@ class _SettingsTabState extends State<SettingsTab> {
       child: Column(
         children: [
           _buildSettingsItem(
-            icon: Icons.info_outline,
+icon: CupertinoIcons.info,
             iconColor: Colors.blue,
             title: 'Account',
             subtitle: sipService.username.isNotEmpty 
@@ -208,7 +209,6 @@ class _SettingsTabState extends State<SettingsTab> {
 
 }
 
-// Configuration Page (Previously About Page)
 class _ConfigurationPage extends StatefulWidget {
   final SipService sipService;
 
@@ -318,11 +318,12 @@ class _ConfigurationPageState extends State<_ConfigurationPage> {
                                 color: Colors.red.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(6),
                               ),
-                              child: const Icon(
-                                Icons.delete_outline,
-                                color: Colors.red,
-                                size: 18,
-                              ),
+                             child: const Icon(
+  CupertinoIcons.delete,
+  color: Colors.red,
+  size: 18,
+)
+,
                             ),
                             const SizedBox(width: 12),
                             const Expanded(
@@ -335,11 +336,12 @@ class _ConfigurationPageState extends State<_ConfigurationPage> {
                                 ),
                               ),
                             ),
-                            const Icon(
-                              Icons.chevron_right,
-                              color: Color(0xFFC7C7CC),
-                              size: 20,
-                            ),
+                         const Icon(
+  CupertinoIcons.right_chevron,
+  color: Color(0xFFC7C7CC),
+  size: 20,
+)
+
                           ],
                         ),
                       ),
