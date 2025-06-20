@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_contacts/flutter_contacts.dart' as fc;
 import '../services/sip_service.dart';
 
 class ContactsTab extends StatefulWidget {
@@ -12,23 +13,73 @@ class ContactsTab extends StatefulWidget {
 class _ContactsTabState extends State<ContactsTab> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  List<Contact> _contacts = [];
+  bool _isLoading = true;
 
-  // Sample contacts data - in a real app, this would come from a database or API
-  final List<Contact> _contacts = [
-    Contact(name: 'John Doe', number: '101'),
-    Contact(name: 'Jane Smith', number: '102'),
-    Contact(name: 'Mike Johnson', number: '103'),
-    Contact(name: 'Sarah Wilson', number: '104'),
-    Contact(name: 'David Brown', number: '105'),
-    Contact(name: 'Emma Davis', number: '106'),
-    Contact(name: 'Alex Miller', number: '107'),
-    Contact(name: 'Lisa Garcia', number: '108'),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadContacts();
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadContacts() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      if (await fc.FlutterContacts.requestPermission()) {
+        final contacts = await fc.FlutterContacts.getContacts(
+          withProperties: true,
+        );
+
+        final contactList = <Contact>[];
+        for (final contact in contacts) {
+          if (contact.phones.isNotEmpty) {
+            final name =
+                contact.displayName.isNotEmpty
+                    ? _cleanString(contact.displayName)
+                    : _cleanString(
+                      '${contact.name.first} ${contact.name.last}'.trim(),
+                    );
+
+            if (name.isNotEmpty) {
+              contactList.add(
+                Contact(
+                  name: name,
+                  number: _cleanString(contact.phones.first.number),
+                ),
+              );
+            }
+          }
+        }
+
+        contactList.sort(
+          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+        );
+
+        setState(() {
+          _contacts = contactList;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _contacts = [];
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _contacts = [];
+        _isLoading = false;
+      });
+    }
   }
 
   List<Contact> get _filteredContacts {
@@ -41,77 +92,106 @@ class _ContactsTabState extends State<ContactsTab> {
     }).toList();
   }
 
-  // Generate first letter from name
+  // Clean string to remove invalid UTF-16 characters
+  String _cleanString(String input) {
+    if (input.isEmpty) return input;
+
+    // Remove invalid UTF-16 characters and control characters
+    return input.runes
+        .where((rune) => rune >= 32 && rune <= 126 || rune >= 160)
+        .map((rune) => String.fromCharCode(rune))
+        .join();
+  }
+
+  // Generate first letter from first name and last name
   String _getInitials(String name) {
     if (name.isEmpty) return '';
-    return name[0].toUpperCase();
+
+    final cleanName = _cleanString(name);
+    if (cleanName.isEmpty) return '';
+
+    final parts =
+        cleanName.trim().split(' ').where((part) => part.isNotEmpty).toList();
+
+    if (parts.isEmpty) return '';
+
+    if (parts.length >= 2) {
+      // First letter of first name + first letter of last name
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    } else {
+      // Just first letter if only one name
+      return parts[0][0].toUpperCase();
+    }
+  }
+
+  // Check if contact has a proper name or just a number
+  bool _hasProperName(String name) {
+    if (name.isEmpty) return false;
+
+    final cleanName = _cleanString(name);
+    if (cleanName.isEmpty) return false;
+
+    // Check if name contains only digits, spaces, +, -, (, )
+    final numberPattern = RegExp(r'^[\d\s\+\-\(\)]+$');
+    return !numberPattern.hasMatch(cleanName);
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       color: Colors.white,
-      child: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            // Proportional scaling system
-            final baseWidth = 375.0; // iPhone SE reference
-            final scaleWidth = constraints.maxWidth / baseWidth;
-            final scaleHeight = constraints.maxHeight / 667.0;
-            final scale = (scaleWidth + scaleHeight) / 2;
-
-            return Column(
-              children: [
-                Container(
-                  margin: EdgeInsets.fromLTRB(
-                    16 * scale,
-                    8 * scale,
-                    16 * scale,
-                    0,
-                  ),
-                  height: 36 * scale,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE5E5EA),
-                    borderRadius: BorderRadius.circular(10 * scale),
-                  ),
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value;
-                      });
-                    },
-                    style: TextStyle(
-                      fontSize: 17 * scale,
-                      fontFamily: '.SF UI Text',
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'Search',
-                      hintStyle: TextStyle(
-                        color: const Color(0xFF8E8E93),
-                        fontSize: 17 * scale,
-                        fontFamily: '.SF UI Text',
-                      ),
-                      prefixIcon: Icon(
-                        Icons.search,
-                        color: const Color(0xFF8E8E93),
-                        size: 20 * scale,
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 8 * scale,
-                        vertical: 8 * scale,
-                      ),
-                    ),
-                  ),
+      child: Column(
+        children: [
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            height: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE5E5EA),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+              },
+              style: const TextStyle(fontSize: 17, fontFamily: '.SF UI Text'),
+              decoration: InputDecoration(
+                hintText: 'Search',
+                hintStyle: TextStyle(
+                  color: const Color(0xFF8E8E93),
+                  fontSize: 17,
+                  fontFamily: '.SF UI Text',
                 ),
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: Color(0xFF8E8E93),
+                  size: 20,
+                ),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 8,
+                ),
+              ),
+            ),
+          ),
 
-                Expanded(
-                  child:
-                      _filteredContacts.isEmpty
-                          ? _buildEmptyState(scale)
-                          : Container(
-                            color: Colors.white,
+          Expanded(
+            child:
+                _isLoading
+                    ? Container(
+                      color: Colors.white,
+                      child: const Center(child: CircularProgressIndicator()),
+                    )
+                    : _filteredContacts.isEmpty
+                    ? _buildEmptyState()
+                    : Container(
+                      color: Colors.white,
+                      child: Column(
+                        children: [
+                          Expanded(
                             child: ListView.builder(
                               itemCount: _filteredContacts.length,
                               itemBuilder: (context, index) {
@@ -119,51 +199,46 @@ class _ContactsTabState extends State<ContactsTab> {
                                 return _buildContactTile(
                                   contact,
                                   index == _filteredContacts.length - 1,
-                                  scale,
                                 );
                               },
                             ),
                           ),
-                ),
-              ],
-            );
-          },
-        ),
+                        ],
+                      ),
+                    ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildEmptyState(double scale) {
+  Widget _buildEmptyState() {
     return Container(
       color: Colors.white,
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.person_outline,
-              size: 64 * scale,
-              color: Colors.grey.shade400,
-            ),
-            SizedBox(height: 16 * scale),
+            Icon(Icons.person_outline, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
             Text(
               _searchQuery.isEmpty
                   ? 'No contacts found'
                   : 'No results for "$_searchQuery"',
               style: TextStyle(
-                fontSize: 18 * scale,
+                fontSize: 18,
                 color: Colors.grey.shade600,
                 fontWeight: FontWeight.w500,
                 fontFamily: '.SF UI Text',
               ),
             ),
-            SizedBox(height: 8 * scale),
+            const SizedBox(height: 8),
             Text(
               _searchQuery.isEmpty
                   ? 'Add some contacts to get started'
                   : 'Try searching for something else',
               style: TextStyle(
-                fontSize: 14 * scale,
+                fontSize: 14,
                 color: Colors.grey.shade500,
                 fontFamily: '.SF UI Text',
               ),
@@ -174,52 +249,59 @@ class _ContactsTabState extends State<ContactsTab> {
     );
   }
 
-  Widget _buildContactTile(Contact contact, bool isLast, double scale) {
+  Widget _buildContactTile(Contact contact, bool isLast) {
     return Container(
       color: Colors.white,
       child: Column(
         children: [
           ListTile(
-            contentPadding: EdgeInsets.symmetric(
-              horizontal: 16 * scale,
-              vertical: 8 * scale,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 8,
             ),
             leading: Container(
-              width: 40 * scale,
-              height: 40 * scale,
+              width: 40,
+              height: 40,
               decoration: const BoxDecoration(
                 color: Color(0xFF8E8E93),
                 shape: BoxShape.circle,
               ),
               child: Center(
-                child: Text(
-                  _getInitials(contact.name),
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16 * scale,
-                    fontWeight: FontWeight.w500,
-                    fontFamily: '.SF UI Text',
-                  ),
-                ),
+                child:
+                    _hasProperName(contact.name)
+                        ? Text(
+                          _getInitials(contact.name),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            fontFamily: '.SF UI Text',
+                          ),
+                        )
+                        : const Icon(
+                          Icons.person,
+                          color: Colors.white,
+                          size: 20,
+                        ),
               ),
             ),
             title: Text(
-              contact.name,
-              style: TextStyle(
-                fontSize: 17 * scale,
+              _cleanString(contact.name),
+              style: const TextStyle(
+                fontSize: 17,
                 fontWeight: FontWeight.w400,
                 color: Colors.black,
                 fontFamily: '.SF UI Text',
               ),
             ),
-            onTap: () => _showContactDetails(contact, scale),
+            onTap: () => _showContactDetails(contact),
           ),
 
           // iOS-style separator line
           if (!isLast)
             Container(
               height: 0.5,
-              margin: EdgeInsets.only(left: 72 * scale),
+              margin: const EdgeInsets.only(left: 72),
               color: const Color(0xFFC6C6C8),
             ),
         ],
@@ -227,7 +309,7 @@ class _ContactsTabState extends State<ContactsTab> {
     );
   }
 
-  void _showContactDetails(Contact contact, double scale) {
+  void _showContactDetails(Contact contact) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -243,52 +325,42 @@ class _ContactsTabState extends State<ContactsTab> {
               children: [
                 // Handle bar
                 Container(
-                  width: 36 * scale,
-                  height: 5 * scale,
-                  margin: EdgeInsets.only(top: 5 * scale),
+                  width: 36,
+                  height: 5,
+                  margin: const EdgeInsets.only(top: 5),
                   decoration: BoxDecoration(
                     color: const Color(0xFFC6C6C8),
-                    borderRadius: BorderRadius.circular(3 * scale),
+                    borderRadius: BorderRadius.circular(3),
                   ),
                 ),
 
                 // Header
                 Container(
-                  height: 44 * scale,
-                  padding: EdgeInsets.symmetric(horizontal: 16 * scale),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  height: 44,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Stack(
+                    alignment: Alignment.center,
                     children: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: Text(
-                          'Cancel',
-                          style: TextStyle(
-                            fontSize: 17 * scale,
-                            color: const Color(0xFF007AFF),
-                            fontFamily: '.SF UI Text',
-                          ),
-                        ),
-                      ),
-                      Text(
+                      const Text(
                         'Contact',
                         style: TextStyle(
-                          fontSize: 17 * scale,
+                          fontSize: 17,
                           fontWeight: FontWeight.w600,
                           color: Colors.black,
                           fontFamily: '.SF UI Text',
                         ),
                       ),
-                      TextButton(
-                        onPressed: () {
-                          // TODO: Edit contact
-                        },
-                        child: Text(
-                          'Edit',
-                          style: TextStyle(
-                            fontSize: 17 * scale,
-                            color: const Color(0xFF007AFF),
-                            fontFamily: '.SF UI Text',
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text(
+                            'Cancel',
+                            style: TextStyle(
+                              fontSize: 17,
+                              color: Color(0xFF007AFF),
+                              fontFamily: '.SF UI Text',
+                            ),
                           ),
                         ),
                       ),
@@ -296,46 +368,53 @@ class _ContactsTabState extends State<ContactsTab> {
                   ),
                 ),
 
-                SizedBox(height: 20 * scale),
+                const SizedBox(height: 20),
 
                 // Contact info section
                 Container(
-                  margin: EdgeInsets.symmetric(horizontal: 16 * scale),
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(10 * scale),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Column(
                     children: [
                       // Contact avatar and name
                       Container(
-                        padding: EdgeInsets.all(20 * scale),
+                        padding: const EdgeInsets.all(20),
                         child: Column(
                           children: [
                             Container(
-                              width: 120 * scale,
-                              height: 120 * scale,
+                              width: 120,
+                              height: 120,
                               decoration: const BoxDecoration(
                                 color: Color(0xFF8E8E93),
                                 shape: BoxShape.circle,
                               ),
                               child: Center(
-                                child: Text(
-                                  _getInitials(contact.name),
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 54 * scale,
-                                    fontWeight: FontWeight.w300,
-                                    fontFamily: '.SF UI Text',
-                                  ),
-                                ),
+                                child:
+                                    _hasProperName(contact.name)
+                                        ? Text(
+                                          _getInitials(contact.name),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 54,
+                                            fontWeight: FontWeight.w300,
+                                            fontFamily: '.SF UI Text',
+                                          ),
+                                        )
+                                        : const Icon(
+                                          Icons.person,
+                                          color: Colors.white,
+                                          size: 60,
+                                        ),
                               ),
                             ),
-                            SizedBox(height: 16 * scale),
+                            const SizedBox(height: 16),
                             Text(
-                              contact.name,
-                              style: TextStyle(
-                                fontSize: 24 * scale,
+                              _cleanString(contact.name),
+                              style: const TextStyle(
+                                fontSize: 24,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.black,
                                 fontFamily: '.SF UI Text',
@@ -347,9 +426,9 @@ class _ContactsTabState extends State<ContactsTab> {
 
                       // Phone section
                       Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 16 * scale,
-                          vertical: 12 * scale,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
                         ),
                         decoration: const BoxDecoration(
                           border: Border(
@@ -361,20 +440,20 @@ class _ContactsTabState extends State<ContactsTab> {
                         ),
                         child: Row(
                           children: [
-                            Text(
+                            const Text(
                               'mobile',
                               style: TextStyle(
-                                fontSize: 17 * scale,
-                                color: const Color(0xFF007AFF),
+                                fontSize: 17,
+                                color: Color(0xFF007AFF),
                                 fontFamily: '.SF UI Text',
                               ),
                             ),
-                            SizedBox(width: 16 * scale),
+                            const SizedBox(width: 16),
                             Expanded(
                               child: Text(
-                                contact.number,
-                                style: TextStyle(
-                                  fontSize: 17 * scale,
+                                _cleanString(contact.number),
+                                style: const TextStyle(
+                                  fontSize: 17,
                                   color: Colors.black,
                                   fontFamily: '.SF UI Text',
                                 ),
@@ -392,8 +471,8 @@ class _ContactsTabState extends State<ContactsTab> {
                                           }
                                           : null,
                                   icon: Container(
-                                    width: 32 * scale,
-                                    height: 32 * scale,
+                                    width: 32,
+                                    height: 32,
                                     decoration: BoxDecoration(
                                       color:
                                           sipService.status ==
@@ -409,7 +488,7 @@ class _ContactsTabState extends State<ContactsTab> {
                                                   SipConnectionStatus.connected
                                               ? Colors.white
                                               : const Color(0xFF8E8E93),
-                                      size: 18 * scale,
+                                      size: 18,
                                     ),
                                   ),
                                 );

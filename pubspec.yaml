@@ -19,8 +19,10 @@ dependencies:
   flutter_callkit_incoming: ^2.0.0+1  
   uuid: ^4.4.0
   mobile_scanner: ^5.0.1
-  google_fonts: ^6.1.0  # Add this line
-  flutter_webrtc: ^0.12.6  # Add this for audio control
+  google_fonts: ^6.1.0  
+  flutter_webrtc: ^0.12.6  
+  audioplayers: ^5.2.1
+  flutter_contacts: ^1.1.9+2
 
 
 
@@ -34,3 +36,4 @@ flutter:
 
   assets:
     - assets/icon/
+    - assets/sounds/dtmf/

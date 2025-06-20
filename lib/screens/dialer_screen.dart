@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/sip_service.dart';
+import '../services/dtmf_audio_service.dart';
 
 class DialerTab extends StatefulWidget {
   const DialerTab({super.key});
@@ -12,6 +13,19 @@ class DialerTab extends StatefulWidget {
 
 class _DialerTabState extends State<DialerTab> {
   final TextEditingController _phoneController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Optional: Preload DTMF sounds for better performance
+    Future.microtask(() async {
+      try {
+        await DTMFAudioService.preloadSounds();
+      } catch (e) {
+        // Silent fail
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -33,19 +47,17 @@ class _DialerTabState extends State<DialerTab> {
                 final screenWidth = constraints.maxWidth;
 
                 // Responsive sizing
-                final numberDisplayHeight =
-                    screenHeight * 0.15; // 15% of screen
-                final dialPadHeight = screenHeight * 0.65; // 65% of screen
-                final buttonAreaHeight = screenHeight * 0.20; // 20% of screen
+                final numberDisplayHeight = screenHeight * 0.15;
+                final dialPadHeight = screenHeight * 0.65;
+                final buttonAreaHeight = screenHeight * 0.20;
 
                 // Button size based on screen width
-                final buttonSize =
-                    (screenWidth - 60) / 3.5; // Account for padding
+                final buttonSize = (screenWidth - 60) / 3.5;
                 final callButtonSize = buttonSize * 0.95;
 
                 return Column(
                   children: [
-                    // Number Display Area - Fixed height
+                    // Number Display Area
                     Container(
                       height: numberDisplayHeight,
                       width: double.infinity,
@@ -69,12 +81,12 @@ class _DialerTabState extends State<DialerTab> {
                       ),
                     ),
 
-                    // Dialer Pad - Flexible but constrained
+                    // Dialer Pad
                     Expanded(
                       child: Container(
                         height: dialPadHeight,
                         padding: EdgeInsets.symmetric(
-                          horizontal: screenWidth * 0.08, // 8% padding
+                          horizontal: screenWidth * 0.08,
                         ),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -111,7 +123,7 @@ class _DialerTabState extends State<DialerTab> {
                       ),
                     ),
 
-                    // Bottom Button Area - Fixed height
+                    // Bottom Button Area
                     Container(
                       height: buttonAreaHeight,
                       padding: const EdgeInsets.symmetric(horizontal: 30),
@@ -126,20 +138,17 @@ class _DialerTabState extends State<DialerTab> {
                               _buildCallButton(sipService, callButtonSize),
 
                               Expanded(
-                                child:
-                                    _phoneController.text.isNotEmpty
-                                        ? Padding(
-                                          padding: const EdgeInsets.only(
-                                            right: 40,
+                                child: _phoneController.text.isNotEmpty
+                                    ? Padding(
+                                        padding: const EdgeInsets.only(right: 40),
+                                        child: Align(
+                                          alignment: Alignment.centerRight,
+                                          child: _buildDeleteButton(
+                                            callButtonSize * 0.6,
                                           ),
-                                          child: Align(
-                                            alignment: Alignment.centerRight,
-                                            child: _buildDeleteButton(
-                                              callButtonSize * 0.6,
-                                            ),
-                                          ),
-                                        )
-                                        : Container(),
+                                        ),
+                                      )
+                                    : Container(),
                               ),
                             ],
                           ),
@@ -156,14 +165,13 @@ class _DialerTabState extends State<DialerTab> {
     );
   }
 
-  // Responsive font size for number display
   double _getResponsiveFontSize(double screenWidth) {
     if (screenWidth < 350) {
-      return 28; // Small phones
+      return 28;
     } else if (screenWidth < 400) {
-      return 32; // Medium phones
+      return 32;
     } else {
-      return 38; // Large phones/tablets
+      return 38;
     }
   }
 
@@ -174,21 +182,19 @@ class _DialerTabState extends State<DialerTab> {
   ) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children:
-          numbers.asMap().entries.map((entry) {
-            int index = entry.key;
-            String number = entry.value;
-            String letter = letters[index];
+      children: numbers.asMap().entries.map((entry) {
+        int index = entry.key;
+        String number = entry.value;
+        String letter = letters[index];
 
-            return _buildDialerButton(number, letter, buttonSize);
-          }).toList(),
+        return _buildDialerButton(number, letter, buttonSize);
+      }).toList(),
     );
   }
 
   Widget _buildDialerButton(String number, String letters, double size) {
-    // Responsive font sizes
-    final numberFontSize = size * 0.4; // 40% of button size
-    final letterFontSize = size * 0.12; // 12% of button size
+    final numberFontSize = size * 0.4;
+    final letterFontSize = size * 0.12;
 
     return Container(
       width: size,
@@ -203,14 +209,38 @@ class _DialerTabState extends State<DialerTab> {
           borderRadius: BorderRadius.circular(size / 2),
           splashColor: Colors.black.withOpacity(0.1),
           highlightColor: Colors.black.withOpacity(0.05),
-          onTap: () {
+          
+          // Regular tap - Real DTMF sound!
+          onTap: () async {
+            // Play real DTMF audio tone (auto-initializes if needed)
+            await DTMFAudioService.playDTMF(number);
+            
+            // Update phone number display
             setState(() {
               _phoneController.text += number;
             });
+            
+            // Send DTMF to active call
+            _sendDTMFToCall(number);
           },
+          
+          // Long press - Longer DTMF tone
+          onLongPress: () async {
+            // Play longer DTMF tone
+            await DTMFAudioService.playLongDTMF(number);
+            
+            // Add to display
+            setState(() {
+              _phoneController.text += number;
+            });
+            
+            // Send to call
+            _sendDTMFToCall(number);
+          },
+          
           child: Stack(
             children: [
-              // Number - positioned in upper center
+              // Number
               Positioned(
                 top: letters.isNotEmpty ? size * 0.22 : size * 0.35,
                 left: 0,
@@ -228,7 +258,7 @@ class _DialerTabState extends State<DialerTab> {
                   ),
                 ),
               ),
-              // Letters - positioned in lower center
+              // Letters
               if (letters.isNotEmpty)
                 Positioned(
                   bottom: size * 0.18,
@@ -255,9 +285,16 @@ class _DialerTabState extends State<DialerTab> {
     );
   }
 
+  // Send DTMF to active call
+  void _sendDTMFToCall(String digit) {
+    final sipService = Provider.of<SipService>(context, listen: false);
+    if (sipService.callStatus == CallStatus.active) {
+      sipService.sendDTMF(digit);
+    }
+  }
+
   Widget _buildCallButton(SipService sipService, double size) {
-    final bool canCall =
-        _phoneController.text.isNotEmpty &&
+    final bool canCall = _phoneController.text.isNotEmpty &&
         sipService.status == SipConnectionStatus.connected;
 
     return Container(
@@ -286,7 +323,10 @@ class _DialerTabState extends State<DialerTab> {
 
   Widget _buildDeleteButton(double size) {
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
+        // Stop any playing DTMF
+        await DTMFAudioService.stopDTMF();
+        
         setState(() {
           if (_phoneController.text.isNotEmpty) {
             _phoneController.text = _phoneController.text.substring(
@@ -296,7 +336,10 @@ class _DialerTabState extends State<DialerTab> {
           }
         });
       },
-      onLongPress: () {
+      onLongPress: () async {
+        // Stop DTMF and clear all
+        await DTMFAudioService.stopDTMF();
+        
         setState(() {
           _phoneController.clear();
         });
@@ -315,7 +358,6 @@ class _DialerTabState extends State<DialerTab> {
   }
 
   String _formatPhoneNumber(String number) {
-    // iOS-style phone number formatting
     if (number.length <= 3) {
       return number;
     } else if (number.length <= 6) {
@@ -336,7 +378,7 @@ class _DialerTabState extends State<DialerTab> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(sipService.errorMessage ?? 'Failed to make call'),
-            backgroundColor: const Color(0xFFFF3B30), // iOS red
+            backgroundColor: const Color(0xFFFF3B30),
             behavior: SnackBarBehavior.floating,
             margin: const EdgeInsets.all(16),
             shape: RoundedRectangleBorder(
