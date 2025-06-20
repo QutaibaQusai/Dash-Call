@@ -20,6 +20,8 @@ dependencies:
   uuid: ^4.4.0
   mobile_scanner: ^5.0.1
   google_fonts: ^6.1.0  # Add this line
+  flutter_webrtc: ^0.12.6  # Add this for audio control
+
 
 
 dev_dependencies:
