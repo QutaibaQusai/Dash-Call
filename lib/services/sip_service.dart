@@ -3,6 +3,7 @@ import 'package:sip_ua/sip_ua.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'callkit_service.dart';
+import '../screens/history_tab.dart';
 
 enum SipConnectionStatus { disconnected, connecting, connected, error }
 
@@ -360,6 +361,15 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
       _callNumber = phoneNumber;
       _callStartTime = DateTime.now();
 
+      // ADD THIS: Record outgoing call in history
+      CallHistoryManager.addCall(
+        number: phoneNumber,
+        name: null, // You can enhance this to lookup contact name
+        type: CallType.outgoing,
+        timestamp: DateTime.now(),
+        duration: Duration.zero,
+      );
+
       // Show native outgoing call UI
       await CallKitService.startCall(
         callerName: phoneNumber,
@@ -415,6 +425,12 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     if (_currentCall != null) {
       try {
         print('📞 [SipService] Calling hangup() to reject call');
+
+        // ADD THIS: Mark as missed call since it was rejected
+        if (_callNumber != null) {
+          CallHistoryManager.markAsMissed(_callNumber!);
+        }
+
         _currentCall!.hangup();
 
         // End call in CallKit
@@ -497,6 +513,15 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
       _callNumber = call.remote_identity ?? 'Unknown';
       _setCallStatus(CallStatus.incoming);
 
+      // ADD THIS: Record incoming call in history
+      CallHistoryManager.addCall(
+        number: call.remote_identity ?? 'Unknown',
+        name: null, // You can enhance this to lookup contact name
+        type: CallType.incoming,
+        timestamp: DateTime.now(),
+        duration: Duration.zero,
+      );
+
       // Always show native CallKit UI
       print('📱 [SipService] Showing native CallKit incoming call screen');
       _showNativeIncomingCall(call.remote_identity ?? 'Unknown');
@@ -548,6 +573,18 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
           _setStatusMessage('Call ended: ${state.cause}');
         } else {
           _setStatusMessage('Call ended');
+        }
+
+        // ADD THIS: Update call history with duration or mark as missed
+        if (_callNumber != null) {
+          if (_callStartTime != null && _callStatus == CallStatus.active) {
+            // Call was connected, update duration
+            final duration = DateTime.now().difference(_callStartTime!);
+            CallHistoryManager.updateCallDuration(_callNumber!, duration);
+          } else if (_callStatus == CallStatus.incoming) {
+            // Incoming call was not answered, mark as missed
+            CallHistoryManager.markAsMissed(_callNumber!);
+          }
         }
 
         // End call in CallKit

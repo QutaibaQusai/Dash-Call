@@ -183,7 +183,11 @@ class _ContactsTabState extends State<ContactsTab> {
                 _isLoading
                     ? Container(
                       color: Colors.white,
-                      child: const Center(child: CircularProgressIndicator()),
+                      child: const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF0077F9),
+                        ),
+                      ),
                     )
                     : _filteredContacts.isEmpty
                     ? _buildEmptyState()

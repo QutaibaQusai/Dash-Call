@@ -12,69 +12,17 @@ class HistoryTab extends StatefulWidget {
 
 class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
   late TabController _tabController;
-
-  // Sample call history data
-  final List<CallRecord> _callHistory = [
-    CallRecord(
-      id: '1',
-      number: '101',
-      name: 'John Doe',
-      type: CallType.outgoing,
-      timestamp: DateTime.now().subtract(const Duration(minutes: 15)),
-      duration: const Duration(minutes: 5, seconds: 23),
-      avatar: '👤',
-    ),
-    CallRecord(
-      id: '2',
-      number: '102',
-      name: 'Jane Smith',
-      type: CallType.incoming,
-      timestamp: DateTime.now().subtract(const Duration(hours: 2)),
-      duration: const Duration(minutes: 12, seconds: 45),
-      avatar: '👩',
-    ),
-    CallRecord(
-      id: '3',
-      number: '103',
-      name: 'Mike Johnson',
-      type: CallType.missed,
-      timestamp: DateTime.now().subtract(const Duration(hours: 4)),
-      duration: Duration.zero,
-      avatar: '👨',
-    ),
-    CallRecord(
-      id: '4',
-      number: '555-0123',
-      name: null,
-      type: CallType.outgoing,
-      timestamp: DateTime.now().subtract(const Duration(days: 1)),
-      duration: const Duration(minutes: 2, seconds: 10),
-      avatar: '📞',
-    ),
-    CallRecord(
-      id: '5',
-      number: '104',
-      name: 'Sarah Wilson',
-      type: CallType.missed,
-      timestamp: DateTime.now().subtract(const Duration(days: 1, hours: 3)),
-      duration: Duration.zero,
-      avatar: '👩‍💼',
-    ),
-    CallRecord(
-      id: '6',
-      number: '105',
-      name: 'David Brown',
-      type: CallType.incoming,
-      timestamp: DateTime.now().subtract(const Duration(days: 2)),
-      duration: const Duration(minutes: 8, seconds: 30),
-      avatar: '👨‍💻',
-    ),
-  ];
+  int _selectedTabIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 4, vsync: this); // Changed to 4 tabs
+    _tabController.addListener(() {
+      setState(() {
+        _selectedTabIndex = _tabController.index;
+      });
+    });
   }
 
   @override
@@ -83,9 +31,10 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  List<CallRecord> get _allCalls => _callHistory;
-  List<CallRecord> get _missedCalls =>
-      _callHistory.where((call) => call.type == CallType.missed).toList();
+  List<CallRecord> get _allCalls => CallHistoryManager.getAllCalls();
+  List<CallRecord> get _incomingCalls => CallHistoryManager.getIncomingCalls();
+  List<CallRecord> get _outgoingCalls => CallHistoryManager.getOutgoingCalls();
+  List<CallRecord> get _missedCalls => CallHistoryManager.getMissedCalls();
 
   String _getInitials(String? name) {
     if (name == null || name.isEmpty) return '';
@@ -107,6 +56,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
 
             return Column(
               children: [
+                // Enhanced Tab Bar with 4 tabs
                 Container(
                   color: Colors.white,
                   padding: EdgeInsets.fromLTRB(
@@ -115,19 +65,18 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
                     16 * scale,
                     16 * scale,
                   ),
-                  child: Center(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE5E5EA),
-                        borderRadius: BorderRadius.circular(8 * scale),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _buildTabButton('All', 0, scale),
-                          _buildTabButton('Missed', 1, scale),
-                        ],
-                      ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE5E5EA),
+                      borderRadius: BorderRadius.circular(8 * scale),
+                    ),
+                    child: Row(
+                      children: [
+                        _buildTabButton('All', 0, scale),
+                        _buildTabButton('Incoming', 1, scale),
+                        _buildTabButton('Outgoing', 2, scale),
+                        _buildTabButton('Missed', 3, scale),
+                      ],
                     ),
                   ),
                 ),
@@ -138,6 +87,8 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
                     controller: _tabController,
                     children: [
                       _buildCallList(_allCalls, scale),
+                      _buildCallList(_incomingCalls, scale),
+                      _buildCallList(_outgoingCalls, scale),
                       _buildCallList(_missedCalls, scale),
                     ],
                   ),
@@ -151,7 +102,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
   }
 
   Widget _buildTabButton(String text, int index, double scale) {
-    bool isSelected = _tabController.index == index;
+    bool isSelected = _selectedTabIndex == index;
 
     return Expanded(
       child: GestureDetector(
@@ -182,7 +133,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: isSelected ? Colors.black : const Color(0xFF8E8E93),
-              fontSize: 13 * scale,
+              fontSize: 12 * scale,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -194,7 +145,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
   Widget _buildCallList(List<CallRecord> calls, double scale) {
     if (calls.isEmpty) {
       return Container(
-        color: const Color(0xFFF2F2F7),
+        color: Colors.white,
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -206,7 +157,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
               ),
               SizedBox(height: 16 * scale),
               Text(
-                'No calls yet',
+                _getEmptyStateTitle(),
                 style: TextStyle(
                   fontSize: 18 * scale,
                   color: Colors.grey.shade600,
@@ -215,7 +166,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
               ),
               SizedBox(height: 8 * scale),
               Text(
-                'Your call history will appear here',
+                _getEmptyStateSubtitle(),
                 style: TextStyle(
                   fontSize: 14 * scale,
                   color: Colors.grey.shade500,
@@ -238,6 +189,36 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
         },
       ),
     );
+  }
+
+  String _getEmptyStateTitle() {
+    switch (_selectedTabIndex) {
+      case 0:
+        return 'No calls yet';
+      case 1:
+        return 'No incoming calls';
+      case 2:
+        return 'No outgoing calls';
+      case 3:
+        return 'No missed calls';
+      default:
+        return 'No calls yet';
+    }
+  }
+
+  String _getEmptyStateSubtitle() {
+    switch (_selectedTabIndex) {
+      case 0:
+        return 'Your call history will appear here';
+      case 1:
+        return 'Incoming calls will appear here';
+      case 2:
+        return 'Outgoing calls will appear here';
+      case 3:
+        return 'Missed calls will appear here';
+      default:
+        return 'Your call history will appear here';
+    }
   }
 
   Widget _buildCallTile(CallRecord call, bool isLast, double scale) {
@@ -317,7 +298,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
                       if (call.name != null) ...[
                         SizedBox(height: 2 * scale),
                         Text(
-                          'Number',
+                          call.number,
                           style: TextStyle(
                             fontSize: 15 * scale,
                             color: const Color(0xFF8E8E93),
@@ -338,6 +319,16 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
                         color: const Color(0xFF8E8E93),
                       ),
                     ),
+                    if (call.duration != Duration.zero) ...[
+                      SizedBox(height: 2 * scale),
+                      Text(
+                        _formatDuration(call.duration),
+                        style: TextStyle(
+                          fontSize: 13 * scale,
+                          color: const Color(0xFF8E8E93),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ],
@@ -398,6 +389,20 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
                   ],
                 ),
               ),
+              CupertinoActionSheetAction(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _deleteCallRecord(call);
+                },
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(CupertinoIcons.delete, color: Color(0xFFFF3B30)),
+                    SizedBox(width: 8),
+                    Text('Delete', style: TextStyle(color: Color(0xFFFF3B30))),
+                  ],
+                ),
+              ),
             ],
             cancelButton: CupertinoActionSheetAction(
               onPressed: () => Navigator.pop(context),
@@ -411,11 +416,19 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
     );
   }
 
+  void _deleteCallRecord(CallRecord call) {
+    setState(() {
+      CallHistoryManager.deleteCall(call.id);
+    });
+  }
+
   String _formatRelativeTime(DateTime dateTime) {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
 
-    if (difference.inDays >= 1) {
+    if (difference.inDays >= 2) {
+      return '${difference.inDays}d ago';
+    } else if (difference.inDays >= 1) {
       return 'Yesterday';
     } else if (difference.inHours >= 1) {
       return '${difference.inHours}h ago';
@@ -452,6 +465,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
   }
 }
 
+// Enhanced CallRecord and CallHistoryManager
 enum CallType { incoming, outgoing, missed }
 
 class CallRecord {
@@ -461,7 +475,6 @@ class CallRecord {
   final CallType type;
   final DateTime timestamp;
   final Duration duration;
-  final String avatar;
 
   CallRecord({
     required this.id,
@@ -470,6 +483,148 @@ class CallRecord {
     required this.type,
     required this.timestamp,
     required this.duration,
-    required this.avatar,
   });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'number': number,
+      'name': name,
+      'type': type.index,
+      'timestamp': timestamp.millisecondsSinceEpoch,
+      'duration': duration.inSeconds,
+    };
+  }
+
+  factory CallRecord.fromJson(Map<String, dynamic> json) {
+    return CallRecord(
+      id: json['id'],
+      number: json['number'],
+      name: json['name'],
+      type: CallType.values[json['type']],
+      timestamp: DateTime.fromMillisecondsSinceEpoch(json['timestamp']),
+      duration: Duration(seconds: json['duration']),
+    );
+  }
+}
+
+class CallHistoryManager {
+  static final List<CallRecord> _callHistory = [];
+
+  // Add a new call record
+  static void addCall({
+    required String number,
+    String? name,
+    required CallType type,
+    required DateTime timestamp,
+    Duration duration = Duration.zero,
+  }) {
+    final record = CallRecord(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      number: number,
+      name: name,
+      type: type,
+      timestamp: timestamp,
+      duration: duration,
+    );
+
+    _callHistory.insert(0, record); // Insert at beginning for latest first
+
+    // Keep only last 100 calls to prevent memory issues
+    if (_callHistory.length > 100) {
+      _callHistory.removeRange(100, _callHistory.length);
+    }
+
+    print('📱 [CallHistory] Added ${type.name} call: $number');
+  }
+
+  // Get all calls
+  static List<CallRecord> getAllCalls() {
+    return List.from(_callHistory);
+  }
+
+  // Get incoming calls
+  static List<CallRecord> getIncomingCalls() {
+    return _callHistory
+        .where((call) => call.type == CallType.incoming)
+        .toList();
+  }
+
+  // Get outgoing calls
+  static List<CallRecord> getOutgoingCalls() {
+    return _callHistory
+        .where((call) => call.type == CallType.outgoing)
+        .toList();
+  }
+
+  // Get missed calls
+  static List<CallRecord> getMissedCalls() {
+    return _callHistory.where((call) => call.type == CallType.missed).toList();
+  }
+
+  // Delete a specific call
+  static void deleteCall(String id) {
+    _callHistory.removeWhere((call) => call.id == id);
+    print('📱 [CallHistory] Deleted call: $id');
+  }
+
+  // Clear all calls
+  static void clearHistory() {
+    _callHistory.clear();
+    print('📱 [CallHistory] Cleared all call history');
+  }
+
+  // Update call duration (for when call ends)
+  static void updateCallDuration(String number, Duration duration) {
+    final index = _callHistory.indexWhere(
+      (call) =>
+          call.number == number &&
+          call.duration == Duration.zero &&
+          DateTime.now().difference(call.timestamp).inMinutes <
+              5, // Recent call
+    );
+
+    if (index != -1) {
+      final oldCall = _callHistory[index];
+      final updatedCall = CallRecord(
+        id: oldCall.id,
+        number: oldCall.number,
+        name: oldCall.name,
+        type: oldCall.type,
+        timestamp: oldCall.timestamp,
+        duration: duration,
+      );
+
+      _callHistory[index] = updatedCall;
+      print(
+        '📱 [CallHistory] Updated call duration: $number -> ${duration.inSeconds}s',
+      );
+    }
+  }
+
+  // Mark call as missed
+  static void markAsMissed(String number) {
+    final index = _callHistory.indexWhere(
+      (call) =>
+          call.number == number &&
+          call.type == CallType.incoming &&
+          DateTime.now().difference(call.timestamp).inMinutes <
+              5, // Recent call
+    );
+
+    if (index != -1) {
+      final oldCall = _callHistory[index];
+      final missedCall = CallRecord(
+        id: oldCall.id,
+        number: oldCall.number,
+        name: oldCall.name,
+        type: CallType.missed,
+        timestamp: oldCall.timestamp,
+        duration: Duration.zero,
+      );
+
+      _callHistory[index] = missedCall;
+      print('📱 [CallHistory] Marked call as missed: $number');
+    }
+  }
 }
