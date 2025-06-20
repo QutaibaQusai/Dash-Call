@@ -12,7 +12,7 @@ class HistoryTab extends StatefulWidget {
 
 class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
   late TabController _tabController;
-  
+
   // Sample call history data
   final List<CallRecord> _callHistory = [
     CallRecord(
@@ -84,7 +84,8 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
   }
 
   List<CallRecord> get _allCalls => _callHistory;
-  List<CallRecord> get _missedCalls => _callHistory.where((call) => call.type == CallType.missed).toList();
+  List<CallRecord> get _missedCalls =>
+      _callHistory.where((call) => call.type == CallType.missed).toList();
 
   String _getInitials(String? name) {
     if (name == null || name.isEmpty) return '';
@@ -94,82 +95,103 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFF2F2F7), 
-      child: Column(
-        children: [
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: Center(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE5E5EA),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildTabButton('All', 0),
-                    _buildTabButton('Missed', 1),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          
-          // Tab content
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
+      color: const Color(0xFFF2F2F7),
+      child: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Proportional scaling system
+            final baseWidth = 375.0; // iPhone SE reference
+            final scaleWidth = constraints.maxWidth / baseWidth;
+            final scaleHeight = constraints.maxHeight / 667.0;
+            final scale = (scaleWidth + scaleHeight) / 2;
+
+            return Column(
               children: [
-                _buildCallList(_allCalls),
-                _buildCallList(_missedCalls),
+                Container(
+                  color: Colors.white,
+                  padding: EdgeInsets.fromLTRB(
+                    16 * scale,
+                    8 * scale,
+                    16 * scale,
+                    16 * scale,
+                  ),
+                  child: Center(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE5E5EA),
+                        borderRadius: BorderRadius.circular(8 * scale),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildTabButton('All', 0, scale),
+                          _buildTabButton('Missed', 1, scale),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Tab content
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildCallList(_allCalls, scale),
+                      _buildCallList(_missedCalls, scale),
+                    ],
+                  ),
+                ),
               ],
-            ),
-          ),
-        ],
+            );
+          },
+        ),
       ),
     );
   }
 
-  Widget _buildTabButton(String text, int index) {
- bool isSelected = _tabController.index == index;
- 
- return Expanded(
-   child: GestureDetector(
-     onTap: () {
-       setState(() {
-         _tabController.animateTo(index);
-       });
-     },
-     child: Container(
-       margin: const EdgeInsets.all(2),
-       padding: const EdgeInsets.symmetric(vertical: 6),
-       decoration: BoxDecoration(
-         color: isSelected ? Colors.white : Colors.transparent,
-         borderRadius: BorderRadius.circular(6),
-         boxShadow: isSelected ? [
-           BoxShadow(
-             color: Colors.black.withOpacity(0.04),
-             blurRadius: 2,
-             offset: const Offset(0, 1),
-           ),
-         ] : null,
-       ),
-       child: Text(
-         text,
-         textAlign: TextAlign.center,
-         style: TextStyle(
-           color: isSelected ? Colors.black : const Color(0xFF8E8E93),
-           fontSize: 13,
-           fontWeight: FontWeight.w500,
-         ),
-       ),
-     ),
-   ),
- );
-}
-  Widget _buildCallList(List<CallRecord> calls) {
+  Widget _buildTabButton(String text, int index, double scale) {
+    bool isSelected = _tabController.index == index;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _tabController.animateTo(index);
+          });
+        },
+        child: Container(
+          margin: EdgeInsets.all(2 * scale),
+          padding: EdgeInsets.symmetric(vertical: 6 * scale),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(6 * scale),
+            boxShadow:
+                isSelected
+                    ? [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 2 * scale,
+                        offset: Offset(0, 1 * scale),
+                      ),
+                    ]
+                    : null,
+          ),
+          child: Text(
+            text,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: isSelected ? Colors.black : const Color(0xFF8E8E93),
+              fontSize: 13 * scale,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCallList(List<CallRecord> calls, double scale) {
     if (calls.isEmpty) {
       return Container(
         color: const Color(0xFFF2F2F7),
@@ -179,23 +201,23 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
             children: [
               Icon(
                 CupertinoIcons.phone,
-                size: 64,
+                size: 64 * scale,
                 color: Colors.grey.shade400,
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16 * scale),
               Text(
                 'No calls yet',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 18 * scale,
                   color: Colors.grey.shade600,
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8 * scale),
               Text(
                 'Your call history will appear here',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 14 * scale,
                   color: Colors.grey.shade500,
                 ),
               ),
@@ -206,58 +228,61 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
     }
 
     return Container(
-      color:Colors.white,
+      color: Colors.white,
       child: ListView.builder(
         padding: EdgeInsets.zero,
         itemCount: calls.length,
         itemBuilder: (context, index) {
           final call = calls[index];
-          return _buildCallTile(call, index == calls.length - 1);
+          return _buildCallTile(call, index == calls.length - 1, scale);
         },
       ),
     );
   }
 
-  Widget _buildCallTile(CallRecord call, bool isLast) {
+  Widget _buildCallTile(CallRecord call, bool isLast, double scale) {
     return InkWell(
-      onTap: (){
-                                _showCallDetails(call);
-
+      onTap: () {
+        _showCallDetails(call);
       },
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: EdgeInsets.symmetric(
+              horizontal: 16 * scale,
+              vertical: 12 * scale,
+            ),
             child: Row(
               children: [
                 // Avatar with initials
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: 40 * scale,
+                  height: 40 * scale,
                   decoration: const BoxDecoration(
                     color: Color(0xFFC6C6C8),
                     shape: BoxShape.circle,
                   ),
                   child: Center(
-                    child: call.name != null 
-                        ? Text(
-                            _getInitials(call.name),
-                            style: const TextStyle(
+                    child:
+                        call.name != null
+                            ? Text(
+                              _getInitials(call.name),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16 * scale,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            )
+                            : Icon(
+                              CupertinoIcons.person_fill,
                               color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
+                              size: 20 * scale,
                             ),
-                          )
-                        : const Icon(
-                            CupertinoIcons.person_fill,
-                            color: Colors.white,
-                            size: 20,
-                          ),
                   ),
                 ),
-                
-                const SizedBox(width: 12),
-                
+
+                SizedBox(width: 12 * scale),
+
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -267,58 +292,63 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
                           // Call direction icon
                           Icon(
                             _getCallDirectionIcon(call.type),
-                            color: call.type == CallType.missed ? const Color(0xFFFF3B30) : const Color(0xFF8E8E93),
-                            size: 16,
+                            color:
+                                call.type == CallType.missed
+                                    ? const Color(0xFFFF3B30)
+                                    : const Color(0xFF8E8E93),
+                            size: 16 * scale,
                           ),
-                          const SizedBox(width: 6),
+                          SizedBox(width: 6 * scale),
                           Expanded(
                             child: Text(
                               call.name ?? call.number,
                               style: TextStyle(
-                                fontSize: 17,
+                                fontSize: 17 * scale,
                                 fontWeight: FontWeight.w400,
-                                color: call.type == CallType.missed ? const Color(0xFFFF3B30) : Colors.black,
+                                color:
+                                    call.type == CallType.missed
+                                        ? const Color(0xFFFF3B30)
+                                        : Colors.black,
                               ),
                             ),
                           ),
                         ],
                       ),
                       if (call.name != null) ...[
-                        const SizedBox(height: 2),
+                        SizedBox(height: 2 * scale),
                         Text(
                           'Number',
-                          style: const TextStyle(
-                            fontSize: 15,
-                            color: Color(0xFF8E8E93),
+                          style: TextStyle(
+                            fontSize: 15 * scale,
+                            color: const Color(0xFF8E8E93),
                           ),
                         ),
                       ],
                     ],
                   ),
                 ),
-                
+
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
                       _formatRelativeTime(call.timestamp),
-                      style: const TextStyle(
-                        fontSize: 15,
-                        color: Color(0xFF8E8E93),
+                      style: TextStyle(
+                        fontSize: 15 * scale,
+                        color: const Color(0xFF8E8E93),
                       ),
                     ),
-                   
                   ],
                 ),
               ],
             ),
           ),
-          
+
           // iOS separator line
           if (!isLast)
             Container(
               height: 0.5,
-              margin: const EdgeInsets.only(left: 68),
+              margin: EdgeInsets.only(left: 68 * scale),
               color: const Color(0xFFC6C6C8),
             ),
         ],
@@ -340,42 +370,51 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
   void _showCallDetails(CallRecord call) {
     showCupertinoModalPopup(
       context: context,
-      builder: (BuildContext context) => CupertinoActionSheet(
-        title: Text(call.name ?? call.number),
-        message: Text('${_formatTime(call.timestamp)} • ${_formatDuration(call.duration)}'),
-        actions: [
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(context);
-              // Make call
-              final sipService = Provider.of<SipService>(context, listen: false);
-              if (sipService.status == SipConnectionStatus.connected) {
-                sipService.makeCall(call.number);
-              }
-            },
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(CupertinoIcons.phone, color: Color(0xFF007AFF)),
-                SizedBox(width: 8),
-                Text('Call',style: TextStyle(color:Color(0xFF007AFF) ),),
-              ],
+      builder:
+          (BuildContext context) => CupertinoActionSheet(
+            title: Text(call.name ?? call.number),
+            message: Text(
+              '${_formatTime(call.timestamp)} • ${_formatDuration(call.duration)}',
+            ),
+            actions: [
+              CupertinoActionSheetAction(
+                onPressed: () {
+                  Navigator.pop(context);
+                  // Make call
+                  final sipService = Provider.of<SipService>(
+                    context,
+                    listen: false,
+                  );
+                  if (sipService.status == SipConnectionStatus.connected) {
+                    sipService.makeCall(call.number);
+                  }
+                },
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(CupertinoIcons.phone, color: Color(0xFF007AFF)),
+                    SizedBox(width: 8),
+                    Text('Call', style: TextStyle(color: Color(0xFF007AFF))),
+                  ],
+                ),
+              ),
+            ],
+            cancelButton: CupertinoActionSheetAction(
+              onPressed: () => Navigator.pop(context),
+              isDefaultAction: true,
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Color(0xFF007AFF)),
+              ),
             ),
           ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          onPressed: () => Navigator.pop(context),
-          isDefaultAction: true,
-          child: const Text('Cancel',style: TextStyle(color:Color(0xFF007AFF) ),
-        ),
-      ),
-    ));
+    );
   }
 
   String _formatRelativeTime(DateTime dateTime) {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
-    
+
     if (difference.inDays >= 1) {
       return 'Yesterday';
     } else if (difference.inHours >= 1) {
@@ -388,7 +427,10 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
   }
 
   String _formatTime(DateTime dateTime) {
-    final hour = dateTime.hour == 0 ? 12 : (dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour);
+    final hour =
+        dateTime.hour == 0
+            ? 12
+            : (dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour);
     final minute = dateTime.minute.toString().padLeft(2, '0');
     final period = dateTime.hour >= 12 ? 'PM' : 'AM';
     return '$hour:$minute $period';
@@ -398,10 +440,10 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
     if (duration == Duration.zero) {
       return 'No answer';
     }
-    
+
     final minutes = duration.inMinutes;
     final seconds = duration.inSeconds.remainder(60);
-    
+
     if (minutes > 0) {
       return '${minutes}m ${seconds}s';
     } else {

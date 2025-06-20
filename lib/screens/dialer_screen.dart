@@ -25,113 +25,182 @@ class _DialerTabState extends State<DialerTab> {
       builder: (context, sipService, child) {
         return Container(
           color: Colors.white,
-          child: Column(
-            children: [
-              Container(
-                height: 120,
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                child: Center(
-                  child: Text(
-                    _phoneController.text.isEmpty 
-                        ? '' 
-                        : _formatPhoneNumber(_phoneController.text),
-                    style: const TextStyle(
-                      fontSize: 38,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
-                      letterSpacing: 1.0,
-                      fontFamily: '.SF UI Text', 
+          child: SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // Calculate responsive dimensions
+                final screenHeight = constraints.maxHeight;
+                final screenWidth = constraints.maxWidth;
+
+                // Responsive sizing
+                final numberDisplayHeight =
+                    screenHeight * 0.15; // 15% of screen
+                final dialPadHeight = screenHeight * 0.65; // 65% of screen
+                final buttonAreaHeight = screenHeight * 0.20; // 20% of screen
+
+                // Button size based on screen width
+                final buttonSize =
+                    (screenWidth - 60) / 3.5; // Account for padding
+                final callButtonSize = buttonSize * 0.95;
+
+                return Column(
+                  children: [
+                    // Number Display Area - Fixed height
+                    Container(
+                      height: numberDisplayHeight,
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Center(
+                        child: Text(
+                          _phoneController.text.isEmpty
+                              ? ''
+                              : _formatPhoneNumber(_phoneController.text),
+                          style: TextStyle(
+                            fontSize: _getResponsiveFontSize(screenWidth),
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black,
+                            letterSpacing: 1.0,
+                            fontFamily: '.SF UI Text',
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ),
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-              
-              // Dialer Pad
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 30),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Row 1: 1, 2, 3
-                      _buildDialerRow(['1', '2', '3'], ['.', 'ABC', 'DEF']),
-                      const SizedBox(height: 20),
-                      
-                      // Row 2: 4, 5, 6
-                      _buildDialerRow(['4', '5', '6'], ['GHI', 'JKL', 'MNO']),
-                      const SizedBox(height: 20),
-                      
-                      // Row 3: 7, 8, 9
-                      _buildDialerRow(['7', '8', '9'], ['PQRS', 'TUV', 'WXYZ']),
-                      const SizedBox(height: 20),
-                      
-                      // Row 4: *, 0, #
-                      _buildDialerRow(['*', '0', '#'], ['', '+', '.']),
-                      
-                      const SizedBox(height: 35),
-                      
-                      Row(
+
+                    // Dialer Pad - Flexible but constrained
+                    Expanded(
+                      child: Container(
+                        height: dialPadHeight,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: screenWidth * 0.08, // 8% padding
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            // Row 1: 1, 2, 3
+                            _buildDialerRow(
+                              ['1', '2', '3'],
+                              ['.', 'ABC', 'DEF'],
+                              buttonSize,
+                            ),
+
+                            // Row 2: 4, 5, 6
+                            _buildDialerRow(
+                              ['4', '5', '6'],
+                              ['GHI', 'JKL', 'MNO'],
+                              buttonSize,
+                            ),
+
+                            // Row 3: 7, 8, 9
+                            _buildDialerRow(
+                              ['7', '8', '9'],
+                              ['PQRS', 'TUV', 'WXYZ'],
+                              buttonSize,
+                            ),
+
+                            // Row 4: *, 0, #
+                            _buildDialerRow(
+                              ['*', '0', '#'],
+                              ['', '+', '.'],
+                              buttonSize,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // Bottom Button Area - Fixed height
+                    Container(
+                      height: buttonAreaHeight,
+                      padding: const EdgeInsets.symmetric(horizontal: 30),
+                      child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Expanded(child: Container()),
-                          
-                          _buildCallButton(sipService),
-                          
-                          Expanded(
-                            child: _phoneController.text.isNotEmpty
-                                ? Padding(
-                                  padding: const EdgeInsets.only(right: 40),
-                                  child: Align(
-                                      alignment: Alignment.centerRight,
-                                      child: _buildDeleteButton(),
-                                    ),
-                                )
-                                : Container(),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Expanded(child: Container()),
+
+                              _buildCallButton(sipService, callButtonSize),
+
+                              Expanded(
+                                child:
+                                    _phoneController.text.isNotEmpty
+                                        ? Padding(
+                                          padding: const EdgeInsets.only(
+                                            right: 40,
+                                          ),
+                                          child: Align(
+                                            alignment: Alignment.centerRight,
+                                            child: _buildDeleteButton(
+                                              callButtonSize * 0.6,
+                                            ),
+                                          ),
+                                        )
+                                        : Container(),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                      
-                      const SizedBox(height: 40), 
-                    ],
-                  ),
-                ),
-              ),
-            ],
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
         );
       },
     );
   }
 
-  Widget _buildDialerRow(List<String> numbers, List<String> letters) {
+  // Responsive font size for number display
+  double _getResponsiveFontSize(double screenWidth) {
+    if (screenWidth < 350) {
+      return 28; // Small phones
+    } else if (screenWidth < 400) {
+      return 32; // Medium phones
+    } else {
+      return 38; // Large phones/tablets
+    }
+  }
+
+  Widget _buildDialerRow(
+    List<String> numbers,
+    List<String> letters,
+    double buttonSize,
+  ) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: numbers.asMap().entries.map((entry) {
-        int index = entry.key;
-        String number = entry.value;
-        String letter = letters[index];
-        
-        return _buildDialerButton(number, letter);
-      }).toList(),
+      children:
+          numbers.asMap().entries.map((entry) {
+            int index = entry.key;
+            String number = entry.value;
+            String letter = letters[index];
+
+            return _buildDialerButton(number, letter, buttonSize);
+          }).toList(),
     );
   }
 
-  Widget _buildDialerButton(String number, String letters) {
+  Widget _buildDialerButton(String number, String letters, double size) {
+    // Responsive font sizes
+    final numberFontSize = size * 0.4; // 40% of button size
+    final letterFontSize = size * 0.12; // 12% of button size
+
     return Container(
-      width: 84,
-      height: 84,
-      decoration: BoxDecoration(
-        color: const Color(0xFFE5E5E5), 
+      width: size,
+      height: size,
+      decoration: const BoxDecoration(
+        color: Color(0xFFE5E5E5),
         shape: BoxShape.circle,
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(40),
+          borderRadius: BorderRadius.circular(size / 2),
           splashColor: Colors.black.withOpacity(0.1),
           highlightColor: Colors.black.withOpacity(0.05),
           onTap: () {
@@ -139,92 +208,91 @@ class _DialerTabState extends State<DialerTab> {
               _phoneController.text += number;
             });
           },
-          child: Container(
-            width: 80,
-            height: 80,
-            child: Stack(
-              children: [
-                // Number - positioned in upper center
+          child: Stack(
+            children: [
+              // Number - positioned in upper center
+              Positioned(
+                top: letters.isNotEmpty ? size * 0.22 : size * 0.35,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Text(
+                    number,
+                    style: TextStyle(
+                      fontSize: numberFontSize,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                      height: 1.0,
+                      fontFamily: '.SF UI Text',
+                    ),
+                  ),
+                ),
+              ),
+              // Letters - positioned in lower center
+              if (letters.isNotEmpty)
                 Positioned(
-                  top: letters.isNotEmpty ? 18 : 28,
+                  bottom: size * 0.18,
                   left: 0,
                   right: 0,
                   child: Center(
                     child: Text(
-                      number,
-                      style: const TextStyle(
-                        fontSize: 36,
-                        fontWeight: FontWeight.w600, // Much bolder
+                      letters,
+                      style: TextStyle(
+                        fontSize: letterFontSize,
+                        fontWeight: FontWeight.w800,
                         color: Colors.black,
+                        letterSpacing: size * 0.02,
                         height: 1.0,
-                        fontFamily: '.SF UI Text', // iOS system font
+                        fontFamily: '.SF UI Text',
                       ),
                     ),
                   ),
                 ),
-                // Letters - positioned in lower center
-                if (letters.isNotEmpty)
-                  Positioned(
-                    bottom: 15,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: Text(
-                        letters,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.black,
-                          letterSpacing: 2.0,
-                          height: 1.0,
-                          fontFamily: '.SF UI Text', 
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildCallButton(SipService sipService) {
-    final bool canCall = _phoneController.text.isNotEmpty && 
-                        sipService.status == SipConnectionStatus.connected;
-    
+  Widget _buildCallButton(SipService sipService, double size) {
+    final bool canCall =
+        _phoneController.text.isNotEmpty &&
+        sipService.status == SipConnectionStatus.connected;
+
     return Container(
-      width: 80,
-      height: 80,
-      decoration: BoxDecoration(
-        color:  const Color(0xFF34C85A), 
+      width: size,
+      height: size,
+      decoration: const BoxDecoration(
+        color: Color(0xFF34C85A),
         shape: BoxShape.circle,
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(33),
+          borderRadius: BorderRadius.circular(size / 2),
           splashColor: Colors.white.withOpacity(0.2),
           highlightColor: Colors.white.withOpacity(0.1),
           onTap: canCall ? () => _makeCall(sipService) : null,
           child: Icon(
             CupertinoIcons.phone_fill,
             color: Colors.white,
-            size: 35,
+            size: size * 0.4,
           ),
         ),
       ),
     );
   }
 
-  Widget _buildDeleteButton() {
+  Widget _buildDeleteButton(double size) {
     return GestureDetector(
       onTap: () {
         setState(() {
           if (_phoneController.text.isNotEmpty) {
-            _phoneController.text = _phoneController.text
-                .substring(0, _phoneController.text.length - 1);
+            _phoneController.text = _phoneController.text.substring(
+              0,
+              _phoneController.text.length - 1,
+            );
           }
         });
       },
@@ -234,15 +302,13 @@ class _DialerTabState extends State<DialerTab> {
         });
       },
       child: Container(
-        width: 50,
-        height: 50,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-        ),
+        width: size,
+        height: size,
+        decoration: const BoxDecoration(shape: BoxShape.circle),
         child: Icon(
           Icons.backspace,
           color: const Color(0xFFE5E5E5),
-          size: 28,
+          size: size * 0.55,
         ),
       ),
     );
@@ -265,7 +331,7 @@ class _DialerTabState extends State<DialerTab> {
     final number = _phoneController.text.trim();
     if (number.isNotEmpty) {
       final success = await sipService.makeCall(number);
-      
+
       if (!success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -273,7 +339,9 @@ class _DialerTabState extends State<DialerTab> {
             backgroundColor: const Color(0xFFFF3B30), // iOS red
             behavior: SnackBarBehavior.floating,
             margin: const EdgeInsets.all(16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }

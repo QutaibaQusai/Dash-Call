@@ -1,8 +1,6 @@
-// lib/screens/qr_login_screen.dart
 import 'package:flutter/material.dart';
-import 'package:qr_code_scanner/qr_code_scanner.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:io';
 import 'dart:math' as math;
 
 class QRLoginScreen extends StatefulWidget {
@@ -12,13 +10,13 @@ class QRLoginScreen extends StatefulWidget {
   State<QRLoginScreen> createState() => _QRLoginScreenState();
 }
 
-class _QRLoginScreenState extends State<QRLoginScreen> with TickerProviderStateMixin {
-  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
-  QRViewController? controller;
+class _QRLoginScreenState extends State<QRLoginScreen>
+    with TickerProviderStateMixin {
+  MobileScannerController? controller;
   bool isProcessing = false;
   bool showScanner = false;
   String? errorMessage;
-  
+
   late AnimationController _floatingController;
   late AnimationController _slideController;
   late Animation<double> _floatingAnimation;
@@ -27,46 +25,38 @@ class _QRLoginScreenState extends State<QRLoginScreen> with TickerProviderStateM
   @override
   void initState() {
     super.initState();
-    
+
     _floatingController = AnimationController(
-      duration: const Duration(seconds: 5), 
+      duration: const Duration(seconds: 5),
       vsync: this,
     )..repeat(reverse: true);
-    
+
     _slideController = AnimationController(
-      duration: const Duration(milliseconds: 1000), 
+      duration: const Duration(milliseconds: 1000),
       vsync: this,
     );
-    
-    _floatingAnimation = Tween<double>(begin: 6, end: 8).animate( 
+
+    _floatingAnimation = Tween<double>(begin: 6, end: 8).animate(
       CurvedAnimation(parent: _floatingController, curve: Curves.easeInOut),
     );
-    
+
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 1),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic)); 
-  }
-
-  @override
-  void reassemble() {
-    super.reassemble();
-    if (Platform.isAndroid) {
-      controller?.pauseCamera();
-    } else if (Platform.isIOS) {
-      controller?.resumeCamera();
-    }
+    ).animate(
+      CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    
+
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment(0.0, -1.0), 
+            begin: Alignment(0.0, -1.0),
             end: Alignment(0.0, 1.0),
             colors: [
               Color(0xFF1501FF), // #1501FF
@@ -76,10 +66,16 @@ class _QRLoginScreenState extends State<QRLoginScreen> with TickerProviderStateM
         ),
         child: Stack(
           children: [
-            ...List.generate(20, (index) => _buildFloatingParticle(index, size)),
-            
+            ...List.generate(
+              20,
+              (index) => _buildFloatingParticle(index, size),
+            ),
+
             SafeArea(
-              child: !showScanner ? _buildWelcomeScreen(size) : _buildScannerScreen(size),
+              child:
+                  !showScanner
+                      ? _buildWelcomeScreen(size)
+                      : _buildScannerScreen(size),
             ),
           ],
         ),
@@ -92,13 +88,17 @@ class _QRLoginScreenState extends State<QRLoginScreen> with TickerProviderStateM
     final startX = random.nextDouble() * size.width;
     final startY = random.nextDouble() * size.height;
     final scale = 0.3 + random.nextDouble() * 0.7;
-    
+
     return AnimatedBuilder(
       animation: _floatingController,
       builder: (context, child) {
         return Positioned(
-          left: startX + math.sin(_floatingController.value * 2 * math.pi + index) * 15,
-          top: startY + math.cos(_floatingController.value * 2 * math.pi + index) * 10, 
+          left:
+              startX +
+              math.sin(_floatingController.value * 2 * math.pi + index) * 15,
+          top:
+              startY +
+              math.cos(_floatingController.value * 2 * math.pi + index) * 10,
           child: Opacity(
             opacity: 0.08 + (scale * 0.15),
             child: Transform.scale(
@@ -131,7 +131,7 @@ class _QRLoginScreenState extends State<QRLoginScreen> with TickerProviderStateM
       child: Column(
         children: [
           const Spacer(),
-          
+
           Column(
             children: [
               Container(
@@ -156,22 +156,15 @@ class _QRLoginScreenState extends State<QRLoginScreen> with TickerProviderStateM
                     ),
                   ],
                 ),
-                child: Image.asset(
-                  'assets/icon/icon.png',
-                  width: 80,
-                  height: 80,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Icon(
-                      Icons.phone_android_rounded,
-                      size: 80,
-                      color: Color(0xFF1501FF),
-                    );
-                  },
+                child: const Icon(
+                  Icons.phone_android_rounded,
+                  size: 80,
+                  color: Color(0xFF1501FF),
                 ),
               ),
-              
+
               const SizedBox(height: 40),
-              
+
               // Welcome text
               const Text(
                 'Hello! 👋',
@@ -182,9 +175,9 @@ class _QRLoginScreenState extends State<QRLoginScreen> with TickerProviderStateM
                   letterSpacing: 1,
                 ),
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               const Text(
                 'Welcome to',
                 style: TextStyle(
@@ -193,14 +186,15 @@ class _QRLoginScreenState extends State<QRLoginScreen> with TickerProviderStateM
                   color: Colors.white70,
                 ),
               ),
-              
+
               const SizedBox(height: 8),
-              
+
               // App name with gradient
               ShaderMask(
-                shaderCallback: (bounds) => const LinearGradient(
-                  colors: [Colors.white, Color(0xFFE0E0E0)],
-                ).createShader(bounds),
+                shaderCallback:
+                    (bounds) => const LinearGradient(
+                      colors: [Colors.white, Color(0xFFE0E0E0)],
+                    ).createShader(bounds),
                 child: const Text(
                   'DashCall',
                   style: TextStyle(
@@ -211,14 +205,13 @@ class _QRLoginScreenState extends State<QRLoginScreen> with TickerProviderStateM
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 24),
-          
             ],
           ),
-          
+
           const Spacer(),
-          
+
           Container(
             padding: const EdgeInsets.all(24),
             margin: const EdgeInsets.only(bottom: 40),
@@ -231,13 +224,16 @@ class _QRLoginScreenState extends State<QRLoginScreen> with TickerProviderStateM
               children: [
                 _buildFeatureItem(Icons.security_rounded, 'Secure Login'),
                 const SizedBox(height: 16),
-                _buildFeatureItem(Icons.qr_code_scanner_rounded, 'QR Code Scanner'),
+                _buildFeatureItem(
+                  Icons.qr_code_scanner_rounded,
+                  'QR Code Scanner',
+                ),
                 const SizedBox(height: 16),
                 _buildFeatureItem(Icons.speed_rounded, 'Quick Setup'),
               ],
             ),
           ),
-          
+
           AnimatedBuilder(
             animation: _floatingAnimation,
             builder: (context, child) {
@@ -344,7 +340,10 @@ class _QRLoginScreenState extends State<QRLoginScreen> with TickerProviderStateM
                   ),
                   child: IconButton(
                     onPressed: _goBack,
-                    icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                    icon: const Icon(
+                      Icons.arrow_back_rounded,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
                 const Spacer(),
@@ -360,19 +359,16 @@ class _QRLoginScreenState extends State<QRLoginScreen> with TickerProviderStateM
                     ),
                     Text(
                       'Position the QR code in the frame',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white70,
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.white70),
                     ),
                   ],
                 ),
                 const Spacer(),
-                const SizedBox(width: 48), 
+                const SizedBox(width: 48),
               ],
             ),
           ),
-          
+
           Expanded(
             child: Container(
               margin: const EdgeInsets.all(24),
@@ -390,18 +386,30 @@ class _QRLoginScreenState extends State<QRLoginScreen> with TickerProviderStateM
                 borderRadius: BorderRadius.circular(32),
                 child: Stack(
                   children: [
-                    QRView(
-                      key: qrKey,
-                      onQRViewCreated: _onQRViewCreated,
-                      overlay: QrScannerOverlayShape(
-                        borderColor: Colors.white,
-                        borderRadius: 20,
-                        borderLength: 50,
-                        borderWidth: 4,
-                        cutOutSize: size.width * 0.65,
+                    MobileScanner(
+                      controller: controller,
+                      onDetect: (capture) {
+                        final List<Barcode> barcodes = capture.barcodes;
+                        for (final barcode in barcodes) {
+                          if (barcode.rawValue != null && !isProcessing) {
+                            _processQRCode(barcode.rawValue!);
+                            break;
+                          }
+                        }
+                      },
+                    ),
+
+                    // Scanning overlay
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(32),
+                      ),
+                      child: CustomPaint(
+                        painter: ScannerOverlayPainter(),
+                        size: Size.infinite,
                       ),
                     ),
-                    
+
                     // Processing overlay
                     if (isProcessing)
                       Container(
@@ -423,7 +431,9 @@ class _QRLoginScreenState extends State<QRLoginScreen> with TickerProviderStateM
                                   width: 50,
                                   height: 50,
                                   child: CircularProgressIndicator(
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
                                     strokeWidth: 3,
                                   ),
                                 ),
@@ -454,10 +464,13 @@ class _QRLoginScreenState extends State<QRLoginScreen> with TickerProviderStateM
               ),
             ),
           ),
-          
+
           Container(
             padding: const EdgeInsets.all(24),
-            child: errorMessage != null ? _buildErrorSection() : _buildInstructionsSection(),
+            child:
+                errorMessage != null
+                    ? _buildErrorSection()
+                    : _buildInstructionsSection(),
           ),
         ],
       ),
@@ -482,7 +495,11 @@ class _QRLoginScreenState extends State<QRLoginScreen> with TickerProviderStateM
                   color: Colors.red.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.error_rounded, color: Colors.red, size: 24),
+                child: const Icon(
+                  Icons.error_rounded,
+                  color: Colors.red,
+                  size: 24,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -520,7 +537,9 @@ class _QRLoginScreenState extends State<QRLoginScreen> with TickerProviderStateM
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.white,
               foregroundColor: const Color(0xFF1501FF),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(25),
+              ),
               elevation: 0,
             ),
             child: const Text(
@@ -548,11 +567,7 @@ class _QRLoginScreenState extends State<QRLoginScreen> with TickerProviderStateM
           Expanded(
             child: Text(
               'Hold your device steady and ensure the QR code is clearly visible within the frame',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                height: 1.4,
-              ),
+              style: TextStyle(color: Colors.white, fontSize: 14, height: 1.4),
             ),
           ),
         ],
@@ -563,25 +578,19 @@ class _QRLoginScreenState extends State<QRLoginScreen> with TickerProviderStateM
   void _startScanning() {
     setState(() {
       showScanner = true;
+      controller = MobileScannerController();
     });
     _slideController.forward();
   }
 
   void _goBack() {
     _slideController.reverse().then((_) {
+      controller?.dispose();
+      controller = null;
       setState(() {
         showScanner = false;
         errorMessage = null;
       });
-    });
-  }
-
-  void _onQRViewCreated(QRViewController controller) {
-    this.controller = controller;
-    controller.scannedDataStream.listen((scanData) {
-      if (!isProcessing && scanData.code != null) {
-        _processQRCode(scanData.code!);
-      }
     });
   }
 
@@ -596,12 +605,14 @@ class _QRLoginScreenState extends State<QRLoginScreen> with TickerProviderStateM
     print('🔍 [QRLogin] Processing QR code: $qrCode');
 
     try {
-      await controller?.pauseCamera();
+      await controller?.stop();
 
       final parts = qrCode.split(';');
 
       if (parts.length != 5) {
-        throw Exception('Invalid QR code format. Expected 5 values separated by semicolons.');
+        throw Exception(
+          'Invalid QR code format. Expected 5 values separated by semicolons.',
+        );
       }
 
       final username = parts[0].trim();
@@ -630,15 +641,14 @@ class _QRLoginScreenState extends State<QRLoginScreen> with TickerProviderStateM
       if (mounted) {
         Navigator.of(context).pushReplacementNamed('/main');
       }
-
     } catch (e) {
       print('❌ [QRLogin] QR code processing failed: $e');
       setState(() {
         errorMessage = e.toString().replaceFirst('Exception: ', '');
       });
-      
+
       await Future.delayed(const Duration(seconds: 1));
-      await controller?.resumeCamera();
+      await controller?.start();
     } finally {
       if (mounted) {
         setState(() {
@@ -648,27 +658,33 @@ class _QRLoginScreenState extends State<QRLoginScreen> with TickerProviderStateM
     }
   }
 
-Future<void> _saveCredentials(String username, String password, String domain, int port) async {
+  Future<void> _saveCredentials(
+    String username,
+    String password,
+    String domain,
+    int port,
+  ) async {
     print('💾 [QRLogin] Saving credentials to SharedPreferences...');
-    
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('sip_server', domain);
     await prefs.setString('sip_username', username);
     await prefs.setString('sip_password', password);
     await prefs.setString('sip_domain', domain);
     await prefs.setInt('sip_port', port);
-    
-    // NEW: Set login status to true
     await prefs.setBool('isLoggedIn', true);
-    
-    print('✅ [QRLogin] Credentials saved successfully with login status = true');
+
+    print(
+      '✅ [QRLogin] Credentials saved successfully with login status = true',
+    );
   }
+
   void _retryScanning() {
     setState(() {
       errorMessage = null;
       isProcessing = false;
     });
-    controller?.resumeCamera();
+    controller?.start();
   }
 
   @override
@@ -678,4 +694,75 @@ Future<void> _saveCredentials(String username, String password, String domain, i
     controller?.dispose();
     super.dispose();
   }
+}
+
+// Custom painter for scanner overlay
+class ScannerOverlayPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint =
+        Paint()
+          ..color = Colors.white
+          ..strokeWidth = 4
+          ..style = PaintingStyle.stroke;
+
+    final scanArea = Rect.fromCenter(
+      center: Offset(size.width / 2, size.height / 2),
+      width: size.width * 0.65,
+      height: size.width * 0.65,
+    );
+
+    const cornerLength = 50.0;
+
+    // Top-left corner
+    canvas.drawLine(
+      Offset(scanArea.left, scanArea.top + cornerLength),
+      Offset(scanArea.left, scanArea.top),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(scanArea.left, scanArea.top),
+      Offset(scanArea.left + cornerLength, scanArea.top),
+      paint,
+    );
+
+    // Top-right corner
+    canvas.drawLine(
+      Offset(scanArea.right - cornerLength, scanArea.top),
+      Offset(scanArea.right, scanArea.top),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(scanArea.right, scanArea.top),
+      Offset(scanArea.right, scanArea.top + cornerLength),
+      paint,
+    );
+
+    // Bottom-left corner
+    canvas.drawLine(
+      Offset(scanArea.left, scanArea.bottom - cornerLength),
+      Offset(scanArea.left, scanArea.bottom),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(scanArea.left, scanArea.bottom),
+      Offset(scanArea.left + cornerLength, scanArea.bottom),
+      paint,
+    );
+
+    // Bottom-right corner
+    canvas.drawLine(
+      Offset(scanArea.right - cornerLength, scanArea.bottom),
+      Offset(scanArea.right, scanArea.bottom),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(scanArea.right, scanArea.bottom - cornerLength),
+      Offset(scanArea.right, scanArea.bottom),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
