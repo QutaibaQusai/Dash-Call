@@ -60,7 +60,7 @@ class ThemeSelector extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Text(
-            'THEME',
+            'Theme',
             style: TextStyle(
               color: AppThemes.getSecondaryTextColor(context),
               fontSize: 13,

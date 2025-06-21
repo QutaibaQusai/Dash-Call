@@ -1,4 +1,4 @@
-// lib/screens/settings_tab.dart - Updated with Connection Status Indicator
+// lib/screens/settings_tab.dart - Updated with About Section
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +7,7 @@ import '../services/sip_service.dart';
 import '../services/theme_service.dart' as services;
 import '../widgets/theme_selector.dart';
 import '../themes/app_themes.dart';
+import '../screens/about_page.dart'; // ADD THIS import
 
 class SettingsTab extends StatefulWidget {
   const SettingsTab({super.key});
@@ -41,6 +42,9 @@ class _SettingsTabState extends State<SettingsTab> {
                         _buildAccountSettingsSection(sipService, scale),
                         SizedBox(height: 32 * scale),
                         _buildAppSettingsSection(themeService, scale),
+                        SizedBox(height: 32 * scale),
+                        // ADD THIS: About section
+                        _buildAboutSection(scale),
                         SizedBox(height: 50 * scale),
                       ],
                     ),
@@ -129,7 +133,7 @@ class _SettingsTabState extends State<SettingsTab> {
   /// Account Settings Section
   Widget _buildAccountSettingsSection(SipService sipService, double scale) {
     return _buildSettingsSection(
-      title: 'ACCOUNT',
+      title: 'Accounts',
       scale: scale,
       children: [_buildAccountSettingsItem(sipService, scale)],
     );
@@ -211,7 +215,7 @@ class _SettingsTabState extends State<SettingsTab> {
     double scale,
   ) {
     return _buildSettingsSection(
-      title: 'APP SETTINGS',
+      title: 'App Settings',
       scale: scale,
       children: [_buildThemeSettingsItem(themeService, scale)],
     );
@@ -229,6 +233,28 @@ class _SettingsTabState extends State<SettingsTab> {
       subtitle: _getThemeDisplayText(themeService.themeMode),
       trailing: _buildChevronIcon(scale),
       onTap: () => _navigateToThemeSelector(),
+      scale: scale,
+    );
+  }
+
+  /// ADD THIS: About Section
+  Widget _buildAboutSection(double scale) {
+    return _buildSettingsSection(
+      title: 'About',
+      scale: scale,
+      children: [_buildAboutSettingsItem(scale)],
+    );
+  }
+
+  /// ADD THIS: About settings item
+  Widget _buildAboutSettingsItem(double scale) {
+    return _buildSettingsItem(
+      icon: CupertinoIcons.info_circle,
+      iconColor: Colors.green,
+      title: 'About DashCall',
+      subtitle: 'App information and credits',
+      trailing: _buildChevronIcon(scale),
+      onTap: () => _navigateToAboutPage(),
       scale: scale,
     );
   }
@@ -376,6 +402,14 @@ class _SettingsTabState extends State<SettingsTab> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const ThemeSelector()),
+    );
+  }
+
+  /// ADD THIS: Navigate to about page
+  void _navigateToAboutPage() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const AboutPage()),
     );
   }
 
@@ -528,10 +562,9 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
     return (scaleWidth + scaleHeight) / 2;
   }
 
-  /// Account Information Section - UPDATED with Account Name & Organization
   Widget _buildAccountInformationSection(double scale) {
     return _buildNativeSection(
-      title: 'ACCOUNT INFORMATION',
+      title: 'Account Information',
       children: [
         _buildInfoRow('Account Name', _getAccountNameDisplay(), scale: scale),
         _buildInfoRow('Organization', _getOrganizationDisplay(), scale: scale),
@@ -541,14 +574,12 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
     );
   }
 
-  /// UPDATED: Get account name display text
   String _getAccountNameDisplay() {
     return widget.sipService.accountName.isNotEmpty
         ? widget.sipService.accountName
         : 'Not configured';
   }
 
-  /// UPDATED: Get organization display text
   String _getOrganizationDisplay() {
     return widget.sipService.organization.isNotEmpty
         ? widget.sipService.organization
@@ -566,7 +597,7 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
   /// Danger Zone Section
   Widget _buildDangerZoneSection(double scale) {
     return _buildNativeSection(
-      title: 'DANGER ZONE',
+      title: 'Danger Zone',
       children: [_buildDeleteAccountItem(scale)],
       scale: scale,
     );
