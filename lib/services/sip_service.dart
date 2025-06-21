@@ -1,3 +1,5 @@
+// lib/services/sip_service.dart - Updated with Account Name & Organization
+
 import 'package:flutter/material.dart';
 import 'package:sip_ua/sip_ua.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -27,6 +29,10 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
   String _domain = '';
   int _port = 8088;
 
+  // NEW: Account Information
+  String _accountName = '';
+  String _organization = '';
+
   // Current call
   Call? _currentCall;
   String? _callNumber;
@@ -46,6 +52,11 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
   String get password => _password;
   String get domain => _domain;
   int get port => _port;
+  
+  // NEW: Account Information Getters
+  String get accountName => _accountName;
+  String get organization => _organization;
+  
   Call? get currentCall => _currentCall;
   String? get callNumber => _callNumber;
   DateTime? get callStartTime => _callStartTime;
@@ -197,10 +208,16 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     _password = prefs.getString('sip_password') ?? '';
     _domain = prefs.getString('sip_domain') ?? '';
     _port = prefs.getInt('sip_port') ?? 8088;
+    
+    // NEW: Load account information
+    _accountName = prefs.getString('account_name') ?? '';
+    _organization = prefs.getString('organization') ?? '';
 
     print('📋 [SipService] Loaded settings:');
     print('   Server: $_sipServer');
     print('   Username: $_username');
+    print('   Account Name: $_accountName');
+    print('   Organization: $_organization');
     print(
       '   Password: ${_password.isNotEmpty ? '[${_password.length} chars]' : '[empty]'}',
     );
@@ -215,8 +232,10 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     String username,
     String password,
     String domain,
-    int port,
-  ) async {
+    int port, {
+    String? accountName,
+    String? organization,
+  }) async {
     print('💾 [SipService] Saving new settings...');
 
     final prefs = await SharedPreferences.getInstance();
@@ -225,6 +244,16 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     await prefs.setString('sip_password', password);
     await prefs.setString('sip_domain', domain);
     await prefs.setInt('sip_port', port);
+    
+    // NEW: Save account information if provided
+    if (accountName != null) {
+      await prefs.setString('account_name', accountName);
+      _accountName = accountName;
+    }
+    if (organization != null) {
+      await prefs.setString('organization', organization);
+      _organization = organization;
+    }
 
     _sipServer = server;
     _username = username;
@@ -273,13 +302,13 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
 
       final wsUrl = 'wss://$_sipServer:$_port/ws';
       final sipUri = 'sip:$_username@${_domain.isEmpty ? _sipServer : _domain}';
-      final displayName = _username.isNotEmpty ? _username : 'DashCall User';
+      final displayName = _accountName.isNotEmpty ? _accountName : _username;
 
       settings.webSocketUrl = wsUrl;
       settings.uri = sipUri;
       settings.authorizationUser = _username;
       settings.password = _password;
-      settings.displayName = displayName;
+      settings.displayName = displayName; // Use account name as display name
       settings.userAgent = 'DashCall 1.0';
       settings.register = true;
       settings.transportType = TransportType.WS;
@@ -361,7 +390,7 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
       _callNumber = phoneNumber;
       _callStartTime = DateTime.now();
 
-      // ADD THIS: Record outgoing call in history
+      // Record outgoing call in history
       CallHistoryManager.addCall(
         number: phoneNumber,
         name: null, // You can enhance this to lookup contact name
@@ -426,7 +455,7 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
       try {
         print('📞 [SipService] Calling hangup() to reject call');
 
-        // ADD THIS: Mark as missed call since it was rejected
+        // Mark as missed call since it was rejected
         if (_callNumber != null) {
           CallHistoryManager.markAsMissed(_callNumber!);
         }
@@ -513,7 +542,7 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
       _callNumber = call.remote_identity ?? 'Unknown';
       _setCallStatus(CallStatus.incoming);
 
-      // ADD THIS: Record incoming call in history
+      // Record incoming call in history
       CallHistoryManager.addCall(
         number: call.remote_identity ?? 'Unknown',
         name: null, // You can enhance this to lookup contact name
@@ -575,7 +604,7 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
           _setStatusMessage('Call ended');
         }
 
-        // ADD THIS: Update call history with duration or mark as missed
+        // Update call history with duration or mark as missed
         if (_callNumber != null) {
           if (_callStartTime != null && _callStatus == CallStatus.active) {
             // Call was connected, update duration

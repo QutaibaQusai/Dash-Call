@@ -194,8 +194,8 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
     }
 
     return Container(
-      color: AppThemes.getCardBackgroundColor(context),
-      child: ListView.builder(
+  color: Theme.of(context).scaffoldBackgroundColor,
+        child: ListView.builder(
         padding: EdgeInsets.zero,
         itemCount: calls.length,
         itemBuilder: (context, index) {

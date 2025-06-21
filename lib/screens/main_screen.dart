@@ -38,7 +38,6 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  // ADD THIS: Get theme-aware background color
   Color _getBackgroundColor() {
     if (_currentIndex == 3) {
       return AppThemes.getSettingsBackgroundColor(context);
@@ -47,7 +46,7 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   PreferredSizeWidget _buildAppBar(SipService sipService) {
-    final List<String> titles = ['Dash Call', 'Contacts', 'History', 'Settings'];
+    final List<String> titles = ['DashCall', 'Contacts', 'History', 'Settings'];
     
     return AppBar(
       backgroundColor: _getBackgroundColor(), // UPDATED: Use theme-aware background
@@ -101,16 +100,23 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  Widget _buildBottomNavigationBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).bottomNavigationBarTheme.backgroundColor, // UPDATED: Use theme color
-        border: Border(
-          top: BorderSide(
-            color: AppThemes.getDividerColor(context), // UPDATED: Use theme-aware divider
-            width: 0.5,
-          ),
+Widget _buildBottomNavigationBar() {
+  return Container(
+    decoration: BoxDecoration(
+      color: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
+      border: Border(
+        top: BorderSide(
+          color: AppThemes.getDividerColor(context),
+          width: 0.5,
         ),
+      ),
+    ),
+    child: Theme(
+      data: Theme.of(context).copyWith(
+        splashFactory: NoSplash.splashFactory,
+        highlightColor: Colors.transparent,
+        hoverColor: Colors.transparent,
+        splashColor: Colors.transparent,
       ),
       child: BottomNavigationBar(
         currentIndex: _currentIndex,
@@ -120,10 +126,10 @@ class _MainScreenState extends State<MainScreen> {
           });
         },
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.transparent, // Make transparent to show container color
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        selectedItemColor: Theme.of(context).colorScheme.primary, // UPDATED: Use theme color
-        unselectedItemColor: AppThemes.getSecondaryTextColor(context), // UPDATED: Use theme-aware color
+        selectedItemColor: Theme.of(context).colorScheme.primary,
+        unselectedItemColor: AppThemes.getSecondaryTextColor(context),
         selectedFontSize: 12,
         unselectedFontSize: 12,
         selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
@@ -198,9 +204,10 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ],
       ),
-    );
-  }
- 
+    ),
+  );
+}
+
   Color _getConnectionStatusColor(SipConnectionStatus status) {
     switch (status) {
       case SipConnectionStatus.connected:

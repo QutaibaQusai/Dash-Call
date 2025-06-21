@@ -1,3 +1,5 @@
+// lib/screens/qr_login_screen.dart - Updated with Account Name & Organization
+
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -609,9 +611,10 @@ class _QRLoginScreenState extends State<QRLoginScreen>
 
       final parts = qrCode.split(';');
 
-      if (parts.length != 5) {
+      // Updated validation for 7 parts: username;password;domain;port;protocol;firstname lastname;company
+      if (parts.length != 7) {
         throw Exception(
-          'Invalid QR code format. Expected 5 values separated by semicolons.',
+          'Invalid QR code format. Expected 7 values separated by semicolons.',
         );
       }
 
@@ -620,11 +623,16 @@ class _QRLoginScreenState extends State<QRLoginScreen>
       final domain = parts[2].trim();
       final portString = parts[3].trim();
       final protocol = parts[4].trim();
+      final fullName = parts[5].trim(); // e.g., "MojeerSalman" or "Mojeer Salman"
+      final company = parts[6].trim(); // e.g., "MUJEER"
 
+      // Validate required fields
       if (username.isEmpty) throw Exception('Username cannot be empty');
       if (password.isEmpty) throw Exception('Password cannot be empty');
       if (domain.isEmpty) throw Exception('Domain cannot be empty');
       if (portString.isEmpty) throw Exception('Port cannot be empty');
+      if (fullName.isEmpty) throw Exception('Account name cannot be empty');
+      if (company.isEmpty) throw Exception('Organization name cannot be empty');
 
       final port = int.tryParse(portString);
       if (port == null || port < 1 || port > 65535) {
@@ -636,7 +644,7 @@ class _QRLoginScreenState extends State<QRLoginScreen>
       }
 
       print('✅ [QRLogin] QR code validation successful');
-      await _saveCredentials(username, password, domain, port);
+      await _saveCredentials(username, password, domain, port, fullName, company);
 
       if (mounted) {
         Navigator.of(context).pushReplacementNamed('/main');
@@ -663,6 +671,8 @@ class _QRLoginScreenState extends State<QRLoginScreen>
     String password,
     String domain,
     int port,
+    String fullName,
+    String company,
   ) async {
     print('💾 [QRLogin] Saving credentials to SharedPreferences...');
 
@@ -672,11 +682,14 @@ class _QRLoginScreenState extends State<QRLoginScreen>
     await prefs.setString('sip_password', password);
     await prefs.setString('sip_domain', domain);
     await prefs.setInt('sip_port', port);
+    await prefs.setString('account_name', fullName); // NEW: Save account name
+    await prefs.setString('organization', company); // NEW: Save organization
     await prefs.setBool('isLoggedIn', true);
 
-    print(
-      '✅ [QRLogin] Credentials saved successfully with login status = true',
-    );
+    print('✅ [QRLogin] Credentials saved successfully:');
+    print('   Account Name: $fullName');
+    print('   Organization: $company');
+    print('   Login Status: true');
   }
 
   void _retryScanning() {
