@@ -170,6 +170,7 @@ class _ContactsTabState extends State<ContactsTab> {
                   color: AppThemes.getSecondaryTextColor(context), // UPDATED: Use theme-aware color
                   fontSize: 17,
                   fontFamily: '.SF UI Text',
+                  fontWeight: FontWeight.normal
                 ),
                 prefixIcon: Icon(
                   Icons.search,

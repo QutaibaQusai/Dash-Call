@@ -1,4 +1,4 @@
-// lib/screens/settings_tab.dart - Updated with Account Name & Organization
+// lib/screens/settings_tab.dart - Updated with Connection Status Indicator
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -39,10 +39,8 @@ class _SettingsTabState extends State<SettingsTab> {
                         _buildHeaderContainer(scale),
                         SizedBox(height: 32 * scale),
                         _buildAccountSettingsSection(sipService, scale),
-
                         SizedBox(height: 32 * scale),
                         _buildAppSettingsSection(themeService, scale),
-
                         SizedBox(height: 50 * scale),
                       ],
                     ),
@@ -128,6 +126,85 @@ class _SettingsTabState extends State<SettingsTab> {
     );
   }
 
+  /// Account Settings Section
+  Widget _buildAccountSettingsSection(SipService sipService, double scale) {
+    return _buildSettingsSection(
+      title: 'ACCOUNT',
+      scale: scale,
+      children: [_buildAccountSettingsItem(sipService, scale)],
+    );
+  }
+
+  /// Account settings item - UPDATED: Use account name as title, extension as subtitle, with connection status
+  Widget _buildAccountSettingsItem(SipService sipService, double scale) {
+    return _buildSettingsItem(
+      icon: CupertinoIcons.info,
+      iconColor: Colors.blue,
+      title: _getAccountTitle(sipService), // Use account name or fallback
+      subtitle: _getAccountSubtitle(sipService), // Show extension number
+      trailing: _buildAccountTrailing(sipService, scale), // UPDATED: Custom trailing with status and chevron
+      onTap: () => _navigateToConfigurationPage(sipService),
+      scale: scale,
+    );
+  }
+
+  /// UPDATED: Build account trailing with connection status and chevron
+  Widget _buildAccountTrailing(SipService sipService, double scale) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8 * scale,
+          height: 8 * scale,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: _getConnectionStatusColor(sipService.status),
+          ),
+        ),
+        SizedBox(width: 8 * scale),
+        // Chevron icon
+        Icon(
+          Icons.chevron_right,
+          color: AppThemes.getSecondaryTextColor(context),
+          size: 16 * scale,
+        ),
+      ],
+    );
+  }
+
+  /// ADD THIS: Get connection status color (same as main screen)
+  Color _getConnectionStatusColor(SipConnectionStatus status) {
+    switch (status) {
+      case SipConnectionStatus.connected:
+        return Colors.green;
+      case SipConnectionStatus.connecting:
+        return Colors.orange;
+      case SipConnectionStatus.error:
+        return Colors.red;
+      case SipConnectionStatus.disconnected:
+        return Colors.grey.shade400;
+    }
+  }
+
+  /// UPDATED: Get account title (account name or fallback)
+  String _getAccountTitle(SipService sipService) {
+    if (sipService.accountName.isNotEmpty) {
+      return sipService.accountName;
+    }
+    if (sipService.username.isNotEmpty) {
+      return sipService.username;
+    }
+    return 'Account';
+  }
+
+  /// UPDATED: Get account subtitle (extension number)
+  String _getAccountSubtitle(SipService sipService) {
+    if (sipService.username.isNotEmpty) {
+      return sipService.username;
+    }
+    return 'Not configured';
+  }
+
   /// App Settings Section (Theme)
   Widget _buildAppSettingsSection(
     services.ThemeService themeService,
@@ -154,51 +231,6 @@ class _SettingsTabState extends State<SettingsTab> {
       onTap: () => _navigateToThemeSelector(),
       scale: scale,
     );
-  }
-
-  /// Account Settings Section
-  Widget _buildAccountSettingsSection(SipService sipService, double scale) {
-    return _buildSettingsSection(
-      title: 'ACCOUNT',
-      scale: scale,
-      children: [_buildAccountSettingsItem(sipService, scale)],
-    );
-  }
-
-  /// Account settings item - UPDATED: Use account name as title, extension as subtitle
-  Widget _buildAccountSettingsItem(SipService sipService, double scale) {
-    return _buildSettingsItem(
-      icon: CupertinoIcons.info,
-      iconColor: Colors.blue,
-      title: _getAccountTitle(
-        sipService,
-      ), // UPDATED: Use account name or fallback
-      subtitle: _getAccountSubtitle(
-        sipService,
-      ), // UPDATED: Show extension number
-      trailing: _buildConnectionStatusBadge(sipService, scale),
-      onTap: () => _navigateToConfigurationPage(sipService),
-      scale: scale,
-    );
-  }
-
-  /// UPDATED: Get account title (account name or fallback)
-  String _getAccountTitle(SipService sipService) {
-    if (sipService.accountName.isNotEmpty) {
-      return sipService.accountName;
-    }
-    if (sipService.username.isNotEmpty) {
-      return sipService.username;
-    }
-    return 'Account';
-  }
-
-  /// UPDATED: Get account subtitle (extension number)
-  String _getAccountSubtitle(SipService sipService) {
-    if (sipService.username.isNotEmpty) {
-      return sipService.username;
-    }
-    return 'Not configured';
   }
 
   /// Generic settings section builder
@@ -320,15 +352,6 @@ class _SettingsTabState extends State<SettingsTab> {
 
   /// Chevron icon for navigation
   Widget _buildChevronIcon(double scale) {
-    return Icon(
-      Icons.chevron_right,
-      color: AppThemes.getSecondaryTextColor(context),
-      size: 16 * scale,
-    );
-  }
-
-  /// Connection status badge
-  Widget _buildConnectionStatusBadge(SipService sipService, double scale) {
     return Icon(
       Icons.chevron_right,
       color: AppThemes.getSecondaryTextColor(context),
@@ -512,7 +535,6 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
       children: [
         _buildInfoRow('Account Name', _getAccountNameDisplay(), scale: scale),
         _buildInfoRow('Organization', _getOrganizationDisplay(), scale: scale),
-        _buildInfoRow('Server', _getServerDisplay(), scale: scale),
         _buildInfoRow('Extension', _getExtensionDisplay(), scale: scale),
       ],
       scale: scale,
@@ -533,12 +555,6 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
         : 'Not configured';
   }
 
-  /// Get server display text
-  String _getServerDisplay() {
-    return widget.sipService.sipServer.isNotEmpty
-        ? widget.sipService.sipServer
-        : 'Not configured';
-  }
 
   /// Get extension display text
   String _getExtensionDisplay() {
