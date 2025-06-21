@@ -1,11 +1,10 @@
-// lib/screens/dialer_screen.dart - Updated with Theme Support
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/sip_service.dart';
 import '../services/dtmf_audio_service.dart';
-import '../themes/app_themes.dart'; // ADD THIS
+import '../themes/app_themes.dart'; 
 
 class DialerTab extends StatefulWidget {
   const DialerTab({super.key});

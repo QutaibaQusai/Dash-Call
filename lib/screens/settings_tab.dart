@@ -1,4 +1,4 @@
-// lib/screens/settings_tab.dart - Updated with About Section
+// lib/screens/settings_tab.dart - Updated with merged About section
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -7,7 +7,8 @@ import '../services/sip_service.dart';
 import '../services/theme_service.dart' as services;
 import '../widgets/theme_selector.dart';
 import '../themes/app_themes.dart';
-import '../screens/about_page.dart'; // ADD THIS import
+import '../screens/about_page.dart';
+import '../screens/debug_connection_page.dart';
 
 class SettingsTab extends StatefulWidget {
   const SettingsTab({super.key});
@@ -42,9 +43,6 @@ class _SettingsTabState extends State<SettingsTab> {
                         _buildAccountSettingsSection(sipService, scale),
                         SizedBox(height: 32 * scale),
                         _buildAppSettingsSection(themeService, scale),
-                        SizedBox(height: 32 * scale),
-                        // ADD THIS: About section
-                        _buildAboutSection(scale),
                         SizedBox(height: 50 * scale),
                       ],
                     ),
@@ -176,7 +174,7 @@ class _SettingsTabState extends State<SettingsTab> {
     );
   }
 
-  /// ADD THIS: Get connection status color (same as main screen)
+  /// Get connection status color (same as main screen)
   Color _getConnectionStatusColor(SipConnectionStatus status) {
     switch (status) {
       case SipConnectionStatus.connected:
@@ -190,7 +188,7 @@ class _SettingsTabState extends State<SettingsTab> {
     }
   }
 
-  /// UPDATED: Get account title (account name or fallback)
+  /// Get account title (account name or fallback)
   String _getAccountTitle(SipService sipService) {
     if (sipService.accountName.isNotEmpty) {
       return sipService.accountName;
@@ -201,7 +199,7 @@ class _SettingsTabState extends State<SettingsTab> {
     return 'Account';
   }
 
-  /// UPDATED: Get account subtitle (extension number)
+  /// Get account subtitle (extension number)
   String _getAccountSubtitle(SipService sipService) {
     if (sipService.username.isNotEmpty) {
       return sipService.username;
@@ -209,7 +207,7 @@ class _SettingsTabState extends State<SettingsTab> {
     return 'Not configured';
   }
 
-  /// App Settings Section (Theme)
+  /// App Settings Section - UPDATED: Now includes both Theme and About items
   Widget _buildAppSettingsSection(
     services.ThemeService themeService,
     double scale,
@@ -217,7 +215,10 @@ class _SettingsTabState extends State<SettingsTab> {
     return _buildSettingsSection(
       title: 'App Settings',
       scale: scale,
-      children: [_buildThemeSettingsItem(themeService, scale)],
+      children: [
+        _buildThemeSettingsItem(themeService, scale),
+        _buildAboutSettingsItem(scale),
+      ],
     );
   }
 
@@ -237,16 +238,7 @@ class _SettingsTabState extends State<SettingsTab> {
     );
   }
 
-  /// ADD THIS: About Section
-  Widget _buildAboutSection(double scale) {
-    return _buildSettingsSection(
-      title: 'About',
-      scale: scale,
-      children: [_buildAboutSettingsItem(scale)],
-    );
-  }
-
-  /// ADD THIS: About settings item
+  /// About settings item - MOVED: Now part of App Settings section
   Widget _buildAboutSettingsItem(double scale) {
     return _buildSettingsItem(
       icon: CupertinoIcons.info_circle,
@@ -405,7 +397,7 @@ class _SettingsTabState extends State<SettingsTab> {
     );
   }
 
-  /// ADD THIS: Navigate to about page
+  /// Navigate to about page
   void _navigateToAboutPage() {
     Navigator.push(
       context,
@@ -424,7 +416,7 @@ class _SettingsTabState extends State<SettingsTab> {
   }
 }
 
-/// Configuration Page - UPDATED with Account Name & Organization
+// ConfigurationPage class remains unchanged
 class ConfigurationPage extends StatefulWidget {
   final SipService sipService;
 
@@ -541,6 +533,9 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
                     SizedBox(height: 20 * scale),
                     _buildAccountInformationSection(scale),
                     SizedBox(height: 35 * scale),
+                    // Debug Commands Section
+                    _buildDebugCommandsSection(scale),
+                    SizedBox(height: 35 * scale),
                     _buildDangerZoneSection(scale),
                     SizedBox(height: 50 * scale),
                   ],
@@ -569,8 +564,111 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
         _buildInfoRow('Account Name', _getAccountNameDisplay(), scale: scale),
         _buildInfoRow('Organization', _getOrganizationDisplay(), scale: scale),
         _buildInfoRow('Extension', _getExtensionDisplay(), scale: scale),
+        _buildInfoRow('Server Status', _getServerStatusDisplay(), statusColor: _getConnectionStatusColor(), scale: scale),
       ],
       scale: scale,
+    );
+  }
+
+  // Debug Commands Section
+  Widget _buildDebugCommandsSection(double scale) {
+    return _buildNativeSection(
+      title: 'Debug Commands',
+      children: [_buildDebugCommandsItem(scale)],
+      scale: scale,
+    );
+  }
+
+  /// Debug commands item
+  Widget _buildDebugCommandsItem(double scale) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppThemes.getCardBackgroundColor(context),
+        borderRadius: BorderRadius.circular(10 * scale),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10 * scale),
+          onTap: _navigateToDebugPage,
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: 16 * scale,
+              vertical: 12 * scale,
+            ),
+            child: Row(
+              children: [
+                _buildDebugIcon(scale),
+                SizedBox(width: 12 * scale),
+                _buildDebugText(),
+                _buildDebugChevron(scale),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Debug icon
+  Widget _buildDebugIcon(double scale) {
+    return Container(
+      padding: EdgeInsets.all(6 * scale),
+      decoration: BoxDecoration(
+        color: Colors.orange.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6 * scale),
+      ),
+      child: Icon(
+        Icons.terminal,
+        color: Colors.orange,
+        size: 18 * scale,
+      ),
+    );
+  }
+
+  /// Debug text
+  Widget _buildDebugText() {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Debug Connection',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w400,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'View live SIP and WebSocket logs',
+            style: TextStyle(
+              fontSize: 13,
+              color: AppThemes.getSecondaryTextColor(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Debug chevron
+  Widget _buildDebugChevron(double scale) {
+    return Icon(
+      CupertinoIcons.right_chevron,
+      color: AppThemes.getSecondaryTextColor(context),
+      size: 20 * scale,
+    );
+  }
+
+  /// Navigate to debug page
+  void _navigateToDebugPage() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const DebugConnectionPage(),
+      ),
     );
   }
 
@@ -586,12 +684,39 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
         : 'Not configured';
   }
 
-
   /// Get extension display text
   String _getExtensionDisplay() {
     return widget.sipService.username.isNotEmpty
         ? widget.sipService.username
         : 'Not configured';
+  }
+
+  /// Get server status display text
+  String _getServerStatusDisplay() {
+    switch (widget.sipService.status) {
+      case SipConnectionStatus.connected:
+        return 'Connected';
+      case SipConnectionStatus.connecting:
+        return 'Connecting...';
+      case SipConnectionStatus.error:
+        return 'Connection Error';
+      case SipConnectionStatus.disconnected:
+        return 'Disconnected';
+    }
+  }
+
+  /// Get connection status color
+  Color? _getConnectionStatusColor() {
+    switch (widget.sipService.status) {
+      case SipConnectionStatus.connected:
+        return Colors.green;
+      case SipConnectionStatus.connecting:
+        return Colors.orange;
+      case SipConnectionStatus.error:
+        return Colors.red;
+      case SipConnectionStatus.disconnected:
+        return Colors.grey;
+    }
   }
 
   /// Danger Zone Section
@@ -735,10 +860,9 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
         ),
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           _buildInfoLabel(label, scale),
-          const Spacer(),
-          _buildStatusDot(statusColor, scale),
           _buildInfoValue(value, statusColor, scale),
         ],
       ),
@@ -754,18 +878,6 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
         fontSize: 17 * scale,
         fontWeight: FontWeight.w400,
       ),
-    );
-  }
-
-  /// Status dot (if status color provided)
-  Widget _buildStatusDot(Color? statusColor, double scale) {
-    if (statusColor == null) return const SizedBox.shrink();
-
-    return Container(
-      width: 8 * scale,
-      height: 8 * scale,
-      margin: EdgeInsets.only(right: 8 * scale),
-      decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
     );
   }
 
