@@ -99,17 +99,10 @@ class _MainScreenState extends State<MainScreen> {
         return const DialerTab();
     }
   }
-
 Widget _buildBottomNavigationBar() {
   return Container(
     decoration: BoxDecoration(
-      color: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
-      border: Border(
-        top: BorderSide(
-          color: AppThemes.getDividerColor(context),
-          width: 0.5,
-        ),
-      ),
+      color: _getBackgroundColor(), 
     ),
     child: Theme(
       data: Theme.of(context).copyWith(
@@ -126,7 +119,7 @@ Widget _buildBottomNavigationBar() {
           });
         },
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.transparent, // UPDATED: Make transparent so container color shows
         elevation: 0,
         selectedItemColor: Theme.of(context).colorScheme.primary,
         unselectedItemColor: AppThemes.getSecondaryTextColor(context),
@@ -207,7 +200,7 @@ Widget _buildBottomNavigationBar() {
     ),
   );
 }
-
+  
   Color _getConnectionStatusColor(SipConnectionStatus status) {
     switch (status) {
       case SipConnectionStatus.connected:

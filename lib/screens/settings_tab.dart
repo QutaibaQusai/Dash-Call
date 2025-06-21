@@ -30,15 +30,19 @@ class _SettingsTabState extends State<SettingsTab> {
                 return SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildHeaderContainer(scale),
                         SizedBox(height: 32 * scale),
-                        _buildAppSettingsSection(themeService, scale),
-                        SizedBox(height: 32 * scale),
                         _buildAccountSettingsSection(sipService, scale),
+
+                        SizedBox(height: 32 * scale),
+                        _buildAppSettingsSection(themeService, scale),
+
                         SizedBox(height: 50 * scale),
                       ],
                     ),
@@ -125,18 +129,22 @@ class _SettingsTabState extends State<SettingsTab> {
   }
 
   /// App Settings Section (Theme)
-  Widget _buildAppSettingsSection(services.ThemeService themeService, double scale) {
+  Widget _buildAppSettingsSection(
+    services.ThemeService themeService,
+    double scale,
+  ) {
     return _buildSettingsSection(
       title: 'APP SETTINGS',
       scale: scale,
-      children: [
-        _buildThemeSettingsItem(themeService, scale),
-      ],
+      children: [_buildThemeSettingsItem(themeService, scale)],
     );
   }
 
   /// Theme settings item
-  Widget _buildThemeSettingsItem(services.ThemeService themeService, double scale) {
+  Widget _buildThemeSettingsItem(
+    services.ThemeService themeService,
+    double scale,
+  ) {
     return _buildSettingsItem(
       icon: CupertinoIcons.paintbrush,
       iconColor: Colors.purple,
@@ -153,9 +161,7 @@ class _SettingsTabState extends State<SettingsTab> {
     return _buildSettingsSection(
       title: 'ACCOUNT',
       scale: scale,
-      children: [
-        _buildAccountSettingsItem(sipService, scale),
-      ],
+      children: [_buildAccountSettingsItem(sipService, scale)],
     );
   }
 
@@ -164,8 +170,12 @@ class _SettingsTabState extends State<SettingsTab> {
     return _buildSettingsItem(
       icon: CupertinoIcons.info,
       iconColor: Colors.blue,
-      title: _getAccountTitle(sipService), // UPDATED: Use account name or fallback
-      subtitle: _getAccountSubtitle(sipService), // UPDATED: Show extension number
+      title: _getAccountTitle(
+        sipService,
+      ), // UPDATED: Use account name or fallback
+      subtitle: _getAccountSubtitle(
+        sipService,
+      ), // UPDATED: Show extension number
       trailing: _buildConnectionStatusBadge(sipService, scale),
       onTap: () => _navigateToConfigurationPage(sipService),
       scale: scale,
@@ -209,7 +219,10 @@ class _SettingsTabState extends State<SettingsTab> {
   /// Section header with title
   Widget _buildSectionHeader(String title, double scale) {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
+      padding: EdgeInsets.symmetric(
+        horizontal: 16 * scale,
+        vertical: 8 * scale,
+      ),
       child: Text(
         title,
         style: TextStyle(
@@ -386,11 +399,19 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
 
   /// Initialize text controllers with current SIP settings
   void _initializeControllers() {
-    _serverController = TextEditingController(text: widget.sipService.sipServer);
-    _usernameController = TextEditingController(text: widget.sipService.username);
-    _passwordController = TextEditingController(text: widget.sipService.password);
+    _serverController = TextEditingController(
+      text: widget.sipService.sipServer,
+    );
+    _usernameController = TextEditingController(
+      text: widget.sipService.username,
+    );
+    _passwordController = TextEditingController(
+      text: widget.sipService.password,
+    );
     _domainController = TextEditingController(text: widget.sipService.domain);
-    _portController = TextEditingController(text: widget.sipService.port.toString());
+    _portController = TextEditingController(
+      text: widget.sipService.port.toString(),
+    );
   }
 
   /// Dispose all text controllers
@@ -500,29 +521,29 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
 
   /// UPDATED: Get account name display text
   String _getAccountNameDisplay() {
-    return widget.sipService.accountName.isNotEmpty 
-        ? widget.sipService.accountName 
+    return widget.sipService.accountName.isNotEmpty
+        ? widget.sipService.accountName
         : 'Not configured';
   }
 
   /// UPDATED: Get organization display text
   String _getOrganizationDisplay() {
-    return widget.sipService.organization.isNotEmpty 
-        ? widget.sipService.organization 
+    return widget.sipService.organization.isNotEmpty
+        ? widget.sipService.organization
         : 'Not configured';
   }
 
   /// Get server display text
   String _getServerDisplay() {
-    return widget.sipService.sipServer.isNotEmpty 
-        ? widget.sipService.sipServer 
+    return widget.sipService.sipServer.isNotEmpty
+        ? widget.sipService.sipServer
         : 'Not configured';
   }
 
   /// Get extension display text
   String _getExtensionDisplay() {
-    return widget.sipService.username.isNotEmpty 
-        ? widget.sipService.username 
+    return widget.sipService.username.isNotEmpty
+        ? widget.sipService.username
         : 'Not configured';
   }
 
@@ -574,11 +595,7 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
         color: Colors.red.withOpacity(0.1),
         borderRadius: BorderRadius.circular(6 * scale),
       ),
-      child: Icon(
-        CupertinoIcons.delete,
-        color: Colors.red,
-        size: 18 * scale,
-      ),
+      child: Icon(CupertinoIcons.delete, color: Colors.red, size: 18 * scale),
     );
   }
 
@@ -696,15 +713,12 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
   /// Status dot (if status color provided)
   Widget _buildStatusDot(Color? statusColor, double scale) {
     if (statusColor == null) return const SizedBox.shrink();
-    
+
     return Container(
       width: 8 * scale,
       height: 8 * scale,
       margin: EdgeInsets.only(right: 8 * scale),
-      decoration: BoxDecoration(
-        color: statusColor,
-        shape: BoxShape.circle,
-      ),
+      decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
     );
   }
 
@@ -726,10 +740,7 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
 
   /// Show delete account dialog
   void _showDeleteAccountDialog() {
-    showDialog(
-      context: context,
-      builder: _buildDeleteDialog,
-    );
+    showDialog(context: context, builder: _buildDeleteDialog);
   }
 
   /// Build delete dialog
