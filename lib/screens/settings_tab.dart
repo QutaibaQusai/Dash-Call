@@ -1,7 +1,11 @@
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/sip_service.dart';
+import '../services/theme_service.dart' as services; // ADD THIS
+import '../widgets/theme_selector.dart'; // ADD THIS
+import '../themes/app_themes.dart'; // ADD THIS
 
 class SettingsTab extends StatefulWidget {
   const SettingsTab({super.key});
@@ -13,10 +17,10 @@ class SettingsTab extends StatefulWidget {
 class _SettingsTabState extends State<SettingsTab> {
   @override
   Widget build(BuildContext context) {
-    return Consumer<SipService>(
-      builder: (context, sipService, child) {
+    return Consumer2<SipService, services.ThemeService>( // UPDATED: Listen to both services
+      builder: (context, sipService, themeService, child) {
         return Container(
-          color: const Color(0xFFF2F2F7),
+          color: AppThemes.getSettingsBackgroundColor(context), // UPDATED: Use theme-aware color
           child: SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -40,7 +44,12 @@ class _SettingsTabState extends State<SettingsTab> {
 
                         SizedBox(height: 32 * scale),
 
-                        _buildSettingsSection(sipService, scale),
+                        // ADD THIS: App Settings Section
+                        _buildAppSettingsSection(themeService, scale),
+
+                        SizedBox(height: 32 * scale),
+
+                        _buildAccountSettingsSection(sipService, scale),
 
                         SizedBox(height: 40 * scale),
 
@@ -64,7 +73,7 @@ class _SettingsTabState extends State<SettingsTab> {
       margin: EdgeInsets.all(16 * scale),
       padding: EdgeInsets.all(32 * scale),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppThemes.getCardBackgroundColor(context), // UPDATED: Use theme-aware color
         borderRadius: BorderRadius.circular(20 * scale),
       ),
       child: Column(
@@ -90,7 +99,7 @@ class _SettingsTabState extends State<SettingsTab> {
             style: TextStyle(
               fontSize: 28 * scale,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: Theme.of(context).colorScheme.onSurface, // UPDATED: Use theme color
             ),
           ),
 
@@ -102,7 +111,7 @@ class _SettingsTabState extends State<SettingsTab> {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14 * scale,
-              color: Colors.grey.shade600,
+              color: AppThemes.getSecondaryTextColor(context), // UPDATED: Use theme-aware color
               height: 1.4,
             ),
           ),
@@ -111,37 +120,106 @@ class _SettingsTabState extends State<SettingsTab> {
     );
   }
 
-  Widget _buildSettingsSection(SipService sipService, double scale) {
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16 * scale),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12 * scale),
-      ),
-      child: Column(
-        children: [
-          _buildSettingsItem(
-            icon: CupertinoIcons.info,
-            iconColor: Colors.blue,
-            title: 'Account',
-            subtitle:
-                sipService.username.isNotEmpty
-                    ? sipService.username
-                    : 'Not configured',
-            trailing: _buildConnectionStatusBadge(sipService, scale),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder:
-                      (context) => _ConfigurationPage(sipService: sipService),
-                ),
-              );
-            },
-            scale: scale,
+  // ADD THIS: App Settings Section
+  Widget _buildAppSettingsSection(services.ThemeService themeService, double scale) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
+          child: Text(
+            'APP SETTINGS',
+            style: TextStyle(
+              color: AppThemes.getSecondaryTextColor(context),
+              fontSize: 13 * scale,
+              fontWeight: FontWeight.w400,
+            ),
           ),
-        ],
-      ),
+        ),
+        Container(
+          margin: EdgeInsets.symmetric(horizontal: 16 * scale),
+          decoration: BoxDecoration(
+            color: AppThemes.getCardBackgroundColor(context),
+            borderRadius: BorderRadius.circular(12 * scale),
+          ),
+          child: Column(
+            children: [
+              _buildSettingsItem(
+                icon: CupertinoIcons.paintbrush,
+                iconColor: Colors.purple,
+                title: 'Appearance',
+                subtitle: _getThemeDisplayText(themeService.themeMode),
+                trailing: Icon(
+                  Icons.chevron_right,
+                  color: AppThemes.getSecondaryTextColor(context),
+                  size: 16 * scale,
+                ),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ThemeSelector(),
+                    ),
+                  );
+                },
+                scale: scale,
+              ),
+
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // UPDATED: Renamed from _buildSettingsSection
+  Widget _buildAccountSettingsSection(SipService sipService, double scale) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
+          child: Text(
+            'ACCOUNT',
+            style: TextStyle(
+              color: AppThemes.getSecondaryTextColor(context),
+              fontSize: 13 * scale,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+        ),
+        Container(
+          margin: EdgeInsets.symmetric(horizontal: 16 * scale),
+          decoration: BoxDecoration(
+            color: AppThemes.getCardBackgroundColor(context),
+            borderRadius: BorderRadius.circular(12 * scale),
+          ),
+          child: Column(
+            children: [
+              _buildSettingsItem(
+                icon: CupertinoIcons.info,
+                iconColor: Colors.blue,
+                title: 'Account',
+                subtitle:
+                    sipService.username.isNotEmpty
+                        ? sipService.username
+                        : 'Not configured',
+                trailing: _buildConnectionStatusBadge(sipService, scale),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (context) => _ConfigurationPage(sipService: sipService),
+                    ),
+                  );
+                },
+                scale: scale,
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -185,7 +263,7 @@ class _SettingsTabState extends State<SettingsTab> {
                       style: TextStyle(
                         fontSize: 16 * scale,
                         fontWeight: FontWeight.w600,
-                        color: Colors.black87,
+                        color: Theme.of(context).colorScheme.onSurface, // UPDATED: Use theme color
                       ),
                     ),
                     SizedBox(height: 2 * scale),
@@ -193,7 +271,7 @@ class _SettingsTabState extends State<SettingsTab> {
                       subtitle,
                       style: TextStyle(
                         fontSize: 13 * scale,
-                        color: Colors.grey.shade600,
+                        color: AppThemes.getSecondaryTextColor(context), // UPDATED: Use theme-aware color
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -216,10 +294,24 @@ class _SettingsTabState extends State<SettingsTab> {
   Widget _buildConnectionStatusBadge(SipService sipService, double scale) {
     return Icon(
       Icons.chevron_right,
-      color: Colors.grey.shade600,
+      color: AppThemes.getSecondaryTextColor(context), // UPDATED: Use theme-aware color
       size: 16 * scale,
     );
   }
+
+  // ADD THIS: Helper method to get theme display text
+  String _getThemeDisplayText(services.ThemeMode themeMode) {
+    switch (themeMode) {
+      case services.ThemeMode.system:
+        return 'System';
+      case services.ThemeMode.light:
+        return 'Light';
+      case services.ThemeMode.dark:
+        return 'Dark';
+    }
+  }
+
+
 }
 
 class _ConfigurationPage extends StatefulWidget {
@@ -274,22 +366,22 @@ class _ConfigurationPageState extends State<_ConfigurationPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F7),
+      backgroundColor: AppThemes.getSettingsBackgroundColor(context), 
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF2F2F7),
+        backgroundColor: AppThemes.getSettingsBackgroundColor(context), 
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios,
-            color: Color(0xFF007AFF),
+            color: Theme.of(context).colorScheme.primary, 
             size: 20,
           ),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Account Settings',
           style: TextStyle(
-            color: Colors.black,
+            color: Theme.of(context).colorScheme.onBackground, 
             fontSize: 17,
             fontWeight: FontWeight.w600,
           ),
@@ -299,7 +391,6 @@ class _ConfigurationPageState extends State<_ConfigurationPage> {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            // Same proportional scaling for configuration page
             final baseWidth = 375.0;
             final scaleWidth = constraints.maxWidth / baseWidth;
             final scaleHeight = constraints.maxHeight / 667.0;
@@ -315,7 +406,6 @@ class _ConfigurationPageState extends State<_ConfigurationPage> {
                     children: [
                       SizedBox(height: 20 * scale),
 
-                      // Account Info Section
                       _buildNativeSection(
                         title: 'ACCOUNT INFORMATION',
                         children: [
@@ -339,13 +429,12 @@ class _ConfigurationPageState extends State<_ConfigurationPage> {
 
                       SizedBox(height: 35 * scale),
 
-                      // Delete Account Section
                       _buildNativeSection(
                         title: 'DANGER ZONE',
                         children: [
                           Container(
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: AppThemes.getCardBackgroundColor(context), 
                               borderRadius: BorderRadius.circular(10 * scale),
                             ),
                             child: Material(
@@ -387,7 +476,7 @@ class _ConfigurationPageState extends State<_ConfigurationPage> {
                                       ),
                                       Icon(
                                         CupertinoIcons.right_chevron,
-                                        color: const Color(0xFFC7C7CC),
+                                        color: AppThemes.getSecondaryTextColor(context), // UPDATED: Use theme-aware color
                                         size: 20 * scale,
                                       ),
                                     ],
@@ -428,7 +517,7 @@ class _ConfigurationPageState extends State<_ConfigurationPage> {
           child: Text(
             title,
             style: TextStyle(
-              color: const Color(0xFF6D6D70),
+              color: AppThemes.getSecondaryTextColor(context), // UPDATED: Use theme-aware color
               fontSize: 13 * scale,
               fontWeight: FontWeight.w400,
             ),
@@ -437,7 +526,7 @@ class _ConfigurationPageState extends State<_ConfigurationPage> {
         Container(
           margin: EdgeInsets.symmetric(horizontal: 16 * scale),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppThemes.getCardBackgroundColor(context), // UPDATED: Use theme-aware color
             borderRadius: BorderRadius.circular(10 * scale),
           ),
           child: Column(children: children),
@@ -460,7 +549,7 @@ class _ConfigurationPageState extends State<_ConfigurationPage> {
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: const Color(0xFFC6C6C8).withOpacity(0.3),
+            color: AppThemes.getDividerColor(context).withOpacity(0.3), // UPDATED: Use theme-aware color
             width: 0.5,
           ),
         ),
@@ -470,7 +559,7 @@ class _ConfigurationPageState extends State<_ConfigurationPage> {
           Text(
             label,
             style: TextStyle(
-              color: Colors.black,
+              color: Theme.of(context).colorScheme.onSurface, // UPDATED: Use theme color
               fontSize: 17 * scale,
               fontWeight: FontWeight.w400,
             ),
@@ -490,7 +579,7 @@ class _ConfigurationPageState extends State<_ConfigurationPage> {
             child: Text(
               value,
               style: TextStyle(
-                color: statusColor ?? const Color(0xFF6D6D70),
+                color: statusColor ?? AppThemes.getSecondaryTextColor(context), // UPDATED: Use theme-aware color
                 fontSize: 17 * scale,
                 fontWeight: FontWeight.w400,
               ),
@@ -508,22 +597,22 @@ class _ConfigurationPageState extends State<_ConfigurationPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: const Color(0xFFF2F2F7),
+          backgroundColor: AppThemes.getCardBackgroundColor(context), // UPDATED: Use theme-aware color
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
-          title: const Text(
+          title: Text(
             'Delete Account',
             style: TextStyle(
-              color: Colors.black,
+              color: Theme.of(context).colorScheme.onSurface, // UPDATED: Use theme color
               fontSize: 17,
               fontWeight: FontWeight.w600,
             ),
           ),
-          content: const Text(
+          content: Text(
             'Are you sure you want to delete this account? This will remove all saved settings and disconnect from the SIP server.',
             style: TextStyle(
-              color: Colors.black,
+              color: Theme.of(context).colorScheme.onSurface, // UPDATED: Use theme color
               fontSize: 13,
               fontWeight: FontWeight.w400,
             ),
@@ -531,10 +620,10 @@ class _ConfigurationPageState extends State<_ConfigurationPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text(
+              child: Text(
                 'Cancel',
                 style: TextStyle(
-                  color: Color(0xFF007AFF),
+                  color: Theme.of(context).colorScheme.primary, // UPDATED: Use theme color
                   fontSize: 17,
                   fontWeight: FontWeight.w400,
                 ),

@@ -1,7 +1,10 @@
+// lib/screens/contacts_tab.dart - Updated with Theme Support
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_contacts/flutter_contacts.dart' as fc;
 import '../services/sip_service.dart';
+import '../themes/app_themes.dart'; // ADD THIS
 
 class ContactsTab extends StatefulWidget {
   const ContactsTab({super.key});
@@ -139,14 +142,14 @@ class _ContactsTabState extends State<ContactsTab> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.white,
+      color: Theme.of(context).scaffoldBackgroundColor, // UPDATED: Use theme background
       child: Column(
         children: [
           Container(
             margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             height: 36,
             decoration: BoxDecoration(
-              color: const Color(0xFFE5E5EA),
+              color: _getSearchBarColor(), // UPDATED: Use theme-aware color
               borderRadius: BorderRadius.circular(10),
             ),
             child: TextField(
@@ -156,17 +159,21 @@ class _ContactsTabState extends State<ContactsTab> {
                   _searchQuery = value;
                 });
               },
-              style: const TextStyle(fontSize: 17, fontFamily: '.SF UI Text'),
+              style: TextStyle(
+                fontSize: 17, 
+                fontFamily: '.SF UI Text',
+                color: Theme.of(context).colorScheme.onSurface, // UPDATED: Use theme color
+              ),
               decoration: InputDecoration(
                 hintText: 'Search',
                 hintStyle: TextStyle(
-                  color: const Color(0xFF8E8E93),
+                  color: AppThemes.getSecondaryTextColor(context), // UPDATED: Use theme-aware color
                   fontSize: 17,
                   fontFamily: '.SF UI Text',
                 ),
-                prefixIcon: const Icon(
+                prefixIcon: Icon(
                   Icons.search,
-                  color: Color(0xFF8E8E93),
+                  color: AppThemes.getSecondaryTextColor(context), // UPDATED: Use theme-aware color
                   size: 20,
                 ),
                 border: InputBorder.none,
@@ -182,17 +189,17 @@ class _ContactsTabState extends State<ContactsTab> {
             child:
                 _isLoading
                     ? Container(
-                      color: Colors.white,
-                      child: const Center(
+                      color: Theme.of(context).scaffoldBackgroundColor, // UPDATED: Use theme background
+                      child: Center(
                         child: CircularProgressIndicator(
-                          color: Color(0xFF0077F9),
+                          color: Theme.of(context).colorScheme.primary, // UPDATED: Use theme color
                         ),
                       ),
                     )
                     : _filteredContacts.isEmpty
                     ? _buildEmptyState()
                     : Container(
-                      color: Colors.white,
+                      color: Theme.of(context).scaffoldBackgroundColor, // UPDATED: Use theme background
                       child: Column(
                         children: [
                           Expanded(
@@ -216,14 +223,25 @@ class _ContactsTabState extends State<ContactsTab> {
     );
   }
 
+  // ADD THIS: Get theme-aware search bar color
+  Color _getSearchBarColor() {
+    return Theme.of(context).brightness == Brightness.dark 
+        ? const Color(0xFF2C2C2E) 
+        : const Color(0xFFE5E5EA);
+  }
+
   Widget _buildEmptyState() {
     return Container(
-      color: Colors.white,
+      color: Theme.of(context).scaffoldBackgroundColor, // UPDATED: Use theme background
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.person_outline, size: 64, color: Colors.grey.shade400),
+            Icon(
+              Icons.person_outline, 
+              size: 64, 
+              color: AppThemes.getSecondaryTextColor(context), // UPDATED: Use theme-aware color
+            ),
             const SizedBox(height: 16),
             Text(
               _searchQuery.isEmpty
@@ -231,7 +249,7 @@ class _ContactsTabState extends State<ContactsTab> {
                   : 'No results for "$_searchQuery"',
               style: TextStyle(
                 fontSize: 18,
-                color: Colors.grey.shade600,
+                color: AppThemes.getSecondaryTextColor(context), // UPDATED: Use theme-aware color
                 fontWeight: FontWeight.w500,
                 fontFamily: '.SF UI Text',
               ),
@@ -243,7 +261,7 @@ class _ContactsTabState extends State<ContactsTab> {
                   : 'Try searching for something else',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey.shade500,
+                color: AppThemes.getSecondaryTextColor(context), // UPDATED: Use theme-aware color
                 fontFamily: '.SF UI Text',
               ),
             ),
@@ -255,7 +273,7 @@ class _ContactsTabState extends State<ContactsTab> {
 
   Widget _buildContactTile(Contact contact, bool isLast) {
     return Container(
-      color: Colors.white,
+      color: Theme.of(context).scaffoldBackgroundColor, // UPDATED: Use theme background
       child: Column(
         children: [
           ListTile(
@@ -266,8 +284,8 @@ class _ContactsTabState extends State<ContactsTab> {
             leading: Container(
               width: 40,
               height: 40,
-              decoration: const BoxDecoration(
-                color: Color(0xFF8E8E93),
+              decoration: BoxDecoration(
+                color: AppThemes.getSecondaryTextColor(context), // UPDATED: Use theme-aware color
                 shape: BoxShape.circle,
               ),
               child: Center(
@@ -291,10 +309,10 @@ class _ContactsTabState extends State<ContactsTab> {
             ),
             title: Text(
               _cleanString(contact.name),
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w400,
-                color: Colors.black,
+                color: Theme.of(context).colorScheme.onBackground, // UPDATED: Use theme color
                 fontFamily: '.SF UI Text',
               ),
             ),
@@ -306,7 +324,7 @@ class _ContactsTabState extends State<ContactsTab> {
             Container(
               height: 0.5,
               margin: const EdgeInsets.only(left: 72),
-              color: const Color(0xFFC6C6C8),
+              color: AppThemes.getDividerColor(context), // UPDATED: Use theme-aware color
             ),
         ],
       ),
@@ -321,9 +339,9 @@ class _ContactsTabState extends State<ContactsTab> {
       builder:
           (context) => Container(
             height: MediaQuery.of(context).size.height * 0.9,
-            decoration: const BoxDecoration(
-              color: Color(0xFFF2F2F7),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            decoration: BoxDecoration(
+              color: AppThemes.getSettingsBackgroundColor(context), // UPDATED: Use theme-aware color
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: Column(
               children: [
@@ -333,7 +351,7 @@ class _ContactsTabState extends State<ContactsTab> {
                   height: 5,
                   margin: const EdgeInsets.only(top: 5),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFC6C6C8),
+                    color: AppThemes.getDividerColor(context), // UPDATED: Use theme-aware color
                     borderRadius: BorderRadius.circular(3),
                   ),
                 ),
@@ -345,12 +363,12 @@ class _ContactsTabState extends State<ContactsTab> {
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      const Text(
+                      Text(
                         'Contact',
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w600,
-                          color: Colors.black,
+                          color: Theme.of(context).colorScheme.onBackground, // UPDATED: Use theme color
                           fontFamily: '.SF UI Text',
                         ),
                       ),
@@ -358,11 +376,11 @@ class _ContactsTabState extends State<ContactsTab> {
                         alignment: Alignment.centerLeft,
                         child: TextButton(
                           onPressed: () => Navigator.pop(context),
-                          child: const Text(
+                          child: Text(
                             'Cancel',
                             style: TextStyle(
                               fontSize: 17,
-                              color: Color(0xFF007AFF),
+                              color: Theme.of(context).colorScheme.primary, // UPDATED: Use theme color
                               fontFamily: '.SF UI Text',
                             ),
                           ),
@@ -378,7 +396,7 @@ class _ContactsTabState extends State<ContactsTab> {
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppThemes.getCardBackgroundColor(context), // UPDATED: Use theme-aware color
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Column(
@@ -391,8 +409,8 @@ class _ContactsTabState extends State<ContactsTab> {
                             Container(
                               width: 120,
                               height: 120,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF8E8E93),
+                              decoration: BoxDecoration(
+                                color: AppThemes.getSecondaryTextColor(context), // UPDATED: Use theme-aware color
                                 shape: BoxShape.circle,
                               ),
                               child: Center(
@@ -417,10 +435,10 @@ class _ContactsTabState extends State<ContactsTab> {
                             const SizedBox(height: 16),
                             Text(
                               _cleanString(contact.name),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.black,
+                                color: Theme.of(context).colorScheme.onSurface, // UPDATED: Use theme color
                                 fontFamily: '.SF UI Text',
                               ),
                             ),
@@ -434,21 +452,21 @@ class _ContactsTabState extends State<ContactsTab> {
                           horizontal: 16,
                           vertical: 12,
                         ),
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           border: Border(
                             top: BorderSide(
-                              color: Color(0xFFC6C6C8),
+                              color: AppThemes.getDividerColor(context), // UPDATED: Use theme-aware color
                               width: 0.5,
                             ),
                           ),
                         ),
                         child: Row(
                           children: [
-                            const Text(
+                            Text(
                               'mobile',
                               style: TextStyle(
                                 fontSize: 17,
-                                color: Color(0xFF007AFF),
+                                color: Theme.of(context).colorScheme.primary, // UPDATED: Use theme color
                                 fontFamily: '.SF UI Text',
                               ),
                             ),
@@ -456,9 +474,9 @@ class _ContactsTabState extends State<ContactsTab> {
                             Expanded(
                               child: Text(
                                 _cleanString(contact.number),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 17,
-                                  color: Colors.black,
+                                  color: Theme.of(context).colorScheme.onSurface, // UPDATED: Use theme color
                                   fontFamily: '.SF UI Text',
                                 ),
                               ),
@@ -482,7 +500,7 @@ class _ContactsTabState extends State<ContactsTab> {
                                           sipService.status ==
                                                   SipConnectionStatus.connected
                                               ? const Color(0xFF34C759)
-                                              : const Color(0xFFE5E5EA),
+                                              : _getDisabledButtonColor(), // UPDATED: Use theme-aware color
                                       shape: BoxShape.circle,
                                     ),
                                     child: Icon(
@@ -491,7 +509,7 @@ class _ContactsTabState extends State<ContactsTab> {
                                           sipService.status ==
                                                   SipConnectionStatus.connected
                                               ? Colors.white
-                                              : const Color(0xFF8E8E93),
+                                              : AppThemes.getSecondaryTextColor(context), // UPDATED: Use theme-aware color
                                       size: 18,
                                     ),
                                   ),
@@ -508,6 +526,13 @@ class _ContactsTabState extends State<ContactsTab> {
             ),
           ),
     );
+  }
+
+  // ADD THIS: Get theme-aware disabled button color
+  Color _getDisabledButtonColor() {
+    return Theme.of(context).brightness == Brightness.dark 
+        ? const Color(0xFF2C2C2E) 
+        : const Color(0xFFE5E5EA);
   }
 }
 

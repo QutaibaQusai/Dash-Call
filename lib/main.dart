@@ -1,9 +1,11 @@
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'services/sip_service.dart';
+import 'services/theme_service.dart' as services; // ADD THIS with alias
+import 'themes/app_themes.dart'; // ADD THIS
 import 'screens/main_screen.dart';
 import 'screens/qr_login_screen.dart';
 import 'dart:io';
@@ -77,7 +79,6 @@ Future<void> _handleCriticalPermissions(
   // Check microphone permission (critical for VoIP)
   if (statuses[Permission.microphone]?.isDenied == true) {
     print('⚠️ [Permissions] Microphone permission is required for calling');
-    // You might want to show a dialog here explaining why the permission is needed
   }
 
   // Check camera permission (for QR scanning)
@@ -98,7 +99,6 @@ Future<void> _handleCriticalPermissions(
     print(
       '🚫 [Permissions] Some permissions are permanently denied. User needs to enable them in settings.',
     );
-    // You could show a dialog directing users to app settings
   }
 }
 
@@ -131,64 +131,49 @@ class DashCallApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => SipService()..initialize(),
-      child: MaterialApp(
-        title: 'DashCall',
-        theme: ThemeData(
-          primarySwatch: Colors.blue,
-          useMaterial3: true,
-          textTheme: GoogleFonts.tajawalTextTheme(Theme.of(context).textTheme),
-          primaryTextTheme: GoogleFonts.tajawalTextTheme(
-            Theme.of(context).primaryTextTheme,
-          ),
-          appBarTheme: AppBarTheme(
-            centerTitle: true,
-            elevation: 2,
-            titleTextStyle: GoogleFonts.tajawal(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
-            ),
-          ),
-          elevatedButtonTheme: ElevatedButtonThemeData(
-            style: ElevatedButton.styleFrom(
-              textStyle: GoogleFonts.tajawal(fontWeight: FontWeight.w600),
-            ),
-          ),
-          textButtonTheme: TextButtonThemeData(
-            style: TextButton.styleFrom(
-              textStyle: GoogleFonts.tajawal(fontWeight: FontWeight.w600),
-            ),
-          ),
-          outlinedButtonTheme: OutlinedButtonThemeData(
-            style: OutlinedButton.styleFrom(
-              textStyle: GoogleFonts.tajawal(fontWeight: FontWeight.w600),
-            ),
-          ),
-          inputDecorationTheme: InputDecorationTheme(
-            labelStyle: GoogleFonts.tajawal(),
-            hintStyle: GoogleFonts.tajawal(),
-            helperStyle: GoogleFonts.tajawal(),
-            errorStyle: GoogleFonts.tajawal(),
-          ),
-          bottomNavigationBarTheme: BottomNavigationBarThemeData(
-            selectedLabelStyle: GoogleFonts.tajawal(
-              fontWeight: FontWeight.w600,
-            ),
-            unselectedLabelStyle: GoogleFonts.tajawal(
-              fontWeight: FontWeight.w400,
-            ),
-          ),
-        ),
-        home: const LoginCheckScreen(),
-        routes: {
-          '/main': (context) => const MainScreen(),
-          '/qr-login': (context) => const QRLoginScreen(),
+    return MultiProvider( // CHANGED: Use MultiProvider for multiple providers
+      providers: [
+        ChangeNotifierProvider(create: (_) => SipService()..initialize()),
+        ChangeNotifierProvider(create: (_) => services.ThemeService()..initialize()), // ADD THIS
+      ],
+      child: Consumer<services.ThemeService>( // ADD THIS: Listen to theme changes
+        builder: (context, themeService, child) {
+          return MaterialApp(
+            title: 'DashCall',
+            // UPDATED: Use dynamic themes based on ThemeService
+            theme: AppThemes.lightTheme,
+            darkTheme: AppThemes.darkTheme,
+            themeMode: _convertThemeMode(themeService.themeMode),
+            home: const LoginCheckScreen(),
+            routes: {
+              '/main': (context) => const MainScreen(),
+              '/qr-login': (context) => const QRLoginScreen(),
+            },
+            debugShowCheckedModeBanner: false,
+            // ADD THIS: Handle system brightness changes
+            builder: (context, child) {
+              // Listen for system brightness changes
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                themeService.handleSystemBrightnessChange();
+              });
+              return child!;
+            },
+          );
         },
-        debugShowCheckedModeBanner: false,
       ),
     );
+  }
+
+  // ADD THIS: Convert ThemeService.ThemeMode to Flutter's ThemeMode
+  ThemeMode _convertThemeMode(services.ThemeMode themeMode) {
+    switch (themeMode) {
+      case services.ThemeMode.light:
+        return ThemeMode.light;
+      case services.ThemeMode.dark:
+        return ThemeMode.dark;
+      case services.ThemeMode.system:
+        return ThemeMode.system;
+    }
   }
 }
 

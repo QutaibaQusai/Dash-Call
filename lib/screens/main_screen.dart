@@ -3,7 +3,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/sip_service.dart';
-import '../screens/call_screen.dart'; // Import the new call screen
+import '../screens/call_screen.dart';
+import '../themes/app_themes.dart'; // ADD THIS
 import 'contacts_tab.dart';
 import 'history_tab.dart';
 import 'settings_tab.dart';
@@ -28,7 +29,7 @@ class _MainScreenState extends State<MainScreen> {
         }
 
         return Scaffold(
-          backgroundColor: _currentIndex == 3 ? const Color(0xFFF2F2F7) : Colors.white,
+          backgroundColor: _getBackgroundColor(), // UPDATED: Use theme-aware background
           appBar: _buildAppBar(sipService),
           body: _buildBody(),
           bottomNavigationBar: _buildBottomNavigationBar(),
@@ -37,17 +38,25 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
+  // ADD THIS: Get theme-aware background color
+  Color _getBackgroundColor() {
+    if (_currentIndex == 3) {
+      return AppThemes.getSettingsBackgroundColor(context);
+    }
+    return Theme.of(context).scaffoldBackgroundColor;
+  }
+
   PreferredSizeWidget _buildAppBar(SipService sipService) {
     final List<String> titles = ['Dash Call', 'Contacts', 'History', 'Settings'];
     
     return AppBar(
-      backgroundColor: _currentIndex == 3 ? const Color(0xFFF2F2F7) : Colors.white,
+      backgroundColor: _getBackgroundColor(), // UPDATED: Use theme-aware background
       elevation: 0,
       centerTitle: false,
       title: Text(
         titles[_currentIndex],
-        style: const TextStyle(
-          color: Colors.black87,
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.onBackground, // UPDATED: Use theme color
           fontSize: 28,
           fontWeight: FontWeight.w600,
         ),
@@ -94,8 +103,14 @@ class _MainScreenState extends State<MainScreen> {
 
   Widget _buildBottomNavigationBar() {
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: Theme.of(context).bottomNavigationBarTheme.backgroundColor, // UPDATED: Use theme color
+        border: Border(
+          top: BorderSide(
+            color: AppThemes.getDividerColor(context), // UPDATED: Use theme-aware divider
+            width: 0.5,
+          ),
+        ),
       ),
       child: BottomNavigationBar(
         currentIndex: _currentIndex,
@@ -105,10 +120,10 @@ class _MainScreenState extends State<MainScreen> {
           });
         },
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.transparent, // Make transparent to show container color
         elevation: 0,
-        selectedItemColor: const Color(0xFF0077F9),
-        unselectedItemColor: Colors.grey.shade600,
+        selectedItemColor: Theme.of(context).colorScheme.primary, // UPDATED: Use theme color
+        unselectedItemColor: AppThemes.getSecondaryTextColor(context), // UPDATED: Use theme-aware color
         selectedFontSize: 12,
         unselectedFontSize: 12,
         selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),

@@ -1,8 +1,11 @@
+// lib/screens/dialer_screen.dart - Updated with Theme Support
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/sip_service.dart';
 import '../services/dtmf_audio_service.dart';
+import '../themes/app_themes.dart'; // ADD THIS
 
 class DialerTab extends StatefulWidget {
   const DialerTab({super.key});
@@ -38,7 +41,7 @@ class _DialerTabState extends State<DialerTab> {
     return Consumer<SipService>(
       builder: (context, sipService, child) {
         return Container(
-          color: Colors.white,
+          color: Theme.of(context).scaffoldBackgroundColor, 
           child: SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -70,7 +73,7 @@ class _DialerTabState extends State<DialerTab> {
                           style: TextStyle(
                             fontSize: _getResponsiveFontSize(screenWidth),
                             fontWeight: FontWeight.w600,
-                            color: Colors.black,
+                            color: Theme.of(context).colorScheme.onBackground, // UPDATED: Use theme color
                             letterSpacing: 1.0,
                             fontFamily: '.SF UI Text',
                           ),
@@ -199,16 +202,16 @@ class _DialerTabState extends State<DialerTab> {
     return Container(
       width: size,
       height: size,
-      decoration: const BoxDecoration(
-        color: Color(0xFFE5E5E5),
+      decoration: BoxDecoration(
+        color: _getDialerButtonColor(), // UPDATED: Use theme-aware color
         shape: BoxShape.circle,
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(size / 2),
-          splashColor: Colors.black.withOpacity(0.1),
-          highlightColor: Colors.black.withOpacity(0.05),
+          splashColor: Theme.of(context).colorScheme.primary.withOpacity(0.1), // UPDATED: Use theme color
+          highlightColor: Theme.of(context).colorScheme.primary.withOpacity(0.05), // UPDATED: Use theme color
           
           // Regular tap - Real DTMF sound!
           onTap: () async {
@@ -251,7 +254,7 @@ class _DialerTabState extends State<DialerTab> {
                     style: TextStyle(
                       fontSize: numberFontSize,
                       fontWeight: FontWeight.w600,
-                      color: Colors.black,
+                      color: Theme.of(context).colorScheme.onSurface, // UPDATED: Use theme color
                       height: 1.0,
                       fontFamily: '.SF UI Text',
                     ),
@@ -270,7 +273,7 @@ class _DialerTabState extends State<DialerTab> {
                       style: TextStyle(
                         fontSize: letterFontSize,
                         fontWeight: FontWeight.w800,
-                        color: Colors.black,
+                        color: Theme.of(context).colorScheme.onSurface, // UPDATED: Use theme color
                         letterSpacing: size * 0.02,
                         height: 1.0,
                         fontFamily: '.SF UI Text',
@@ -283,6 +286,13 @@ class _DialerTabState extends State<DialerTab> {
         ),
       ),
     );
+  }
+
+  // ADD THIS: Get theme-aware dialer button color
+  Color _getDialerButtonColor() {
+    return Theme.of(context).brightness == Brightness.dark 
+        ? const Color(0xFF2C2C2E) 
+        : const Color(0xFFE5E5E5);
   }
 
   // Send DTMF to active call
@@ -301,7 +311,7 @@ class _DialerTabState extends State<DialerTab> {
       width: size,
       height: size,
       decoration: const BoxDecoration(
-        color: Color(0xFF34C85A),
+        color: Color(0xFF34C85A), // Keep green for call button
         shape: BoxShape.circle,
       ),
       child: Material(
@@ -350,7 +360,7 @@ class _DialerTabState extends State<DialerTab> {
         decoration: const BoxDecoration(shape: BoxShape.circle),
         child: Icon(
           Icons.backspace,
-          color: const Color(0xFFE5E5E5),
+          color: AppThemes.getSecondaryTextColor(context), // UPDATED: Use theme-aware color
           size: size * 0.55,
         ),
       ),

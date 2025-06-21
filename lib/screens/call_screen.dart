@@ -93,18 +93,11 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF000000),
+      backgroundColor: _getCallScreenBackground(), // UPDATED: Use theme-aware background
       body: Container(
-        width: double.infinity, // FIXED: Ensure full width
-        height: double.infinity, // FIXED: Ensure full height
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF1C1C1E), Color(0xFF000000)],
-            stops: [0.0, 0.3],
-          ),
-        ),
+        width: double.infinity,
+        height: double.infinity,
+        decoration: _getCallScreenGradient(), // UPDATED: Use theme-aware gradient
         child: SafeArea(
           child: Column(
             children: [
@@ -126,9 +119,40 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
     );
   }
 
+  // ADD THIS: Get theme-aware call screen background
+  Color _getCallScreenBackground() {
+    return Theme.of(context).brightness == Brightness.dark 
+        ? const Color(0xFF000000) 
+        : const Color(0xFF000000); // Keep dark for call screen
+  }
+
+  // ADD THIS: Get theme-aware gradient
+  BoxDecoration _getCallScreenGradient() {
+    if (Theme.of(context).brightness == Brightness.dark) {
+      return const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF1C1C1E), Color(0xFF000000)],
+          stops: [0.0, 0.3],
+        ),
+      );
+    } else {
+      // For light theme, use a darker gradient to maintain readability
+      return const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF2C2C2E), Color(0xFF000000)],
+          stops: [0.0, 0.3],
+        ),
+      );
+    }
+  }
+
   Widget _buildCallInfoSection() {
     return Container(
-      width: double.infinity, // FIXED: Ensure full width
+      width: double.infinity,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -138,19 +162,17 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
 
           // Contact name/number
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 32,
-            ), // FIXED: Add padding
+            padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Text(
               widget.sipService.callNumber ?? 'Unknown',
               style: const TextStyle(
                 fontSize: 36,
                 fontWeight: FontWeight.w300,
-                color: Colors.white,
+                color: Colors.white, // Always white on call screen
                 letterSpacing: -0.5,
               ),
               textAlign: TextAlign.center,
-              maxLines: 2, // FIXED: Allow multiple lines for long numbers
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -162,7 +184,7 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
             _getCallStatusText(),
             style: const TextStyle(
               fontSize: 18,
-              color: Color(0xFF8E8E93),
+              color: Color(0xFF8E8E93), // Keep consistent for call screen
               fontWeight: FontWeight.w400,
             ),
           ),
@@ -182,7 +204,7 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
                     _formatDuration(duration),
                     style: const TextStyle(
                       fontSize: 16,
-                      color: Color(0xFF8E8E93),
+                      color: Color(0xFF8E8E93), // Keep consistent for call screen
                       fontWeight: FontWeight.w400,
                       fontFeatures: [FontFeature.tabularFigures()],
                     ),
@@ -209,7 +231,7 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
 
   Widget _buildIncomingCallControls() {
     return Container(
-      width: double.infinity, // FIXED: Ensure full width
+      width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 80),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -236,7 +258,7 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
 
   Widget _buildOutgoingCallControls() {
     return Container(
-      width: double.infinity, // FIXED: Ensure full width
+      width: double.infinity,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -268,7 +290,7 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
 
   Widget _buildActiveCallControls() {
     return Container(
-      width: double.infinity, // FIXED: Ensure full width
+      width: double.infinity,
       child: Column(
         children: [
           // Control buttons row
@@ -337,9 +359,9 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
           height: 68,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: isActive ? Colors.white : const Color(0xFF2C2C2E),
+            color: isActive ? Colors.white : _getInactiveControlButtonColor(), // UPDATED: Use theme-aware color
             border: Border.all(
-              color: isActive ? Colors.white : const Color(0xFF3A3A3C),
+              color: isActive ? Colors.white : _getControlButtonBorderColor(), // UPDATED: Use theme-aware color
               width: 1,
             ),
             boxShadow: [
@@ -374,6 +396,20 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
         ),
       ],
     );
+  }
+
+  // ADD THIS: Get theme-aware inactive control button color
+  Color _getInactiveControlButtonColor() {
+    return Theme.of(context).brightness == Brightness.dark 
+        ? const Color(0xFF2C2C2E) 
+        : const Color(0xFF2C2C2E); // Keep consistent for call screen
+  }
+
+  // ADD THIS: Get theme-aware control button border color
+  Color _getControlButtonBorderColor() {
+    return Theme.of(context).brightness == Brightness.dark 
+        ? const Color(0xFF3A3A3C) 
+        : const Color(0xFF3A3A3C); // Keep consistent for call screen
   }
 
   Widget _buildCircularButton({

@@ -1,7 +1,10 @@
+// lib/screens/history_tab.dart - Updated with Theme Support
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/sip_service.dart';
+import '../themes/app_themes.dart'; // ADD THIS
 
 class HistoryTab extends StatefulWidget {
   const HistoryTab({super.key});
@@ -44,21 +47,19 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFF2F2F7),
+      color: Theme.of(context).scaffoldBackgroundColor,
       child: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            // Proportional scaling system
-            final baseWidth = 375.0; // iPhone SE reference
+            final baseWidth = 375.0;
             final scaleWidth = constraints.maxWidth / baseWidth;
             final scaleHeight = constraints.maxHeight / 667.0;
             final scale = (scaleWidth + scaleHeight) / 2;
 
             return Column(
               children: [
-                // Enhanced Tab Bar with 4 tabs
                 Container(
-                  color: Colors.white,
+                  color: Theme.of(context).scaffoldBackgroundColor,
                   padding: EdgeInsets.fromLTRB(
                     16 * scale,
                     8 * scale,
@@ -67,7 +68,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
                   ),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE5E5EA),
+                      color: _getTabBarBackgroundColor(),
                       borderRadius: BorderRadius.circular(8 * scale),
                     ),
                     child: Row(
@@ -101,6 +102,12 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
     );
   }
 
+  Color _getTabBarBackgroundColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF2C2C2E)
+        : const Color(0xFFE5E5EA);
+  }
+
   Widget _buildTabButton(String text, int index, double scale) {
     bool isSelected = _selectedTabIndex == index;
 
@@ -115,7 +122,10 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
           margin: EdgeInsets.all(2 * scale),
           padding: EdgeInsets.symmetric(vertical: 6 * scale),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.white : Colors.transparent,
+            color:
+                isSelected
+                    ? AppThemes.getCardBackgroundColor(context)
+                    : Colors.transparent,
             borderRadius: BorderRadius.circular(6 * scale),
             boxShadow:
                 isSelected
@@ -132,7 +142,10 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
             text,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: isSelected ? Colors.black : const Color(0xFF8E8E93),
+              color:
+                  isSelected
+                      ? Theme.of(context).colorScheme.onSurface
+                      : AppThemes.getSecondaryTextColor(context),
               fontSize: 12 * scale,
               fontWeight: FontWeight.w500,
             ),
@@ -145,7 +158,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
   Widget _buildCallList(List<CallRecord> calls, double scale) {
     if (calls.isEmpty) {
       return Container(
-        color: Colors.white,
+        color: Theme.of(context).scaffoldBackgroundColor,
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -153,14 +166,14 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
               Icon(
                 CupertinoIcons.phone,
                 size: 64 * scale,
-                color: Colors.grey.shade400,
+                color: AppThemes.getSecondaryTextColor(context),
               ),
               SizedBox(height: 16 * scale),
               Text(
                 _getEmptyStateTitle(),
                 style: TextStyle(
                   fontSize: 18 * scale,
-                  color: Colors.grey.shade600,
+                  color: AppThemes.getSecondaryTextColor(context),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -169,7 +182,9 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
                 _getEmptyStateSubtitle(),
                 style: TextStyle(
                   fontSize: 14 * scale,
-                  color: Colors.grey.shade500,
+                  color: AppThemes.getSecondaryTextColor(
+                    context,
+                  ), // UPDATED: Use theme-aware color
                 ),
               ),
             ],
@@ -179,7 +194,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
     }
 
     return Container(
-      color: Colors.white,
+      color: AppThemes.getCardBackgroundColor(context),
       child: ListView.builder(
         padding: EdgeInsets.zero,
         itemCount: calls.length,
@@ -235,12 +250,11 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
             ),
             child: Row(
               children: [
-                // Avatar with initials
                 Container(
                   width: 40 * scale,
                   height: 40 * scale,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFC6C6C8),
+                  decoration: BoxDecoration(
+                    color: AppThemes.getDividerColor(context),
                     shape: BoxShape.circle,
                   ),
                   child: Center(
@@ -270,13 +284,14 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
                     children: [
                       Row(
                         children: [
-                          // Call direction icon
                           Icon(
                             _getCallDirectionIcon(call.type),
                             color:
                                 call.type == CallType.missed
                                     ? const Color(0xFFFF3B30)
-                                    : const Color(0xFF8E8E93),
+                                    : AppThemes.getSecondaryTextColor(
+                                      context,
+                                    ), // UPDATED: Use theme-aware color
                             size: 16 * scale,
                           ),
                           SizedBox(width: 6 * scale),
@@ -289,7 +304,9 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
                                 color:
                                     call.type == CallType.missed
                                         ? const Color(0xFFFF3B30)
-                                        : Colors.black,
+                                        : Theme.of(context)
+                                            .colorScheme
+                                            .onSurface, // UPDATED: Use theme color
                               ),
                             ),
                           ),
@@ -301,7 +318,9 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
                           call.number,
                           style: TextStyle(
                             fontSize: 15 * scale,
-                            color: const Color(0xFF8E8E93),
+                            color: AppThemes.getSecondaryTextColor(
+                              context,
+                            ), // UPDATED: Use theme-aware color
                           ),
                         ),
                       ],
@@ -316,7 +335,9 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
                       _formatRelativeTime(call.timestamp),
                       style: TextStyle(
                         fontSize: 15 * scale,
-                        color: const Color(0xFF8E8E93),
+                        color: AppThemes.getSecondaryTextColor(
+                          context,
+                        ), // UPDATED: Use theme-aware color
                       ),
                     ),
                     if (call.duration != Duration.zero) ...[
@@ -325,7 +346,9 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
                         _formatDuration(call.duration),
                         style: TextStyle(
                           fontSize: 13 * scale,
-                          color: const Color(0xFF8E8E93),
+                          color: AppThemes.getSecondaryTextColor(
+                            context,
+                          ), // UPDATED: Use theme-aware color
                         ),
                       ),
                     ],
@@ -340,7 +363,9 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
             Container(
               height: 0.5,
               margin: EdgeInsets.only(left: 68 * scale),
-              color: const Color(0xFFC6C6C8),
+              color: AppThemes.getDividerColor(
+                context,
+              ), // UPDATED: Use theme-aware color
             ),
         ],
       ),
@@ -363,9 +388,13 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
       context: context,
       builder:
           (BuildContext context) => CupertinoActionSheet(
-            title: Text(call.name ?? call.number),
+            title: Text(
+              call.name ?? call.number,
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            ),
             message: Text(
               '${_formatTime(call.timestamp)} • ${_formatDuration(call.duration)}',
+              style: TextStyle(color: AppThemes.getSecondaryTextColor(context)),
             ),
             actions: [
               CupertinoActionSheetAction(
@@ -380,12 +409,26 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
                     sipService.makeCall(call.number);
                   }
                 },
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(CupertinoIcons.phone, color: Color(0xFF007AFF)),
-                    SizedBox(width: 8),
-                    Text('Call', style: TextStyle(color: Color(0xFF007AFF))),
+                    Icon(
+                      CupertinoIcons.phone,
+                      color:
+                          Theme.of(
+                            context,
+                          ).colorScheme.primary, // UPDATED: Use theme color
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Call',
+                      style: TextStyle(
+                        color:
+                            Theme.of(
+                              context,
+                            ).colorScheme.primary, // UPDATED: Use theme color
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -407,9 +450,14 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
             cancelButton: CupertinoActionSheetAction(
               onPressed: () => Navigator.pop(context),
               isDefaultAction: true,
-              child: const Text(
+              child: Text(
                 'Cancel',
-                style: TextStyle(color: Color(0xFF007AFF)),
+                style: TextStyle(
+                  color:
+                      Theme.of(
+                        context,
+                      ).colorScheme.primary, // UPDATED: Use theme color
+                ),
               ),
             ),
           ),
