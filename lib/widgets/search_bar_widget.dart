@@ -52,7 +52,10 @@ class SearchBarWidget extends StatelessWidget {
             maxWidth: 30,
           ),
           border: InputBorder.none,
-          isDense: true,
+          focusedBorder: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          errorBorder: InputBorder.none,
+          disabledBorder: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 0,
             vertical: 8,

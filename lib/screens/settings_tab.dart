@@ -1,5 +1,7 @@
 // lib/screens/settings_tab.dart - Updated with Server Connection Toggle
 
+import 'package:adaptive_dialog/adaptive_dialog.dart';
+import 'package:dash_call/services/call_history_manager.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -144,7 +146,10 @@ class _SettingsTabState extends State<SettingsTab> {
       iconColor: Colors.blue,
       title: _getAccountTitle(sipService), // Use account name or fallback
       subtitle: _getAccountSubtitle(sipService), // Show extension number
-      trailing: _buildAccountTrailing(sipService, scale), // UPDATED: Custom trailing with status and chevron
+      trailing: _buildAccountTrailing(
+        sipService,
+        scale,
+      ), // UPDATED: Custom trailing with status and chevron
       onTap: () => _navigateToConfigurationPage(sipService),
       scale: scale,
     );
@@ -208,21 +213,21 @@ class _SettingsTabState extends State<SettingsTab> {
   }
 
   /// App Settings Section - UPDATED: Now includes both Theme and About items
-Widget _buildAppSettingsSection(
-  services.ThemeService themeService,
-  double scale,
-) {
-  return _buildSettingsSection(
-    title: 'App Settings',
-    scale: scale,
-    children: [
-      _buildThemeSettingsItem(themeService, scale),
-            _buildClearHistorySettingsItem(scale), // Add this line
+  Widget _buildAppSettingsSection(
+    services.ThemeService themeService,
+    double scale,
+  ) {
+    return _buildSettingsSection(
+      title: 'App Settings',
+      scale: scale,
+      children: [
+        _buildThemeSettingsItem(themeService, scale),
+        _buildClearHistorySettingsItem(scale), // Add this line
 
-      _buildAboutSettingsItem(scale),
-    ],
-  );
-}
+        _buildAboutSettingsItem(scale),
+      ],
+    );
+  }
 
   /// Theme settings item
   Widget _buildThemeSettingsItem(
@@ -252,77 +257,48 @@ Widget _buildAppSettingsSection(
       scale: scale,
     );
   }
+
   // Add this new method to your _SettingsTabState class
-Widget _buildClearHistorySettingsItem(double scale) {
-  return _buildSettingsItem(
-    icon: CupertinoIcons.trash,
-    iconColor: Colors.red,
-    title: 'Clear History',
-    subtitle: 'Delete all call history',
-    trailing: _buildChevronIcon(scale),
-    onTap: () => _showClearHistoryDialog(),
-    scale: scale,
-  );
-}
+  Widget _buildClearHistorySettingsItem(double scale) {
+    return _buildSettingsItem(
+      icon: CupertinoIcons.trash,
+      iconColor: Colors.red,
+      title: 'Clear History',
+      subtitle: 'Delete all call history',
+      trailing: _buildChevronIcon(scale),
+      onTap: () => _showClearHistoryDialog(),
+      scale: scale,
+    );
+  }
 
-// Add this method to show the confirmation dialog
-void _showClearHistoryDialog() {
-  showDialog(
+  // Add this method to show the confirmation dialog
+void _showClearHistoryDialog() async {
+  final result = await showOkCancelAlertDialog(
     context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        backgroundColor: AppThemes.getCardBackgroundColor(context),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
-        title: Text(
-          'Clear History',
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface,
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        content: Text(
-          'Are you sure you want to delete all call history?',
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface,
-            fontSize: 13,
-            fontWeight: FontWeight.w400,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-                fontSize: 17,
-                fontWeight: FontWeight.w400,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              //TO DO
-            },
-            child: const Text(
-              'Clear',
-              style: TextStyle(
-                color: Colors.red,
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      );
-    },
+    title: 'Clear Call History',
+    message: 'Are you sure you want to delete all call history?',
+    okLabel: 'Clear',
+    cancelLabel: 'Cancel',
+    isDestructiveAction: true,
   );
-}
 
+  if (result == OkCancelResult.ok) {
+    try {
+      await CallHistoryManager.clearHistory();
+      await showOkAlertDialog(
+        context: context,
+        title: 'Success',
+        message: 'Call history cleared successfully.',
+      );
+    } catch (error) {
+      await showOkAlertDialog(
+        context: context,
+        title: 'Error',
+        message: 'Failed to clear call history.',
+      );
+    }
+  }
+}
   /// Generic settings section builder
   Widget _buildSettingsSection({
     required String title,
@@ -506,7 +482,6 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
   late TextEditingController _domainController;
   late TextEditingController _portController;
 
-
   @override
   void initState() {
     super.initState();
@@ -644,9 +619,9 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
         Consumer<SipService>(
           builder: (context, sipService, child) {
             return _buildInfoRow(
-              'Server Status', 
-              _getServerStatusDisplay(), 
-              statusColor: _getConnectionStatusColor(), 
+              'Server Status',
+              _getServerStatusDisplay(),
+              statusColor: _getConnectionStatusColor(),
               scale: scale,
             );
           },
@@ -670,8 +645,9 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
     return Consumer<SipService>(
       builder: (context, sipService, child) {
         final isConnected = sipService.status == SipConnectionStatus.connected;
-        final isConnecting = sipService.status == SipConnectionStatus.connecting;
-        
+        final isConnecting =
+            sipService.status == SipConnectionStatus.connecting;
+
         return Container(
           padding: EdgeInsets.symmetric(
             horizontal: 16 * scale,
@@ -683,7 +659,9 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
               Container(
                 padding: EdgeInsets.all(8 * scale),
                 decoration: BoxDecoration(
-                  color: _getConnectionToggleIconColor(sipService.status).withOpacity(0.1),
+                  color: _getConnectionToggleIconColor(
+                    sipService.status,
+                  ).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8 * scale),
                 ),
                 child: Icon(
@@ -692,9 +670,9 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
                   size: 20 * scale,
                 ),
               ),
-              
+
               SizedBox(width: 12 * scale),
-              
+
               // Connection Text
               Expanded(
                 child: Text(
@@ -706,11 +684,14 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
                   ),
                 ),
               ),
-              
+
               // Toggle Switch
               CupertinoSwitch(
                 value: isConnected || isConnecting,
-                onChanged: isConnecting ? null : (value) => _handleConnectionToggle(value, sipService),
+                onChanged:
+                    isConnecting
+                        ? null
+                        : (value) => _handleConnectionToggle(value, sipService),
                 activeColor: Colors.green,
                 trackColor: Colors.grey.withOpacity(0.3),
               ),
@@ -750,20 +731,23 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
   }
 
   /// NEW: Handle connection toggle
-  Future<void> _handleConnectionToggle(bool value, SipService sipService) async {
+  Future<void> _handleConnectionToggle(
+    bool value,
+    SipService sipService,
+  ) async {
     try {
       if (value) {
         // Connect to server using register method
         print('🔌 [ConfigurationPage] Connecting to SIP server...');
-        
+
         // Check if settings are configured
-        if (sipService.sipServer.isEmpty || 
-            sipService.username.isEmpty || 
+        if (sipService.sipServer.isEmpty ||
+            sipService.username.isEmpty ||
             sipService.password.isEmpty) {
           print('❌ [ConfigurationPage] SIP settings not configured');
           return;
         }
-        
+
         await sipService.register();
         print('✅ [ConfigurationPage] Connection attempt completed');
       } else {
@@ -825,11 +809,7 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
         color: Colors.orange.withOpacity(0.1),
         borderRadius: BorderRadius.circular(6 * scale),
       ),
-      child: Icon(
-        Icons.terminal,
-        color: Colors.orange,
-        size: 18 * scale,
-      ),
+      child: Icon(Icons.terminal, color: Colors.orange, size: 18 * scale),
     );
   }
 
@@ -873,9 +853,7 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
   void _navigateToDebugPage() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const DebugConnectionPage(),
-      ),
+      MaterialPageRoute(builder: (context) => const DebugConnectionPage()),
     );
   }
 
@@ -1105,70 +1083,37 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
   }
 
   /// Show delete account dialog
-  void _showDeleteAccountDialog() {
-    showDialog(context: context, builder: _buildDeleteDialog);
-  }
+void _showDeleteAccountDialog() async {
+  final result = await showOkCancelAlertDialog(
+    context: context,
+    title: 'Delete Account',
+    message:
+        'Are you sure you want to delete this account? This will remove all saved settings and disconnect from the SIP server.',
+    okLabel: 'Delete',
+    cancelLabel: 'Cancel',
+    isDestructiveAction: true, 
+  );
 
-  /// Build delete dialog
-  Widget _buildDeleteDialog(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: AppThemes.getCardBackgroundColor(context),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      title: _buildDialogTitle(),
-      content: _buildDialogContent(),
-      actions: _buildDialogActions(),
-    );
-  }
+  if (result == OkCancelResult.ok) {
+    try {
+  // todo
 
-  /// Dialog title
-  Widget _buildDialogTitle() {
-    return Text(
-      'Delete Account',
-      style: TextStyle(
-        color: Theme.of(context).colorScheme.onSurface,
-        fontSize: 17,
-        fontWeight: FontWeight.w600,
-      ),
-    );
+      await showOkAlertDialog(
+        context: context,
+        title: 'Account Deleted',
+        message: 'The account was successfully removed.',
+      );
+    } catch (error) {
+      await showOkAlertDialog(
+        context: context,
+        title: 'Error',
+        message: 'Failed to delete the account. Please try again.',
+      );
+    }
   }
+}
 
-  /// Dialog content
-  Widget _buildDialogContent() {
-    return Text(
-      'Are you sure you want to delete this account? This will remove all saved settings and disconnect from the SIP server.',
-      style: TextStyle(
-        color: Theme.of(context).colorScheme.onSurface,
-        fontSize: 13,
-        fontWeight: FontWeight.w400,
-      ),
-    );
-  }
 
-  /// Dialog actions
-  List<Widget> _buildDialogActions() {
-    return [
-      TextButton(
-        onPressed: () => Navigator.of(context).pop(),
-        child: Text(
-          'Cancel',
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.primary,
-            fontSize: 17,
-            fontWeight: FontWeight.w400,
-          ),
-        ),
-      ),
-      TextButton(
-        onPressed: () => Navigator.of(context).pop(),
-        child: const Text(
-          'Delete',
-          style: TextStyle(
-            color: Colors.red,
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-    ];
-  }
+
+
 }

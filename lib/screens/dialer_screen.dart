@@ -1,5 +1,4 @@
-// lib/screens/dialer_tab.dart - Rewritten with Clean Architecture
-
+import 'package:adaptive_dialog/adaptive_dialog.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -16,15 +15,14 @@ class DialerTab extends StatefulWidget {
 
 class _DialerTabState extends State<DialerTab> {
   final TextEditingController _phoneController = TextEditingController();
-  
-  // Dialer configuration
+
   static const List<List<String>> _dialerNumbers = [
     ['1', '2', '3'],
     ['4', '5', '6'],
     ['7', '8', '9'],
     ['*', '0', '#'],
   ];
-  
+
   static const List<List<String>> _dialerLetters = [
     ['.', 'ABC', 'DEF'],
     ['GHI', 'JKL', 'MNO'],
@@ -44,13 +42,10 @@ class _DialerTabState extends State<DialerTab> {
     super.dispose();
   }
 
-  /// Initialize DTMF sounds for better performance
   Future<void> _initializeDTMFSounds() async {
     try {
       await DTMFAudioService.preloadSounds();
-    } catch (e) {
-      // Silent fail - DTMF will still work with fallback
-    }
+    } catch (_) {}
   }
 
   @override
@@ -72,11 +67,10 @@ class _DialerTabState extends State<DialerTab> {
     );
   }
 
-  /// Calculate responsive layout dimensions
   _DialerLayout _calculateLayout(BoxConstraints constraints) {
     final screenHeight = constraints.maxHeight;
     final screenWidth = constraints.maxWidth;
-    
+
     return _DialerLayout(
       screenWidth: screenWidth,
       screenHeight: screenHeight,
@@ -87,7 +81,6 @@ class _DialerTabState extends State<DialerTab> {
     );
   }
 
-  /// Build the main dialer interface
   Widget _buildDialerInterface(SipService sipService, _DialerLayout layout) {
     return Column(
       children: [
@@ -98,32 +91,32 @@ class _DialerTabState extends State<DialerTab> {
     );
   }
 
-  /// Build number display area
   Widget _buildNumberDisplay(_DialerLayout layout) {
     return Container(
       height: layout.numberDisplayHeight,
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Center(
-        child: Text(
-          _phoneController.text.isEmpty
-              ? ''
-              : _formatPhoneNumber(_phoneController.text),
-          style: TextStyle(
-            fontSize: _getResponsiveFontSize(layout.screenWidth),
-            fontWeight: FontWeight.w600,
-            color: Theme.of(context).colorScheme.onBackground,
-            letterSpacing: 1.0,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.center,
+          child: Text(
+            _phoneController.text.isEmpty
+                ? ''
+                : _formatPhoneNumber(_phoneController.text),
+            style: TextStyle(
+              fontSize: 40, // starting size, will scale down
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.onBackground,
+              letterSpacing: 1.0,
+            ),
+            maxLines: 1,
           ),
-          textAlign: TextAlign.center,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
         ),
       ),
     );
   }
 
-  /// Build dial pad
   Widget _buildDialPad(_DialerLayout layout) {
     return Expanded(
       child: Container(
@@ -142,7 +135,6 @@ class _DialerTabState extends State<DialerTab> {
     );
   }
 
-  /// Build dialer row
   Widget _buildDialerRow(List<String> numbers, List<String> letters, double buttonSize) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -155,7 +147,6 @@ class _DialerTabState extends State<DialerTab> {
     );
   }
 
-  /// Build individual dialer button
   Widget _buildDialerButton(String number, String letters, double size) {
     return Container(
       width: size,
@@ -163,7 +154,6 @@ class _DialerTabState extends State<DialerTab> {
       decoration: BoxDecoration(
         color: _getDialerButtonColor(),
         shape: BoxShape.circle,
-   
       ),
       child: Material(
         color: Colors.transparent,
@@ -179,14 +169,12 @@ class _DialerTabState extends State<DialerTab> {
     );
   }
 
-  /// Build button content (number and letters)
   Widget _buildButtonContent(String number, String letters, double size) {
     final numberFontSize = size * 0.4;
     final letterFontSize = size * 0.12;
 
     return Stack(
       children: [
-        // Number
         Positioned(
           top: letters.isNotEmpty ? size * 0.22 : size * 0.35,
           left: 0,
@@ -198,35 +186,34 @@ class _DialerTabState extends State<DialerTab> {
                 fontSize: numberFontSize,
                 fontWeight: FontWeight.w600,
                 color: Theme.of(context).colorScheme.onSurface,
-                height: 1.0,
               ),
             ),
           ),
         ),
-        // Letters
-        if (letters.isNotEmpty)
-          Positioned(
-            bottom: size * 0.18,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Text(
-                letters,
-                style: TextStyle(
-                  fontSize: letterFontSize,
-                  fontWeight: FontWeight.w800,
-                  color: Theme.of(context).colorScheme.onSurface,
-                  letterSpacing: size * 0.02,
-                  height: 1.0,
-                ),
-              ),
-            ),
-          ),
+// Letters
+if (letters.isNotEmpty && letters != '.')
+  Positioned(
+    bottom: size * 0.18,
+    left: 0,
+    right: 0,
+    child: Center(
+      child: Text(
+        letters,
+        style: TextStyle(
+          fontSize: letterFontSize,
+          fontWeight: FontWeight.w800,
+          color: Theme.of(context).colorScheme.onSurface,
+          letterSpacing: size * 0.02,
+          height: 1.0,
+        ),
+      ),
+    ),
+  ),
+
       ],
     );
   }
 
-  /// Build controls area (call button and delete)
   Widget _buildControls(SipService sipService, _DialerLayout layout) {
     return Container(
       height: layout.controlsHeight,
@@ -252,18 +239,15 @@ class _DialerTabState extends State<DialerTab> {
     );
   }
 
-  /// Build call button
   Widget _buildCallButton(SipService sipService, double size) {
-    final canCall =  
-        sipService.status == SipConnectionStatus.connected;
+    final canCall = sipService.status == SipConnectionStatus.connected;
 
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        color: const Color(0xFF34C759) ,
+      decoration: const BoxDecoration(
+        color: Color(0xFF34C759),
         shape: BoxShape.circle,
-    
       ),
       child: Material(
         color: Colors.transparent,
@@ -282,7 +266,6 @@ class _DialerTabState extends State<DialerTab> {
     );
   }
 
-  /// Build delete button
   Widget _buildDeleteButton(double size) {
     return GestureDetector(
       onTap: _handleDeleteTap,
@@ -300,25 +283,22 @@ class _DialerTabState extends State<DialerTab> {
     );
   }
 
-  /// Handle dialer button tap
   Future<void> _handleDialerTap(String number) async {
     await DTMFAudioService.playDTMF(number);
     _addNumberToDisplay(number);
     _sendDTMFToActiveCall(number);
   }
 
-  /// Handle dialer button long press
   Future<void> _handleDialerLongPress(String number) async {
     await DTMFAudioService.playLongDTMF(number);
     _addNumberToDisplay(number);
     _sendDTMFToActiveCall(number);
   }
 
-  /// Handle delete button tap
   Future<void> _handleDeleteTap() async {
     await DTMFAudioService.stopDTMF();
     if (_phoneController.text.isNotEmpty) {
-      setState(() {
+           setState(() {
         _phoneController.text = _phoneController.text.substring(
           0,
           _phoneController.text.length - 1,
@@ -327,7 +307,6 @@ class _DialerTabState extends State<DialerTab> {
     }
   }
 
-  /// Handle delete button long press
   Future<void> _handleDeleteLongPress() async {
     await DTMFAudioService.stopDTMF();
     setState(() {
@@ -335,14 +314,12 @@ class _DialerTabState extends State<DialerTab> {
     });
   }
 
-  /// Add number to display
   void _addNumberToDisplay(String number) {
     setState(() {
       _phoneController.text += number;
     });
   }
 
-  /// Send DTMF to active call
   void _sendDTMFToActiveCall(String digit) {
     final sipService = Provider.of<SipService>(context, listen: false);
     if (sipService.callStatus == CallStatus.active) {
@@ -350,65 +327,50 @@ class _DialerTabState extends State<DialerTab> {
     }
   }
 
-  /// Make a call
   Future<void> _makeCall(SipService sipService) async {
     final number = _phoneController.text.trim();
     if (number.isEmpty) return;
 
     final success = await sipService.makeCall(number);
     if (!success && mounted) {
-      _showErrorSnackBar(sipService.errorMessage ?? 'Failed to make call');
+      _showErrorDialog(sipService.errorMessage ?? 'Failed to make call');
     }
   }
 
-  /// Show error snackbar
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: const Color(0xFFFF3B30),
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
+  Future<void> _showErrorDialog(String message) async {
+    await showOkAlertDialog(
+      context: context,
+      title: 'Call Failed',
+      message: message,
     );
   }
 
-  /// Get dialer button color based on theme
   Color _getDialerButtonColor() {
     return Theme.of(context).brightness == Brightness.dark
         ? const Color(0xFF2C2C2E)
         : const Color(0xFFE5E5E5);
   }
 
-  /// Get responsive font size for number display
-  double _getResponsiveFontSize(double screenWidth) {
-    if (screenWidth < 350) return 28;
-    if (screenWidth < 400) return 32;
-    return 38;
-  }
-
-  /// Format phone number for display
-  String _formatPhoneNumber(String number) {
-    if (number.length <= 3) {
-      return number;
-    } else if (number.length <= 6) {
-      return '${number.substring(0, 3)}-${number.substring(3)}';
-    } else if (number.length <= 10) {
-      return '(${number.substring(0, 3)}) ${number.substring(3, 6)}-${number.substring(6)}';
-    } else {
-      final countryCode = number.substring(0, number.length - 10);
-      final areaCode = number.substring(number.length - 10, number.length - 7);
-      final prefix = number.substring(number.length - 7, number.length - 4);
-      final lineNumber = number.substring(number.length - 4);
-      return '+$countryCode ($areaCode) $prefix-$lineNumber';
-    }
+String _formatPhoneNumber(String number) {
+  if (number.length <= 3) {
+    return number;
+  } else if (number.length <= 6) {
+    return '${number.substring(0, 3)} ${number.substring(3)}';
+  } else if (number.length <= 10) {
+    return '${number.substring(0, 3)} ${number.substring(3, 6)} ${number.substring(6)}';
+  } else {
+    final countryCode = number.substring(0, number.length - 10);
+    final areaCode = number.substring(number.length - 10, number.length - 7);
+    final prefix = number.substring(number.length - 7, number.length - 4);
+    final lineNumber = number.substring(number.length - 4);
+    return '$countryCode $areaCode $prefix $lineNumber';
   }
 }
 
-/// Layout configuration for responsive design
+
+
+}
+
 class _DialerLayout {
   final double screenWidth;
   final double screenHeight;
