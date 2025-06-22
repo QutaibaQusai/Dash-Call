@@ -37,7 +37,9 @@ class _ContactsTabState extends State<ContactsTab> {
       color: Theme.of(context).scaffoldBackgroundColor,
       child: Column(
         children: [
+          const SizedBox(height: 16), // Added top margin
           _buildSearchBar(),
+          const SizedBox(height: 12), // Added spacing between search and list
           Expanded(child: _buildContactsList()),
         ],
       ),
@@ -45,42 +47,47 @@ class _ContactsTabState extends State<ContactsTab> {
   }
 
   /// Build search bar - keeping exact same UI
-  Widget _buildSearchBar() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      height: 36,
-      decoration: BoxDecoration(
-        color: _getSearchBarColor(),
-        borderRadius: BorderRadius.circular(10),
+ Widget _buildSearchBar() {
+  return Container(
+    margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+    height: 36,
+    decoration: BoxDecoration(
+      color: _getSearchBarColor(),
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: TextField(
+      controller: _searchController,
+      onChanged: _onSearchChanged,
+      style: TextStyle(
+        fontSize: 17,
+        color: Theme.of(context).colorScheme.onSurface,
       ),
-      child: TextField(
-        controller: _searchController,
-        onChanged: _onSearchChanged,
-        style: TextStyle(
+      decoration: InputDecoration(
+        hintText: 'Search',
+        hintStyle: TextStyle(
+          color: AppThemes.getSecondaryTextColor(context),
           fontSize: 17,
-          color: Theme.of(context).colorScheme.onSurface,
+          fontWeight: FontWeight.normal,
         ),
-        decoration: InputDecoration(
-          hintText: 'Search',
-          hintStyle: TextStyle(
-            color: AppThemes.getSecondaryTextColor(context),
-            fontSize: 17,
-            fontWeight: FontWeight.normal,
-          ),
-          prefixIcon: Icon(
-            Icons.search,
-            color: AppThemes.getSecondaryTextColor(context),
-            size: 20,
-          ),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 8,
-            vertical: 8,
-          ),
+        prefixIcon: Icon(
+          Icons.search,
+          color: AppThemes.getSecondaryTextColor(context),
+          size: 20,
+        ),
+        prefixIconConstraints: BoxConstraints(
+          minWidth: 30,
+          maxWidth: 30,
+        ),
+        border: InputBorder.none,
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 0,
+          vertical: 8,
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   /// Build contacts list
   Widget _buildContactsList() {
@@ -188,6 +195,13 @@ class _ContactsTabState extends State<ContactsTab> {
                 fontSize: 17,
                 fontWeight: FontWeight.w400,
                 color: Theme.of(context).colorScheme.onBackground,
+              ),
+            ),
+            subtitle: Text(
+              contact.number,
+              style: TextStyle(
+                fontSize: 15,
+                color: AppThemes.getSecondaryTextColor(context),
               ),
             ),
             onTap: () => _showContactDetails(contact),
