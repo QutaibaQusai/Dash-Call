@@ -1,11 +1,13 @@
-// lib/screens/debug_connection_page.dart
+// lib/screens/debug_connection_page.dart - Enhanced with Local Storage & Toggle
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/sip_service.dart';
 import '../themes/app_themes.dart';
 import 'dart:async';
+import 'dart:convert';
 
 class DebugConnectionPage extends StatefulWidget {
   const DebugConnectionPage({super.key});
@@ -20,62 +22,177 @@ class _DebugConnectionPageState extends State<DebugConnectionPage> {
   SipConnectionStatus? _lastConnectionStatus;
   CallStatus? _lastCallStatus;
   Timer? _monitoringTimer;
-  bool _isMonitoring = false;
+  bool _isDebugEnabled = false; // NEW: Debug toggle state
+  bool _isCurrentlyMonitoring = false;
+
+  // NEW: Storage keys
+  static const String _debugEnabledKey = 'debug_connection_enabled';
+  static const String _debugLogsKey = 'debug_connection_logs';
 
   @override
   void initState() {
     super.initState();
-    _initializeLogging();
-    _startLiveMonitoring();
+    _loadDebugSettings();
   }
 
   @override
   void dispose() {
-    _stopLiveMonitoring();
+    _stopLiveMonitoringForDispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  void _startLiveMonitoring() {
+  /// NEW: Load debug settings and logs from local storage
+  Future<void> _loadDebugSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Load debug enabled state
+      _isDebugEnabled = prefs.getBool(_debugEnabledKey) ?? false;
+      
+      // Load stored logs
+      final logsJson = prefs.getString(_debugLogsKey);
+      if (logsJson != null) {
+        final logsList = jsonDecode(logsJson) as List;
+        for (final logData in logsList) {
+          final log = DebugLogEntry.fromJson(logData);
+          _logs.add(log);
+        }
+      }
+      
+      setState(() {});
+      
+      print('🔧 [DebugPage] Loaded settings: debug=${_isDebugEnabled}, logs=${_logs.length}');
+      
+      // If debug was enabled, start monitoring
+      if (_isDebugEnabled) {
+        _addLog(DebugLogLevel.info, 'debug_page', '🔄 Resuming debug monitoring from previous session');
+        _startLiveMonitoring();
+      } else {
+        _addLog(DebugLogLevel.info, 'debug_page', '⚪ Debug monitoring is disabled');
+      }
+      
+      _initializeCurrentStatus();
+      
+    } catch (e) {
+      print('❌ [DebugPage] Error loading settings: $e');
+      _addLog(DebugLogLevel.error, 'debug_page', 'Failed to load debug settings: $e');
+    }
+  }
+
+  /// NEW: Save debug settings to local storage
+  Future<void> _saveDebugSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Save debug enabled state
+      await prefs.setBool(_debugEnabledKey, _isDebugEnabled);
+      
+      // Save logs (keep only last 500 for storage efficiency)
+      final logsToSave = _logs.length > 500 ? _logs.sublist(_logs.length - 500) : _logs;
+      final logsJson = jsonEncode(logsToSave.map((log) => log.toJson()).toList());
+      await prefs.setString(_debugLogsKey, logsJson);
+      
+      print('💾 [DebugPage] Saved settings: debug=${_isDebugEnabled}, logs=${logsToSave.length}');
+      
+    } catch (e) {
+      print('❌ [DebugPage] Error saving settings: $e');
+      _addLog(DebugLogLevel.error, 'debug_page', 'Failed to save debug settings: $e');
+    }
+  }
+
+  /// NEW: Handle debug toggle
+  Future<void> _handleDebugToggle(bool value) async {
     setState(() {
-      _isMonitoring = true;
+      _isDebugEnabled = value;
     });
     
-    _addLog(DebugLogLevel.info, 'monitor', 'Live monitoring started');
+    if (value) {
+      _addLog(DebugLogLevel.success, 'debug_page', '✅ Debug monitoring enabled');
+      _startLiveMonitoring();
+    } else {
+      _addLog(DebugLogLevel.warning, 'debug_page', '⚠️ Debug monitoring disabled');
+      _stopLiveMonitoring();
+    }
+    
+    await _saveDebugSettings();
+  }
+
+  /// NEW: Clear all logs
+  Future<void> _clearLogs() async {
+    setState(() {
+      _logs.clear();
+    });
+    
+    _addLog(DebugLogLevel.info, 'debug_page', '🗑️ Debug logs cleared');
+    await _saveDebugSettings();
+  }
+
+  void _startLiveMonitoring() {
+    if (!_isDebugEnabled) return;
+    
+    setState(() {
+      _isCurrentlyMonitoring = true;
+    });
+    
+    _addLog(DebugLogLevel.info, 'monitor', '🔍 Live monitoring started');
     
     // Check for changes every 100ms for responsive monitoring
     _monitoringTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
-      if (mounted) {
+      if (mounted && _isDebugEnabled) {
         _checkForConnectionChanges();
+      } else {
+        timer.cancel();
       }
     });
   }
 
   void _stopLiveMonitoring() {
     _monitoringTimer?.cancel();
-    setState(() {
-      _isMonitoring = false;
-    });
-    _addLog(DebugLogLevel.info, 'monitor', 'Live monitoring stopped');
+    if (mounted) {
+      setState(() {
+        _isCurrentlyMonitoring = false;
+      });
+      
+      if (_isDebugEnabled) {
+        _addLog(DebugLogLevel.info, 'monitor', '⏸️ Live monitoring paused');
+      }
+    }
+  }
+
+  /// NEW: Safe dispose method that doesn't call setState
+  void _stopLiveMonitoringForDispose() {
+    _monitoringTimer?.cancel();
+    _isCurrentlyMonitoring = false;
+    
+    if (_isDebugEnabled) {
+      print('⏸️ [DebugPage] Live monitoring stopped (disposing)');
+    }
   }
 
   void _checkForConnectionChanges() {
+    if (!mounted || !_isDebugEnabled) return;
+    
     final sipService = Provider.of<SipService>(context, listen: false);
     
     // Check connection status changes
     if (_lastConnectionStatus != sipService.status) {
       _handleConnectionStatusChange(sipService);
       _lastConnectionStatus = sipService.status;
+      _saveDebugSettings(); // Auto-save on status change
     }
 
     // Check call status changes
     if (_lastCallStatus != sipService.callStatus) {
       _handleCallStatusChange(sipService);
       _lastCallStatus = sipService.callStatus;
+      _saveDebugSettings(); // Auto-save on status change
     }
   }
 
   void _handleConnectionStatusChange(SipService sipService) {
+    if (!mounted || !_isDebugEnabled) return;
+    
     switch (sipService.status) {
       case SipConnectionStatus.connecting:
         _addLog(DebugLogLevel.info, 'sip_service', '🔄 Connecting to ${sipService.sipServer}:${sipService.port}');
@@ -90,7 +207,7 @@ class _DebugConnectionPageState extends State<DebugConnectionPage> {
         
         // Show realistic REGISTER sequence with delay
         Future.delayed(const Duration(milliseconds: 200), () {
-          if (mounted) _showRegisterSequence(sipService);
+          if (mounted && _isDebugEnabled) _showRegisterSequence(sipService);
         });
         break;
         
@@ -110,13 +227,15 @@ class _DebugConnectionPageState extends State<DebugConnectionPage> {
   }
 
   void _handleCallStatusChange(SipService sipService) {
+    if (!mounted || !_isDebugEnabled) return;
+    
     switch (sipService.callStatus) {
       case CallStatus.calling:
         if (sipService.callNumber != null) {
           _addLog(DebugLogLevel.info, 'sip_call', '📞 Initiating call to ${sipService.callNumber}');
           _addLog(DebugLogLevel.debug, 'sip_call', 'Preparing INVITE request...');
           Future.delayed(const Duration(milliseconds: 100), () {
-            if (mounted) _showInviteSequence(sipService);
+            if (mounted && _isDebugEnabled) _showInviteSequence(sipService);
           });
         }
         break;
@@ -151,7 +270,7 @@ class _DebugConnectionPageState extends State<DebugConnectionPage> {
     }
   }
 
-  void _initializeLogging() {
+  void _initializeCurrentStatus() {
     final sipService = Provider.of<SipService>(context, listen: false);
     
     // Add initial status logs with emojis for better visibility
@@ -192,7 +311,7 @@ class _DebugConnectionPageState extends State<DebugConnectionPage> {
     setState(() {
       _logs.add(entry);
       
-      // Keep only last 1000 logs to prevent memory issues
+      // Keep only last 1000 logs in memory to prevent memory issues
       if (_logs.length > 1000) {
         _logs.removeRange(0, _logs.length - 1000);
       }
@@ -210,14 +329,19 @@ class _DebugConnectionPageState extends State<DebugConnectionPage> {
         }
       });
     }
+    
+    // Auto-save periodically (every 10 logs)
+    if (_logs.length % 10 == 0) {
+      _saveDebugSettings();
+    }
   }
 
   void _showRegisterSequence(SipService sipService) {
-    if (!mounted) return;
+    if (!mounted || !_isDebugEnabled) return;
     
     // Initial REGISTER request
     Future.delayed(const Duration(milliseconds: 100), () {
-      if (!mounted) return;
+      if (!mounted || !_isDebugEnabled) return;
       _addLog(DebugLogLevel.raw, 'websocket_tx', '''REGISTER sip:${sipService.sipServer} SIP/2.0
 Via: SIP/2.0/WSS ${_generateRandomId()}.invalid;branch=z9hG4bK${_generateBranchId()}
 Max-Forwards: 70
@@ -233,7 +357,7 @@ Content-Length: 0''');
 
     // 401 Unauthorized response
     Future.delayed(const Duration(milliseconds: 400), () {
-      if (!mounted) return;
+      if (!mounted || !_isDebugEnabled) return;
       _addLog(DebugLogLevel.debug, 'sip_ua', '🔐 Authentication challenge received');
       _addLog(DebugLogLevel.raw, 'websocket_rx', '''SIP/2.0 401 Unauthorized
 Via: SIP/2.0/WSS ${_generateRandomId()}.invalid;branch=z9hG4bK${_generateBranchId()}
@@ -247,7 +371,7 @@ Content-Length: 0''');
 
     // Authenticated REGISTER request
     Future.delayed(const Duration(milliseconds: 700), () {
-      if (!mounted) return;
+      if (!mounted || !_isDebugEnabled) return;
       _addLog(DebugLogLevel.debug, 'sip_ua', '🔐 Sending authenticated REGISTER...');
       _addLog(DebugLogLevel.raw, 'websocket_tx', '''REGISTER sip:${sipService.sipServer} SIP/2.0
 Via: SIP/2.0/WSS ${_generateRandomId()}.invalid;branch=z9hG4bK${_generateBranchId()}
@@ -265,7 +389,7 @@ Content-Length: 0''');
 
     // 200 OK response
     Future.delayed(const Duration(milliseconds: 1000), () {
-      if (!mounted) return;
+      if (!mounted || !_isDebugEnabled) return;
       _addLog(DebugLogLevel.success, 'sip_ua', '✅ Registration successful');
       _addLog(DebugLogLevel.raw, 'websocket_rx', '''SIP/2.0 200 OK
 Via: SIP/2.0/WSS ${_generateRandomId()}.invalid;branch=z9hG4bK${_generateBranchId()}
@@ -278,16 +402,16 @@ Content-Length: 0''');
     });
 
     Future.delayed(const Duration(milliseconds: 1200), () {
-      if (!mounted) return;
+      if (!mounted || !_isDebugEnabled) return;
       _addLog(DebugLogLevel.success, 'sip_service', '🎉 Ready to make and receive calls');
     });
   }
 
   void _showInviteSequence(SipService sipService) {
-    if (!mounted) return;
+    if (!mounted || !_isDebugEnabled) return;
     
     Future.delayed(const Duration(milliseconds: 100), () {
-      if (!mounted) return;
+      if (!mounted || !_isDebugEnabled) return;
       _addLog(DebugLogLevel.raw, 'websocket_tx', '''INVITE sip:${sipService.callNumber}@${sipService.sipServer} SIP/2.0
 Via: SIP/2.0/WSS ${_generateRandomId()}.invalid;branch=z9hG4bK${_generateBranchId()}
 Max-Forwards: 70
@@ -312,7 +436,7 @@ a=rtpmap:101 telephone-event/8000''');
 
     // Show 100 Trying response
     Future.delayed(const Duration(milliseconds: 200), () {
-      if (!mounted) return;
+      if (!mounted || !_isDebugEnabled) return;
       _addLog(DebugLogLevel.debug, 'sip_call', '📡 Call processing...');
       _addLog(DebugLogLevel.raw, 'websocket_rx', '''SIP/2.0 100 Trying
 Via: SIP/2.0/WSS ${_generateRandomId()}.invalid;branch=z9hG4bK${_generateBranchId()}
@@ -332,10 +456,7 @@ Content-Length: 0''');
   String _generateNonce() => DateTime.now().millisecondsSinceEpoch.toRadixString(16);
   String _generateResponse() => '5d41402abc4b2a76b9719d911017c592';
 
-  bool get _isConnected {
-    final sipService = Provider.of<SipService>(context, listen: false);
-    return sipService.status == SipConnectionStatus.connected;
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -372,34 +493,123 @@ Content-Length: 0''');
       ),
       centerTitle: true,
       actions: [
+        // NEW: Clear logs button
         IconButton(
           icon: Icon(
-            _isMonitoring ? Icons.pause_circle : Icons.play_circle,
+            Icons.clear_all,
             color: Theme.of(context).colorScheme.primary,
           ),
-          onPressed: () {
-            if (_isMonitoring) {
-              _stopLiveMonitoring();
-            } else {
-              _startLiveMonitoring();
-            }
-          },
+          onPressed: _logs.isNotEmpty ? () => _showClearLogsDialog() : null,
         ),
       ],
+    );
+  }
+
+  /// NEW: Show clear logs confirmation dialog
+  void _showClearLogsDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return CupertinoAlertDialog(
+          title: const Text('Clear Debug Logs'),
+          content: const Text('Are you sure you want to clear all debug logs? This action cannot be undone.'),
+          actions: [
+            CupertinoDialogAction(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            CupertinoDialogAction(
+              isDestructiveAction: true,
+              child: const Text('Clear'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _clearLogs();
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 
   Widget _buildBody(SipService sipService) {
     return Column(
       children: [
+        // NEW: Debug Toggle Section
+        _buildDebugToggleSection(),
+        
         // Connection Status Header
         _buildConnectionStatusHeader(sipService),
         
         // Logs Container
         Expanded(child: _buildLogsContainer()),
-        
-  
       ],
+    );
+  }
+
+  /// NEW: Debug Toggle Section
+  Widget _buildDebugToggleSection() {
+    return Container(
+      margin: const EdgeInsets.only(left: 16, right: 16, top: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppThemes.getCardBackgroundColor(context),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          // Debug Icon
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: (_isDebugEnabled ? Colors.green : Colors.grey).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              _isDebugEnabled ? Icons.bug_report : Icons.bug_report_outlined,
+              color: _isDebugEnabled ? Colors.green : Colors.grey,
+              size: 20,
+            ),
+          ),
+          
+          const SizedBox(width: 12),
+          
+          // Debug Text
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Debug Monitoring',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w400,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _isDebugEnabled 
+                      ? 'Capturing SIP connection logs' 
+                      : 'Enable to capture live logs',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppThemes.getSecondaryTextColor(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Toggle Switch
+          CupertinoSwitch(
+            value: _isDebugEnabled,
+            onChanged: _handleDebugToggle,
+            activeColor: Colors.green,
+            trackColor: Colors.grey.withOpacity(0.3),
+          ),
+        ],
+      ),
     );
   }
 
@@ -463,31 +673,38 @@ Content-Length: 0''');
                       color: statusColor,
                     ),
                   ),
-              
                 ],
               ),
               const Spacer(),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _isMonitoring ? Colors.green.withOpacity(0.2) : Colors.grey.withOpacity(0.2),
+                  color: (_isCurrentlyMonitoring && _isDebugEnabled) 
+                      ? Colors.green.withOpacity(0.2) 
+                      : Colors.grey.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      _isMonitoring ? Icons.radio_button_checked : Icons.radio_button_off,
-                      color: _isMonitoring ? Colors.green : Colors.grey,
+                      (_isCurrentlyMonitoring && _isDebugEnabled) 
+                          ? Icons.radio_button_checked 
+                          : Icons.radio_button_off,
+                      color: (_isCurrentlyMonitoring && _isDebugEnabled) 
+                          ? Colors.green 
+                          : Colors.grey,
                       size: 12,
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      _isMonitoring ? 'LIVE' : 'PAUSED',
+                      (_isCurrentlyMonitoring && _isDebugEnabled) ? 'LIVE' : 'PAUSED',
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
-                        color: _isMonitoring ? Colors.green : Colors.grey,
+                        color: (_isCurrentlyMonitoring && _isDebugEnabled) 
+                            ? Colors.green 
+                            : Colors.grey,
                       ),
                     ),
                   ],
@@ -506,7 +723,7 @@ Content-Length: 0''');
               ),
               child: Row(
                 children: [
-                  Icon(Icons.warning, color: Colors.red, size: 16),
+                  const Icon(Icons.warning, color: Colors.red, size: 16),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -528,7 +745,7 @@ Content-Length: 0''');
 
   Widget _buildLogsContainer() {
     return Container(
-      margin: const EdgeInsets.only(left: 16,right: 16,bottom: 20),
+      margin: const EdgeInsets.only(left: 16, right: 16, bottom: 20),
       decoration: BoxDecoration(
         color: const Color(0xFF000000), // Always black for terminal
         borderRadius: BorderRadius.circular(12),
@@ -616,13 +833,13 @@ Content-Length: 0''');
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.terminal,
+            _isDebugEnabled ? Icons.terminal : Icons.bug_report_outlined,
             size: 48,
             color: Colors.grey[600],
           ),
           const SizedBox(height: 16),
           Text(
-            'No debug logs yet',
+            _isDebugEnabled ? 'No debug logs yet' : 'Debug monitoring disabled',
             style: TextStyle(
               color: Colors.grey[400],
               fontSize: 16,
@@ -631,7 +848,12 @@ Content-Length: 0''');
           ),
           const SizedBox(height: 8),
           Text(
-            _isMonitoring ? 'Monitoring active - logs will appear here' : 'Start monitoring to see live logs',
+            _isDebugEnabled 
+                ? (_isCurrentlyMonitoring 
+                    ? 'Monitoring active - logs will appear here' 
+                    : 'Waiting for connection activity')
+                : 'Enable debug monitoring to see live logs',
+            textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.grey[500],
               fontSize: 14,
@@ -707,7 +929,6 @@ Content-Length: 0''');
     }
   }
 
-
   String _formatTimestamp(DateTime timestamp) {
     return '${timestamp.hour.toString().padLeft(2, '0')}:'
            '${timestamp.minute.toString().padLeft(2, '0')}:'
@@ -716,7 +937,7 @@ Content-Length: 0''');
   }
 }
 
-// Debug Log Entry Model
+// Debug Log Entry Model - ENHANCED with JSON serialization
 class DebugLogEntry {
   final DateTime timestamp;
   final DebugLogLevel level;
@@ -729,6 +950,26 @@ class DebugLogEntry {
     required this.source,
     required this.message,
   });
+
+  // NEW: Convert to JSON for storage
+  Map<String, dynamic> toJson() {
+    return {
+      'timestamp': timestamp.millisecondsSinceEpoch,
+      'level': level.name,
+      'source': source,
+      'message': message,
+    };
+  }
+
+  // NEW: Create from JSON
+  factory DebugLogEntry.fromJson(Map<String, dynamic> json) {
+    return DebugLogEntry(
+      timestamp: DateTime.fromMillisecondsSinceEpoch(json['timestamp']),
+      level: DebugLogLevel.values.firstWhere((e) => e.name == json['level']),
+      source: json['source'],
+      message: json['message'],
+    );
+  }
 
   @override
   String toString() {
