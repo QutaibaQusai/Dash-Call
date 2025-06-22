@@ -1,4 +1,4 @@
-// lib/widgets/account_switcher_widget.dart
+// lib/widgets/account_switcher_widget.dart - Redesigned as Icon Button
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -23,87 +23,69 @@ class AccountSwitcherWidget extends StatelessWidget {
           return const SizedBox.shrink();
         }
 
-        return GestureDetector(
-          onTap: () => _showAccountSwitcher(context, accountManager),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppThemes.getCardBackgroundColor(context),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: AppThemes.getDividerColor(context),
-                width: 0.5,
+        return IconButton(
+          onPressed: () => _showAccountSwitcher(context, accountManager),
+          icon: Stack(
+            children: [
+              // Main account avatar
+              _buildAccountAvatar(activeAccount),
+
+              // Connection status indicator (small dot)
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: _buildConnectionStatusDot(accountManager, activeAccount),
               ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Account avatar
-                _buildAccountAvatar(activeAccount),
-                const SizedBox(width: 8),
-
-                // Account info
-                Flexible(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        activeAccount.displayName,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        activeAccount.username,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppThemes.getSecondaryTextColor(context),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(width: 4),
-
-                // Dropdown arrow
-                Icon(
-                  Icons.keyboard_arrow_down,
-                  size: 16,
-                  color: AppThemes.getSecondaryTextColor(context),
-                ),
-              ],
-            ),
+            ],
           ),
+          iconSize: 32, // Size of the avatar
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
         );
       },
     );
   }
 
+  /// Build account avatar (main icon)
   Widget _buildAccountAvatar(AccountInfo account) {
     return Container(
-      width: 24,
-      height: 24,
+      width: 32,
+      height: 32,
       decoration: BoxDecoration(
         color: _getAvatarColor(account.id),
         shape: BoxShape.circle,
+        border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
       ),
       child: Center(
         child: Text(
           _getInitials(account.displayName),
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 11,
+            fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
         ),
+      ),
+    );
+  }
+
+  /// Build small connection status dot
+  Widget _buildConnectionStatusDot(
+    MultiAccountManager accountManager,
+    AccountInfo account,
+  ) {
+    final sipService = accountManager.getSipService(account.id);
+    final connectionStatus =
+        sipService?.status ?? SipConnectionStatus.disconnected;
+    final statusColor = _getConnectionStatusColor(connectionStatus);
+
+    return Container(
+      width: 10,
+      height: 10,
+      decoration: BoxDecoration(
+        color: statusColor,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 1.5),
       ),
     );
   }
@@ -135,6 +117,19 @@ class AccountSwitcherWidget extends StatelessWidget {
     return colors[index.abs()];
   }
 
+  Color _getConnectionStatusColor(SipConnectionStatus status) {
+    switch (status) {
+      case SipConnectionStatus.connected:
+        return Colors.green;
+      case SipConnectionStatus.connecting:
+        return Colors.orange;
+      case SipConnectionStatus.error:
+        return Colors.red;
+      case SipConnectionStatus.disconnected:
+        return Colors.grey;
+    }
+  }
+
   void _showAccountSwitcher(
     BuildContext context,
     MultiAccountManager accountManager,
@@ -148,6 +143,7 @@ class AccountSwitcherWidget extends StatelessWidget {
   }
 }
 
+// Keep the same modal as before - no changes needed
 class _AccountSwitcherModal extends StatelessWidget {
   final MultiAccountManager accountManager;
 
