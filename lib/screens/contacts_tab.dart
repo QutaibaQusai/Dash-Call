@@ -1,10 +1,11 @@
-// lib/screens/contacts_tab.dart - Rewritten with Clean Architecture (Same UI)
+// lib/screens/contacts_tab.dart - Rewritten with SearchBarWidget
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_contacts/flutter_contacts.dart' as fc;
 import '../services/sip_service.dart';
 import '../themes/app_themes.dart';
+import '../widgets/search_bar_widget.dart';
 
 class ContactsTab extends StatefulWidget {
   const ContactsTab({super.key});
@@ -37,59 +38,19 @@ class _ContactsTabState extends State<ContactsTab> {
       color: Theme.of(context).scaffoldBackgroundColor,
       child: Column(
         children: [
-          const SizedBox(height: 16), // Added top margin
-          _buildSearchBar(),
-          const SizedBox(height: 12), // Added spacing between search and list
+          const SizedBox(height: 16),
+          SearchBarWidget(
+            controller: _searchController,
+            onChanged: _onSearchChanged,
+            hintText: 'Search',
+          ),
+          const SizedBox(height: 12),
           Expanded(child: _buildContactsList()),
         ],
       ),
     );
   }
 
-  /// Build search bar - keeping exact same UI
- Widget _buildSearchBar() {
-  return Container(
-    margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-    height: 36,
-    decoration: BoxDecoration(
-      color: _getSearchBarColor(),
-      borderRadius: BorderRadius.circular(10),
-    ),
-    child: TextField(
-      controller: _searchController,
-      onChanged: _onSearchChanged,
-      style: TextStyle(
-        fontSize: 17,
-        color: Theme.of(context).colorScheme.onSurface,
-      ),
-      decoration: InputDecoration(
-        hintText: 'Search',
-        hintStyle: TextStyle(
-          color: AppThemes.getSecondaryTextColor(context),
-          fontSize: 17,
-          fontWeight: FontWeight.normal,
-        ),
-        prefixIcon: Icon(
-          Icons.search,
-          color: AppThemes.getSecondaryTextColor(context),
-          size: 20,
-        ),
-        prefixIconConstraints: BoxConstraints(
-          minWidth: 30,
-          maxWidth: 30,
-        ),
-        border: InputBorder.none,
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 0,
-          vertical: 8,
-        ),
-      ),
-    ),
-  );
-}
-
-  /// Build contacts list
   Widget _buildContactsList() {
     if (_isLoading) {
       return _buildLoadingState();
@@ -102,7 +63,6 @@ class _ContactsTabState extends State<ContactsTab> {
     return _buildContactsListView();
   }
 
-  /// Build loading state - keeping exact same UI
   Widget _buildLoadingState() {
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
@@ -114,7 +74,6 @@ class _ContactsTabState extends State<ContactsTab> {
     );
   }
 
-  /// Build empty state - keeping exact same UI
   Widget _buildEmptyState() {
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
@@ -154,30 +113,22 @@ class _ContactsTabState extends State<ContactsTab> {
     );
   }
 
-  /// Build contacts list view - keeping exact same UI
   Widget _buildContactsListView() {
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
-      child: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              itemCount: _filteredContacts.length,
-              itemBuilder: (context, index) {
-                final contact = _filteredContacts[index];
-                return _buildContactTile(
-                  contact,
-                  index == _filteredContacts.length - 1,
-                );
-              },
-            ),
-          ),
-        ],
+      child: ListView.builder(
+        itemCount: _filteredContacts.length,
+        itemBuilder: (context, index) {
+          final contact = _filteredContacts[index];
+          return _buildContactTile(
+            contact,
+            index == _filteredContacts.length - 1,
+          );
+        },
       ),
     );
   }
 
-  /// Build contact tile - keeping exact same UI
   Widget _buildContactTile(Contact contact, bool isLast) {
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
@@ -206,14 +157,12 @@ class _ContactsTabState extends State<ContactsTab> {
             ),
             onTap: () => _showContactDetails(contact),
           ),
-          // iOS-style separator line
           if (!isLast) _buildDivider(),
         ],
       ),
     );
   }
 
-  /// Build contact avatar - keeping exact same UI
   Widget _buildContactAvatar(Contact contact) {
     return Container(
       width: 40,
@@ -241,7 +190,6 @@ class _ContactsTabState extends State<ContactsTab> {
     );
   }
 
-  /// Build divider - keeping exact same UI
   Widget _buildDivider() {
     return Container(
       height: 0.5,
@@ -250,7 +198,6 @@ class _ContactsTabState extends State<ContactsTab> {
     );
   }
 
-  /// Show contact details - keeping exact same UI
   void _showContactDetails(Contact contact) {
     showModalBottomSheet(
       context: context,
@@ -260,7 +207,6 @@ class _ContactsTabState extends State<ContactsTab> {
     );
   }
 
-  /// Build contact details modal - keeping exact same UI
   Widget _buildContactDetailsModal(Contact contact) {
     return Container(
       height: MediaQuery.of(context).size.height * 0.9,
@@ -270,7 +216,6 @@ class _ContactsTabState extends State<ContactsTab> {
       ),
       child: Column(
         children: [
-          // Handle bar
           Container(
             width: 36,
             height: 5,
@@ -280,8 +225,6 @@ class _ContactsTabState extends State<ContactsTab> {
               borderRadius: BorderRadius.circular(3),
             ),
           ),
-
-          // Header
           Container(
             height: 44,
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -312,10 +255,7 @@ class _ContactsTabState extends State<ContactsTab> {
               ],
             ),
           ),
-
           const SizedBox(height: 20),
-
-          // Contact info section - keeping exact same UI
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
@@ -324,7 +264,6 @@ class _ContactsTabState extends State<ContactsTab> {
             ),
             child: Column(
               children: [
-                // Contact avatar and name
                 Container(
                   padding: const EdgeInsets.all(20),
                   child: Column(
@@ -365,8 +304,6 @@ class _ContactsTabState extends State<ContactsTab> {
                     ],
                   ),
                 ),
-
-                // Phone section
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -442,7 +379,6 @@ class _ContactsTabState extends State<ContactsTab> {
     );
   }
 
-  /// Load contacts from device
   Future<void> _loadContacts() async {
     setState(() {
       _isLoading = true;
@@ -486,14 +422,12 @@ class _ContactsTabState extends State<ContactsTab> {
     }
   }
 
-  /// Handle search query change
   void _onSearchChanged(String value) {
     setState(() {
       _searchQuery = value;
     });
   }
 
-  /// Get filtered contacts based on search query
   List<Contact> get _filteredContacts {
     if (_searchQuery.isEmpty) {
       return _contacts;
@@ -504,14 +438,6 @@ class _ContactsTabState extends State<ContactsTab> {
     }).toList();
   }
 
-  /// Get search bar color based on theme
-  Color _getSearchBarColor() {
-    return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF2C2C2E)
-        : const Color(0xFFE5E5EA);
-  }
-
-  /// Get disabled button color based on theme
   Color _getDisabledButtonColor() {
     return Theme.of(context).brightness == Brightness.dark
         ? const Color(0xFF2C2C2E)
@@ -519,7 +445,6 @@ class _ContactsTabState extends State<ContactsTab> {
   }
 }
 
-/// Contact model class - keeping same logic but cleaner structure
 class Contact {
   final String displayName;
   final String number;
@@ -529,7 +454,6 @@ class Contact {
     required this.number,
   });
 
-  /// Create Contact from FlutterContact
   static Contact? fromFlutterContact(fc.Contact flutterContact) {
     if (flutterContact.phones.isEmpty) return null;
 
@@ -550,7 +474,6 @@ class Contact {
     );
   }
 
-  /// Get initials from name
   String get initials {
     if (displayName.isEmpty) return '';
 
@@ -566,31 +489,25 @@ class Contact {
     if (parts.isEmpty) return '';
 
     if (parts.length >= 2) {
-      // First letter of first name + first letter of last name
       return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
     } else {
-      // Just first letter if only one name
       return parts[0][0].toUpperCase();
     }
   }
 
-  /// Check if contact has a proper name (not just a number)
   bool get hasProperName {
     if (displayName.isEmpty) return false;
 
     final cleanName = _cleanString(displayName);
     if (cleanName.isEmpty) return false;
 
-    // Check if name contains only digits, spaces, +, -, (, )
     final numberPattern = RegExp(r'^[\d\s\+\-\(\)]+$');
     return !numberPattern.hasMatch(cleanName);
   }
 
-  /// Clean string to remove invalid UTF-16 characters
   static String _cleanString(String input) {
     if (input.isEmpty) return input;
 
-    // Remove invalid UTF-16 characters and control characters
     return input.runes
         .where((rune) => rune >= 32 && rune <= 126 || rune >= 160)
         .map((rune) => String.fromCharCode(rune))

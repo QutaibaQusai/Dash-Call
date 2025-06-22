@@ -1,7 +1,8 @@
-// lib/screens/about_page.dart
+// lib/screens/about_page.dart - Updated with URL Launcher
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart'; // ADD THIS IMPORT
 import '../themes/app_themes.dart';
 
 class AboutPage extends StatelessWidget {
@@ -95,7 +96,6 @@ class AboutPage extends StatelessWidget {
             height: 120 * scale,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(24 * scale),
-            
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(24 * scale),
@@ -135,7 +135,7 @@ class AboutPage extends StatelessWidget {
           
           // Description
           Text(
-            'A modern VoIP calling application built with Flutter. DashCall provides high-quality voice calls with an intuitive interface.',
+            'A modern VoIP calling application. DashCall provides high-quality voice calls with an intuitive interface.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 15 * scale,
@@ -148,31 +148,23 @@ class AboutPage extends StatelessWidget {
     );
   }
 
-  /// Basic Information Section
+  /// Basic Information Section - UPDATED: Added onTap for MUJEER
   Widget _buildBasicInfoSection(BuildContext context, double scale) {
     return _buildSection(
       context: context,
       title: 'Informations',
       scale: scale,
       children: [
-        // _buildInfoItem(
-        //   context: context,
-        //   icon: CupertinoIcons.hammer,
-        //   iconColor: Colors.blue,
-        //   title: 'Built with',
-        //   subtitle: 'Flutter & Dart',
-        //   scale: scale,
-        // ),
-        // _buildDivider(context),
-        // _buildInfoItem(
-        //   context: context,
-        //   icon: CupertinoIcons.person_circle,
-        //   iconColor: Colors.green,
-        //   title: 'Developer',
-        //   subtitle: 'Development Team',
-        //   scale: scale,
-        // ),
-        // _buildDivider(context),
+        _buildInfoItem(
+          context: context,
+          imagePath: 'assets/images/mujeer_logo.jpg', 
+          iconColor: Colors.blue, 
+          title: 'Built with',
+          subtitle: 'MUJEER Company',
+          scale: scale,
+          onTap: () => _openMujeerWebsite(), // NEW: Added onTap callback
+        ),
+        _buildDivider(context),
         _buildInfoItem(
           context: context,
           icon: CupertinoIcons.circle,
@@ -183,6 +175,27 @@ class AboutPage extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  /// NEW: Method to open MUJEER website
+  Future<void> _openMujeerWebsite() async {
+    final Uri url = Uri.parse('https://mujeer.com/en');
+    
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(
+          url,
+          mode: LaunchMode.externalApplication, // Opens in external browser
+        );
+        print('✅ [AboutPage] Successfully opened MUJEER website');
+      } else {
+        print('❌ [AboutPage] Could not launch URL: $url');
+        // You could show a snackbar here if needed
+      }
+    } catch (e) {
+      print('❌ [AboutPage] Error launching URL: $e');
+      // You could show an error dialog here if needed
+    }
   }
 
   /// Generic section builder
@@ -218,26 +231,56 @@ class AboutPage extends StatelessWidget {
     );
   }
 
-  /// Info item builder (non-interactive)
+  /// Info item builder - UPDATED: Added optional onTap callback
   Widget _buildInfoItem({
     required BuildContext context,
-    required IconData icon,
+    IconData? icon,
+    String? imagePath,
     required Color iconColor,
     required String title,
     required String subtitle,
     required double scale,
+    VoidCallback? onTap, // NEW: Optional onTap callback
   }) {
-    return Padding(
+    Widget content = Padding(
       padding: EdgeInsets.all(16 * scale),
       child: Row(
         children: [
           Container(
-            padding: EdgeInsets.all(8 * scale),
+            width: 36 * scale,
+            height: 36 * scale, 
             decoration: BoxDecoration(
               color: iconColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8 * scale),
             ),
-            child: Icon(icon, color: iconColor, size: 20 * scale),
+            child: imagePath != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(8 * scale), 
+                    child: Image.asset(
+                      imagePath,
+                      width: 36 * scale, 
+                      height: 36 * scale, 
+                      fit: BoxFit.cover, 
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          padding: EdgeInsets.all(8 * scale), 
+                          child: Icon(
+                            icon ?? CupertinoIcons.photo,
+                            color: iconColor,
+                            size: 20 * scale,
+                          ),
+                        );
+                      },
+                    ),
+                  )
+                : Container(
+                    padding: EdgeInsets.all(8 * scale),
+                    child: Icon(
+                      icon ?? CupertinoIcons.photo,
+                      color: iconColor,
+                      size: 20 * scale,
+                    ),
+                  ),
           ),
           SizedBox(width: 12 * scale),
           Expanded(
@@ -263,11 +306,23 @@ class AboutPage extends StatelessWidget {
               ],
             ),
           ),
+       
         ],
       ),
     );
-  }
 
+    // NEW: Wrap with InkWell if onTap is provided
+    if (onTap != null) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12 * scale),
+        child: content,
+      );
+    }
+
+    return content;
+  }
+  
   /// Divider builder
   Widget _buildDivider(BuildContext context) {
     return Container(

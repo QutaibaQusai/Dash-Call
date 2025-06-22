@@ -23,14 +23,13 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Consumer<SipService>(
       builder: (context, sipService, child) {
-        // Show full-screen call interface when there's an active call
         if (sipService.callStatus != CallStatus.idle) {
           return CallScreen(sipService: sipService);
         }
 
         return Scaffold(
           backgroundColor: _getBackgroundColor(), // UPDATED: Use theme-aware background
-          appBar: _buildAppBar(sipService),
+          appBar: _buildAppBar(),
           body: _buildBody(),
           bottomNavigationBar: _buildBottomNavigationBar(),
         );
@@ -45,7 +44,7 @@ class _MainScreenState extends State<MainScreen> {
     return Theme.of(context).scaffoldBackgroundColor;
   }
 
-  PreferredSizeWidget _buildAppBar(SipService sipService) {
+  PreferredSizeWidget _buildAppBar() {
     final List<String> titles = ['DashCall', 'Contacts', 'History', 'Settings'];
     
     return AppBar(
@@ -60,28 +59,8 @@ class _MainScreenState extends State<MainScreen> {
           fontWeight: FontWeight.w600,
         ),
       ),
-      actions: [
-        Container(
-          margin: const EdgeInsets.only(right: 8),
-          child: IconButton(
-            icon: Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _getConnectionStatusColor(sipService.status),
-              ),
-            ),
-            onPressed: sipService.isConnecting ? null : () async {
-              if (sipService.status == SipConnectionStatus.connected) {
-                await sipService.unregister();
-              } else {
-                await sipService.register();
-              }
-            },
-          ),
-        ),
-      ],
+     
+    
     );
   }
 
@@ -201,16 +180,5 @@ Widget _buildBottomNavigationBar() {
   );
 }
   
-  Color _getConnectionStatusColor(SipConnectionStatus status) {
-    switch (status) {
-      case SipConnectionStatus.connected:
-        return Colors.green;
-      case SipConnectionStatus.connecting:
-        return Colors.orange;
-      case SipConnectionStatus.error:
-        return Colors.red;
-      case SipConnectionStatus.disconnected:
-        return Colors.grey.shade400;
-    }
-  }
+
 }

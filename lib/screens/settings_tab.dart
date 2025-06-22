@@ -1,4 +1,4 @@
-// lib/screens/settings_tab.dart - Updated with merged About section
+// lib/screens/settings_tab.dart - Updated with Server Connection Toggle
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -208,19 +208,21 @@ class _SettingsTabState extends State<SettingsTab> {
   }
 
   /// App Settings Section - UPDATED: Now includes both Theme and About items
-  Widget _buildAppSettingsSection(
-    services.ThemeService themeService,
-    double scale,
-  ) {
-    return _buildSettingsSection(
-      title: 'App Settings',
-      scale: scale,
-      children: [
-        _buildThemeSettingsItem(themeService, scale),
-        _buildAboutSettingsItem(scale),
-      ],
-    );
-  }
+Widget _buildAppSettingsSection(
+  services.ThemeService themeService,
+  double scale,
+) {
+  return _buildSettingsSection(
+    title: 'App Settings',
+    scale: scale,
+    children: [
+      _buildThemeSettingsItem(themeService, scale),
+            _buildClearHistorySettingsItem(scale), // Add this line
+
+      _buildAboutSettingsItem(scale),
+    ],
+  );
+}
 
   /// Theme settings item
   Widget _buildThemeSettingsItem(
@@ -243,13 +245,83 @@ class _SettingsTabState extends State<SettingsTab> {
     return _buildSettingsItem(
       icon: CupertinoIcons.info_circle,
       iconColor: Colors.green,
-      title: 'About DashCall',
+      title: 'About',
       subtitle: 'App information and credits',
       trailing: _buildChevronIcon(scale),
       onTap: () => _navigateToAboutPage(),
       scale: scale,
     );
   }
+  // Add this new method to your _SettingsTabState class
+Widget _buildClearHistorySettingsItem(double scale) {
+  return _buildSettingsItem(
+    icon: CupertinoIcons.trash,
+    iconColor: Colors.red,
+    title: 'Clear History',
+    subtitle: 'Delete all call history',
+    trailing: _buildChevronIcon(scale),
+    onTap: () => _showClearHistoryDialog(),
+    scale: scale,
+  );
+}
+
+// Add this method to show the confirmation dialog
+void _showClearHistoryDialog() {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        backgroundColor: AppThemes.getCardBackgroundColor(context),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+        title: Text(
+          'Clear History',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to delete all call history?',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
+            fontSize: 13,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.primary,
+                fontSize: 17,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              //TO DO
+            },
+            child: const Text(
+              'Clear',
+              style: TextStyle(
+                color: Colors.red,
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
 
   /// Generic settings section builder
   Widget _buildSettingsSection({
@@ -416,7 +488,7 @@ class _SettingsTabState extends State<SettingsTab> {
   }
 }
 
-// ConfigurationPage class remains unchanged
+// ConfigurationPage class - UPDATED with Server Connection Toggle
 class ConfigurationPage extends StatefulWidget {
   final SipService sipService;
 
@@ -433,6 +505,7 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
   late TextEditingController _passwordController;
   late TextEditingController _domainController;
   late TextEditingController _portController;
+
 
   @override
   void initState() {
@@ -532,7 +605,10 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
                   children: [
                     SizedBox(height: 20 * scale),
                     _buildAccountInformationSection(scale),
-                    SizedBox(height: 35 * scale),
+                    SizedBox(height: 32 * scale),
+                    // NEW: Server Connection Section
+                    _buildServerConnectionSection(scale),
+                    SizedBox(height: 32 * scale),
                     // Debug Commands Section
                     _buildDebugCommandsSection(scale),
                     SizedBox(height: 35 * scale),
@@ -564,10 +640,141 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
         _buildInfoRow('Account Name', _getAccountNameDisplay(), scale: scale),
         _buildInfoRow('Organization', _getOrganizationDisplay(), scale: scale),
         _buildInfoRow('Extension', _getExtensionDisplay(), scale: scale),
-        _buildInfoRow('Server Status', _getServerStatusDisplay(), statusColor: _getConnectionStatusColor(), scale: scale),
+        // Wrap Server Status row in Consumer to listen for status changes
+        Consumer<SipService>(
+          builder: (context, sipService, child) {
+            return _buildInfoRow(
+              'Server Status', 
+              _getServerStatusDisplay(), 
+              statusColor: _getConnectionStatusColor(), 
+              scale: scale,
+            );
+          },
+        ),
       ],
       scale: scale,
     );
+  }
+
+  /// NEW: Server Connection Section
+  Widget _buildServerConnectionSection(double scale) {
+    return _buildNativeSection(
+      title: 'Server Connection',
+      children: [_buildServerConnectionToggle(scale)],
+      scale: scale,
+    );
+  }
+
+  /// NEW: Server Connection Toggle Item
+  Widget _buildServerConnectionToggle(double scale) {
+    return Consumer<SipService>(
+      builder: (context, sipService, child) {
+        final isConnected = sipService.status == SipConnectionStatus.connected;
+        final isConnecting = sipService.status == SipConnectionStatus.connecting;
+        
+        return Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: 16 * scale,
+            vertical: 12 * scale,
+          ),
+          child: Row(
+            children: [
+              // Connection Icon
+              Container(
+                padding: EdgeInsets.all(8 * scale),
+                decoration: BoxDecoration(
+                  color: _getConnectionToggleIconColor(sipService.status).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8 * scale),
+                ),
+                child: Icon(
+                  _getConnectionToggleIcon(sipService.status),
+                  color: _getConnectionToggleIconColor(sipService.status),
+                  size: 20 * scale,
+                ),
+              ),
+              
+              SizedBox(width: 12 * scale),
+              
+              // Connection Text
+              Expanded(
+                child: Text(
+                  'Server Connection',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w400,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              
+              // Toggle Switch
+              CupertinoSwitch(
+                value: isConnected || isConnecting,
+                onChanged: isConnecting ? null : (value) => _handleConnectionToggle(value, sipService),
+                activeColor: Colors.green,
+                trackColor: Colors.grey.withOpacity(0.3),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// Get connection toggle icon based on status
+  IconData _getConnectionToggleIcon(SipConnectionStatus status) {
+    switch (status) {
+      case SipConnectionStatus.connected:
+        return Icons.wifi;
+      case SipConnectionStatus.connecting:
+        return Icons.wifi_find;
+      case SipConnectionStatus.error:
+        return Icons.wifi_off;
+      case SipConnectionStatus.disconnected:
+        return Icons.wifi_off;
+    }
+  }
+
+  /// Get connection toggle icon color based on status
+  Color _getConnectionToggleIconColor(SipConnectionStatus status) {
+    switch (status) {
+      case SipConnectionStatus.connected:
+        return Colors.green;
+      case SipConnectionStatus.connecting:
+        return Colors.orange;
+      case SipConnectionStatus.error:
+        return Colors.red;
+      case SipConnectionStatus.disconnected:
+        return Colors.grey;
+    }
+  }
+
+  /// NEW: Handle connection toggle
+  Future<void> _handleConnectionToggle(bool value, SipService sipService) async {
+    try {
+      if (value) {
+        // Connect to server using register method
+        print('🔌 [ConfigurationPage] Connecting to SIP server...');
+        
+        // Check if settings are configured
+        if (sipService.sipServer.isEmpty || 
+            sipService.username.isEmpty || 
+            sipService.password.isEmpty) {
+          print('❌ [ConfigurationPage] SIP settings not configured');
+          return;
+        }
+        
+        await sipService.register();
+        print('✅ [ConfigurationPage] Connection attempt completed');
+      } else {
+        // Disconnect from server using unregister method
+        print('🔌 [ConfigurationPage] Disconnecting from SIP server...');
+        await sipService.unregister();
+        print('✅ [ConfigurationPage] Disconnection completed');
+      }
+    } catch (e) {
+      print('❌ [ConfigurationPage] Connection toggle error: $e');
+    }
   }
 
   // Debug Commands Section

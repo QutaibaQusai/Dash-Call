@@ -1,4 +1,4 @@
-// lib/screens/history_tab.dart - Updated with SQLite Database (Same UI)
+// lib/screens/history_tab.dart - Using the reusable SearchBarWidget
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +7,7 @@ import '../services/sip_service.dart';
 import '../services/call_history_manager.dart';
 import '../services/call_history_database.dart';
 import '../themes/app_themes.dart';
+import '../widgets/search_bar_widget.dart'; // ADD THIS IMPORT
 
 class HistoryTab extends StatefulWidget {
   const HistoryTab({super.key});
@@ -18,6 +19,10 @@ class HistoryTab extends StatefulWidget {
 class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
   late TabController _tabController;
   int _selectedTabIndex = 0;
+  
+  // Search functionality
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
   
   // Database-backed call lists
   List<CallRecord> _allCalls = [];
@@ -41,6 +46,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
   @override
   void dispose() {
     _tabController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -71,6 +77,49 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
     }
   }
 
+  /// Search calls based on query
+  Future<void> _searchCalls(String query) async {
+    if (query.isEmpty) {
+      await _loadCallHistory();
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final searchResults = await CallHistoryManager.searchCalls(query);
+      
+      setState(() {
+        _allCalls = searchResults;
+        _incomingCalls = searchResults.where((call) => call.type == CallType.incoming).toList();
+        _outgoingCalls = searchResults.where((call) => call.type == CallType.outgoing).toList();
+        _missedCalls = searchResults.where((call) => call.type == CallType.missed).toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('❌ [HistoryTab] Failed to search calls: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  /// Handle search query change
+  void _onSearchChanged(String value) {
+    setState(() {
+      _searchQuery = value;
+    });
+    
+    // Debounce search
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (_searchQuery == value) {
+        _searchCalls(value);
+      }
+    });
+  }
+
   // Getters for compatibility with existing UI code
   List<CallRecord> get allCalls => _allCalls;
   List<CallRecord> get incomingCalls => _incomingCalls;
@@ -96,13 +145,25 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
 
             return Column(
               children: [
+                const SizedBox(height: 16), // Added top margin
+                
+                // UPDATED: Use the reusable SearchBarWidget
+                SearchBarWidget(
+                  controller: _searchController,
+                  onChanged: _onSearchChanged,
+                  hintText: 'Search',
+                ),
+                
+                const SizedBox(height: 12), // Added spacing between search and tabs
+
+                // Tab bar
                 Container(
                   color: Theme.of(context).scaffoldBackgroundColor,
                   padding: EdgeInsets.fromLTRB(
                     16 * scale,
+                    0,
+                    16 * scale,
                     8 * scale,
-                    16 * scale,
-                    16 * scale,
                   ),
                   child: Container(
                     decoration: BoxDecoration(
@@ -120,7 +181,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
                   ),
                 ),
 
-                // Tab content - same UI, different data source
+                // Tab content
                 Expanded(
                   child: TabBarView(
                     controller: _tabController,
@@ -213,10 +274,17 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                _getEmptyStateIcon(),
-                size: 64 * scale,
-                color: AppThemes.getSecondaryTextColor(context),
+              Container(
+                padding: EdgeInsets.all(20 * scale),
+                decoration: BoxDecoration(
+                  color: _getEmptyStateIconBackgroundColor(),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  _getEmptyStateIcon(),
+                  size: 44 * scale,
+                  color: _getEmptyStateIconColor(),
+                ),
               ),
               SizedBox(height: 16 * scale),
               Text(
@@ -255,6 +323,10 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
   }
 
   String _getEmptyStateTitle() {
+    if (_searchQuery.isNotEmpty) {
+      return 'No results found';
+    }
+    
     switch (_selectedTabIndex) {
       case 0:
         return 'No calls yet';
@@ -270,6 +342,10 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
   }
 
   String _getEmptyStateSubtitle() {
+    if (_searchQuery.isNotEmpty) {
+      return 'Try searching for something else';
+    }
+    
     switch (_selectedTabIndex) {
       case 0:
         return 'Your call history will appear here';
@@ -285,6 +361,10 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
   }
 
   IconData _getEmptyStateIcon() {
+    if (_searchQuery.isNotEmpty) {
+      return CupertinoIcons.search;
+    }
+    
     switch (_selectedTabIndex) {
       case 0:
         return CupertinoIcons.phone;
@@ -296,6 +376,44 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
         return CupertinoIcons.phone_down;
       default:
         return CupertinoIcons.phone;
+    }
+  }
+
+  Color _getEmptyStateIconColor() {
+    if (_searchQuery.isNotEmpty) {
+      return Colors.orange;
+    }
+    
+    switch (_selectedTabIndex) {
+      case 0:
+        return Colors.blue;
+      case 1:
+        return Colors.green;
+      case 2:
+        return Colors.blue;
+      case 3:
+        return Colors.red;
+      default:
+        return Colors.blue;
+    }
+  }
+
+  Color _getEmptyStateIconBackgroundColor() {
+    if (_searchQuery.isNotEmpty) {
+      return Colors.orange.withOpacity(0.1);
+    }
+    
+    switch (_selectedTabIndex) {
+      case 0:
+        return Colors.blue.withOpacity(0.1);
+      case 1:
+        return Colors.green.withOpacity(0.1);
+      case 2:
+        return Colors.blue.withOpacity(0.1);
+      case 3:
+        return Colors.red.withOpacity(0.1);
+      default:
+        return Colors.blue.withOpacity(0.1);
     }
   }
 
@@ -506,7 +624,11 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
     // Delete from database
     await CallHistoryManager.deleteCall(call.id);
     // Refresh the UI
-    await _loadCallHistory();
+    if (_searchQuery.isNotEmpty) {
+      await _searchCalls(_searchQuery);
+    } else {
+      await _loadCallHistory();
+    }
   }
 
   String _formatRelativeTime(DateTime dateTime) {
