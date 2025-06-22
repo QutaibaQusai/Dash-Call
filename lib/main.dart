@@ -1,10 +1,12 @@
+// lib/main.dart - Updated with MultiAccountManager
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'services/sip_service.dart';
+import 'services/multi_account_manager.dart';
 import 'services/theme_service.dart' as services;
-import 'services/call_history_manager.dart'; // ADD THIS
+import 'services/call_history_manager.dart';
 import 'themes/app_themes.dart';
 import 'screens/main_screen.dart';
 import 'screens/qr_login_screen.dart';
@@ -14,14 +16,14 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize database first
-  await CallHistoryManager.initialize(); // ADD THIS
+  await CallHistoryManager.initialize();
 
   await _requestPermissions();
 
   runApp(const DashCallApp());
 }
 
-// Rest of your existing code remains the same...
+// Rest of your existing permission code remains the same...
 Future<void> _requestPermissions() async {
   print('🔐 [Permissions] Requesting permissions...');
 
@@ -137,8 +139,12 @@ class DashCallApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => SipService()..initialize()),
-        ChangeNotifierProvider(create: (_) => services.ThemeService()..initialize()),
+        ChangeNotifierProvider(
+          create: (_) => MultiAccountManager()..initialize(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => services.ThemeService()..initialize(),
+        ),
       ],
       child: Consumer<services.ThemeService>(
         builder: (context, themeService, child) {
@@ -193,17 +199,25 @@ class _LoginCheckScreenState extends State<LoginCheckScreen> {
 
   Future<void> _checkLoginStatus() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+      // Wait for MultiAccountManager to initialize
+      final multiAccountManager = Provider.of<MultiAccountManager>(context, listen: false);
+      
+      // Wait for initialization if not already done
+      if (!multiAccountManager.isInitialized) {
+        await multiAccountManager.initialize();
+      }
 
       if (mounted) {
-        if (isLoggedIn) {
+        if (multiAccountManager.hasAccounts) {
+          // Connect all accounts on app start
+          await multiAccountManager.connectAllAccounts();
           Navigator.of(context).pushReplacementNamed('/main');
         } else {
           Navigator.of(context).pushReplacementNamed('/qr-login');
         }
       }
     } catch (e) {
+      print('❌ [LoginCheck] Error checking login status: $e');
       if (mounted) {
         Navigator.of(context).pushReplacementNamed('/qr-login');
       }
@@ -212,6 +226,10 @@ class _LoginCheckScreenState extends State<LoginCheckScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(body: SizedBox.shrink());
+    return const Scaffold(
+      body: Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
   }
 }

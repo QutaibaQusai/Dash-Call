@@ -1,13 +1,18 @@
+// lib/screens/dialer_screen.dart - Updated with Multi-Account Support
+
 import 'package:adaptive_dialog/adaptive_dialog.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/sip_service.dart';
+import '../services/multi_account_manager.dart';
 import '../services/dtmf_audio_service.dart';
 import '../themes/app_themes.dart';
 
 class DialerTab extends StatefulWidget {
-  const DialerTab({super.key});
+  final SipService? sipService;
+  
+  const DialerTab({super.key, this.sipService});
 
   @override
   State<DialerTab> createState() => _DialerTabState();
@@ -50,20 +55,117 @@ class _DialerTabState extends State<DialerTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<SipService>(
-      builder: (context, sipService, child) {
+    return Consumer<MultiAccountManager>(
+      builder: (context, accountManager, child) {
+        final activeSipService = widget.sipService ?? accountManager.activeSipService;
+        
         return Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final layout = _calculateLayout(constraints);
-                return _buildDialerInterface(sipService, layout);
-              },
+            child: Column(
+              children: [
+                // No Active Account Warning
+                if (!accountManager.hasAccounts)
+                  _buildNoAccountWarning()
+                else if (activeSipService == null)
+                  _buildNoActiveAccountWarning(),
+                
+                // Dialer Interface
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final layout = _calculateLayout(constraints);
+                      return _buildDialerInterface(activeSipService, layout);
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildNoAccountWarning() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.orange.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.warning, color: Colors.orange, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'No Account Configured',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.orange,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Add an account in Settings to make calls',
+                  style: TextStyle(
+                    color: AppThemes.getSecondaryTextColor(context),
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoActiveAccountWarning() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.blue.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info, color: Colors.blue, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'No Active Account',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.blue,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Select an active account to make calls',
+                  style: TextStyle(
+                    color: AppThemes.getSecondaryTextColor(context),
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -81,7 +183,7 @@ class _DialerTabState extends State<DialerTab> {
     );
   }
 
-  Widget _buildDialerInterface(SipService sipService, _DialerLayout layout) {
+  Widget _buildDialerInterface(SipService? sipService, _DialerLayout layout) {
     return Column(
       children: [
         _buildNumberDisplay(layout),
@@ -105,7 +207,7 @@ class _DialerTabState extends State<DialerTab> {
                 ? ''
                 : _formatPhoneNumber(_phoneController.text),
             style: TextStyle(
-              fontSize: 40, // starting size, will scale down
+              fontSize: 40,
               fontWeight: FontWeight.w600,
               color: Theme.of(context).colorScheme.onBackground,
               letterSpacing: 1.0,
@@ -190,31 +292,29 @@ class _DialerTabState extends State<DialerTab> {
             ),
           ),
         ),
-// Letters
-if (letters.isNotEmpty && letters != '.')
-  Positioned(
-    bottom: size * 0.18,
-    left: 0,
-    right: 0,
-    child: Center(
-      child: Text(
-        letters,
-        style: TextStyle(
-          fontSize: letterFontSize,
-          fontWeight: FontWeight.w800,
-          color: Theme.of(context).colorScheme.onSurface,
-          letterSpacing: size * 0.02,
-          height: 1.0,
-        ),
-      ),
-    ),
-  ),
-
+        if (letters.isNotEmpty && letters != '.')
+          Positioned(
+            bottom: size * 0.18,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Text(
+                letters,
+                style: TextStyle(
+                  fontSize: letterFontSize,
+                  fontWeight: FontWeight.w800,
+                  color: Theme.of(context).colorScheme.onSurface,
+                  letterSpacing: size * 0.02,
+                  height: 1.0,
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
 
-  Widget _buildControls(SipService sipService, _DialerLayout layout) {
+  Widget _buildControls(SipService? sipService, _DialerLayout layout) {
     return Container(
       height: layout.controlsHeight,
       padding: const EdgeInsets.symmetric(horizontal: 30),
@@ -239,14 +339,14 @@ if (letters.isNotEmpty && letters != '.')
     );
   }
 
-  Widget _buildCallButton(SipService sipService, double size) {
-    final canCall = sipService.status == SipConnectionStatus.connected;
+  Widget _buildCallButton(SipService? sipService, double size) {
+    final canCall = sipService?.status == SipConnectionStatus.connected;
 
     return Container(
       width: size,
       height: size,
-      decoration: const BoxDecoration(
-        color: Color(0xFF34C759),
+      decoration: BoxDecoration(
+        color: canCall ? const Color(0xFF34C759) : Colors.grey.shade400,
         shape: BoxShape.circle,
       ),
       child: Material(
@@ -255,7 +355,7 @@ if (letters.isNotEmpty && letters != '.')
           borderRadius: BorderRadius.circular(size / 2),
           splashColor: Colors.white.withOpacity(0.2),
           highlightColor: Colors.white.withOpacity(0.1),
-          onTap: canCall ? () => _makeCall(sipService) : null,
+          onTap: canCall ? () => _makeCall(sipService!) : null,
           child: Icon(
             CupertinoIcons.phone_fill,
             color: Colors.white,
@@ -298,7 +398,7 @@ if (letters.isNotEmpty && letters != '.')
   Future<void> _handleDeleteTap() async {
     await DTMFAudioService.stopDTMF();
     if (_phoneController.text.isNotEmpty) {
-           setState(() {
+      setState(() {
         _phoneController.text = _phoneController.text.substring(
           0,
           _phoneController.text.length - 1,
@@ -321,9 +421,14 @@ if (letters.isNotEmpty && letters != '.')
   }
 
   void _sendDTMFToActiveCall(String digit) {
-    final sipService = Provider.of<SipService>(context, listen: false);
-    if (sipService.callStatus == CallStatus.active) {
-      sipService.sendDTMF(digit);
+    final accountManager = Provider.of<MultiAccountManager>(context, listen: false);
+    
+    // Send DTMF to any active call across all accounts
+    for (final sipService in accountManager.allSipServices.values) {
+      if (sipService.callStatus == CallStatus.active) {
+        sipService.sendDTMF(digit);
+        break; // Only send to the first active call found
+      }
     }
   }
 
@@ -351,24 +456,21 @@ if (letters.isNotEmpty && letters != '.')
         : const Color(0xFFE5E5E5);
   }
 
-String _formatPhoneNumber(String number) {
-  if (number.length <= 3) {
-    return number;
-  } else if (number.length <= 6) {
-    return '${number.substring(0, 3)} ${number.substring(3)}';
-  } else if (number.length <= 10) {
-    return '${number.substring(0, 3)} ${number.substring(3, 6)} ${number.substring(6)}';
-  } else {
-    final countryCode = number.substring(0, number.length - 10);
-    final areaCode = number.substring(number.length - 10, number.length - 7);
-    final prefix = number.substring(number.length - 7, number.length - 4);
-    final lineNumber = number.substring(number.length - 4);
-    return '$countryCode $areaCode $prefix $lineNumber';
+  String _formatPhoneNumber(String number) {
+    if (number.length <= 3) {
+      return number;
+    } else if (number.length <= 6) {
+      return '${number.substring(0, 3)} ${number.substring(3)}';
+    } else if (number.length <= 10) {
+      return '${number.substring(0, 3)} ${number.substring(3, 6)} ${number.substring(6)}';
+    } else {
+      final countryCode = number.substring(0, number.length - 10);
+      final areaCode = number.substring(number.length - 10, number.length - 7);
+      final prefix = number.substring(number.length - 7, number.length - 4);
+      final lineNumber = number.substring(number.length - 4);
+      return '$countryCode $areaCode $prefix $lineNumber';
+    }
   }
-}
-
-
-
 }
 
 class _DialerLayout {

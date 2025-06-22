@@ -1,13 +1,14 @@
-// lib/screens/history_tab.dart - Using the reusable SearchBarWidget
+// lib/screens/history_tab.dart - Rewritten with Multi-Account Support
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../services/multi_account_manager.dart';
 import '../services/sip_service.dart';
 import '../services/call_history_manager.dart';
 import '../services/call_history_database.dart';
 import '../themes/app_themes.dart';
-import '../widgets/search_bar_widget.dart'; // ADD THIS IMPORT
+import '../widgets/search_bar_widget.dart';
 
 class HistoryTab extends StatefulWidget {
   const HistoryTab({super.key});
@@ -19,12 +20,10 @@ class HistoryTab extends StatefulWidget {
 class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
   late TabController _tabController;
   int _selectedTabIndex = 0;
-  
-  // Search functionality
+
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  
-  // Database-backed call lists
+
   List<CallRecord> _allCalls = [];
   List<CallRecord> _incomingCalls = [];
   List<CallRecord> _outgoingCalls = [];
@@ -50,87 +49,6 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  /// Load call history from database
-  Future<void> _loadCallHistory() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final allCalls = await CallHistoryManager.getAllCalls();
-      final incomingCalls = await CallHistoryManager.getIncomingCalls();
-      final outgoingCalls = await CallHistoryManager.getOutgoingCalls();
-      final missedCalls = await CallHistoryManager.getMissedCalls();
-
-      setState(() {
-        _allCalls = allCalls;
-        _incomingCalls = incomingCalls;
-        _outgoingCalls = outgoingCalls;
-        _missedCalls = missedCalls;
-        _isLoading = false;
-      });
-    } catch (e) {
-      print('❌ [HistoryTab] Failed to load call history: $e');
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  /// Search calls based on query
-  Future<void> _searchCalls(String query) async {
-    if (query.isEmpty) {
-      await _loadCallHistory();
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final searchResults = await CallHistoryManager.searchCalls(query);
-      
-      setState(() {
-        _allCalls = searchResults;
-        _incomingCalls = searchResults.where((call) => call.type == CallType.incoming).toList();
-        _outgoingCalls = searchResults.where((call) => call.type == CallType.outgoing).toList();
-        _missedCalls = searchResults.where((call) => call.type == CallType.missed).toList();
-        _isLoading = false;
-      });
-    } catch (e) {
-      print('❌ [HistoryTab] Failed to search calls: $e');
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  /// Handle search query change
-  void _onSearchChanged(String value) {
-    setState(() {
-      _searchQuery = value;
-    });
-    
-    // Debounce search
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (_searchQuery == value) {
-        _searchCalls(value);
-      }
-    });
-  }
-
-  // Getters for compatibility with existing UI code
-  List<CallRecord> get allCalls => _allCalls;
-  List<CallRecord> get incomingCalls => _incomingCalls;
-  List<CallRecord> get outgoingCalls => _outgoingCalls;
-  List<CallRecord> get missedCalls => _missedCalls;
-
-  String _getInitials(String? name) {
-    if (name == null || name.isEmpty) return '';
-    return name[0].toUpperCase();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -138,58 +56,33 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
       child: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final baseWidth = 375.0;
-            final scaleWidth = constraints.maxWidth / baseWidth;
-            final scaleHeight = constraints.maxHeight / 667.0;
-            final scale = (scaleWidth + scaleHeight) / 2;
+            final scale = _calculateScale(constraints);
 
             return Column(
               children: [
-                const SizedBox(height: 16), // Added top margin
-                
-                // UPDATED: Use the reusable SearchBarWidget
+                SizedBox(height: 16 * scale),
+
+                // Search bar
                 SearchBarWidget(
                   controller: _searchController,
                   onChanged: _onSearchChanged,
                   hintText: 'Search',
                 ),
-                
-                const SizedBox(height: 12), // Added spacing between search and tabs
+
+                SizedBox(height: 12 * scale),
 
                 // Tab bar
-                Container(
-                  color: Theme.of(context).scaffoldBackgroundColor,
-                  padding: EdgeInsets.fromLTRB(
-                    16 * scale,
-                    0,
-                    16 * scale,
-                    8 * scale,
-                  ),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: _getTabBarBackgroundColor(),
-                      borderRadius: BorderRadius.circular(8 * scale),
-                    ),
-                    child: Row(
-                      children: [
-                        _buildTabButton('All', 0, scale),
-                        _buildTabButton('Incoming', 1, scale),
-                        _buildTabButton('Outgoing', 2, scale),
-                        _buildTabButton('Missed', 3, scale),
-                      ],
-                    ),
-                  ),
-                ),
+                _buildTabBar(scale),
 
                 // Tab content
                 Expanded(
                   child: TabBarView(
                     controller: _tabController,
                     children: [
-                      _buildCallList(allCalls, scale),
-                      _buildCallList(incomingCalls, scale),
-                      _buildCallList(outgoingCalls, scale),
-                      _buildCallList(missedCalls, scale),
+                      _buildCallList(_allCalls, scale),
+                      _buildCallList(_incomingCalls, scale),
+                      _buildCallList(_outgoingCalls, scale),
+                      _buildCallList(_missedCalls, scale),
                     ],
                   ),
                 ),
@@ -201,22 +94,44 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
     );
   }
 
-  Color _getTabBarBackgroundColor() {
-    return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF2C2C2E)
-        : const Color(0xFFE5E5EA);
+  /// Calculate responsive scale
+  double _calculateScale(BoxConstraints constraints) {
+    const baseWidth = 375.0;
+    const baseHeight = 667.0;
+    final scaleWidth = constraints.maxWidth / baseWidth;
+    final scaleHeight = constraints.maxHeight / baseHeight;
+    return (scaleWidth + scaleHeight) / 2;
   }
 
+  /// Build tab bar
+  Widget _buildTabBar(double scale) {
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      padding: EdgeInsets.fromLTRB(16 * scale, 0, 16 * scale, 8 * scale),
+      child: Container(
+        decoration: BoxDecoration(
+          color: _getTabBarBackgroundColor(),
+          borderRadius: BorderRadius.circular(8 * scale),
+        ),
+        child: Row(
+          children: [
+            _buildTabButton('All', 0, scale),
+            _buildTabButton('Incoming', 1, scale),
+            _buildTabButton('Outgoing', 2, scale),
+            _buildTabButton('Missed', 3, scale),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Build individual tab button
   Widget _buildTabButton(String text, int index, double scale) {
-    bool isSelected = _selectedTabIndex == index;
+    final isSelected = _selectedTabIndex == index;
 
     return Expanded(
       child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _tabController.animateTo(index);
-          });
-        },
+        onTap: () => _tabController.animateTo(index),
         child: Container(
           margin: EdgeInsets.all(2 * scale),
           padding: EdgeInsets.symmetric(vertical: 6 * scale),
@@ -254,59 +169,14 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
     );
   }
 
+  /// Build call list for each tab
   Widget _buildCallList(List<CallRecord> calls, double scale) {
-    // Show loading only if we're still loading and have no data
     if (_isLoading && calls.isEmpty) {
-      return Container(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        child: Center(
-          child: CircularProgressIndicator(
-            color: Theme.of(context).colorScheme.primary,
-          ),
-        ),
-      );
+      return _buildLoadingState();
     }
 
     if (calls.isEmpty) {
-      return Container(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: EdgeInsets.all(20 * scale),
-                decoration: BoxDecoration(
-                  color: _getEmptyStateIconBackgroundColor(),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  _getEmptyStateIcon(),
-                  size: 44 * scale,
-                  color: _getEmptyStateIconColor(),
-                ),
-              ),
-              SizedBox(height: 16 * scale),
-              Text(
-                _getEmptyStateTitle(),
-                style: TextStyle(
-                  fontSize: 18 * scale,
-                  color: AppThemes.getSecondaryTextColor(context),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              SizedBox(height: 8 * scale),
-              Text(
-                _getEmptyStateSubtitle(),
-                style: TextStyle(
-                  fontSize: 14 * scale,
-                  color: AppThemes.getSecondaryTextColor(context),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+      return _buildEmptyState(scale);
     }
 
     return Container(
@@ -316,17 +186,509 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
         itemCount: calls.length,
         itemBuilder: (context, index) {
           final call = calls[index];
-          return _buildCallTile(call, index == calls.length - 1, scale);
+          final isLast = index == calls.length - 1;
+          return _buildCallTile(call, isLast, scale);
         },
       ),
     );
   }
 
-  String _getEmptyStateTitle() {
-    if (_searchQuery.isNotEmpty) {
-      return 'No results found';
+  /// Build loading state
+  Widget _buildLoadingState() {
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: Center(
+        child: CircularProgressIndicator(
+          color: Theme.of(context).colorScheme.primary,
+        ),
+      ),
+    );
+  }
+
+  /// Build empty state
+  Widget _buildEmptyState(double scale) {
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: EdgeInsets.all(20 * scale),
+              decoration: BoxDecoration(
+                color: _getEmptyStateIconBackgroundColor(),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                _getEmptyStateIcon(),
+                size: 44 * scale,
+                color: _getEmptyStateIconColor(),
+              ),
+            ),
+            SizedBox(height: 16 * scale),
+            Text(
+              _getEmptyStateTitle(),
+              style: TextStyle(
+                fontSize: 18 * scale,
+                color: AppThemes.getSecondaryTextColor(context),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            SizedBox(height: 8 * scale),
+            Text(
+              _getEmptyStateSubtitle(),
+              style: TextStyle(
+                fontSize: 14 * scale,
+                color: AppThemes.getSecondaryTextColor(context),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Build individual call tile
+  Widget _buildCallTile(CallRecord call, bool isLast, double scale) {
+    return InkWell(
+      onTap: () => _showCallDetails(call),
+      child: Column(
+        children: [
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: 16 * scale,
+              vertical: 12 * scale,
+            ),
+            child: Row(
+              children: [
+                // Contact avatar
+                _buildContactAvatar(call, scale),
+                SizedBox(width: 12 * scale),
+
+                // Call info
+                Expanded(child: _buildCallInfo(call, scale)),
+
+                // Time and duration
+                _buildTimeInfo(call, scale),
+              ],
+            ),
+          ),
+
+          // Divider
+          if (!isLast) _buildDivider(scale),
+        ],
+      ),
+    );
+  }
+
+  /// Build contact avatar
+  Widget _buildContactAvatar(CallRecord call, double scale) {
+    return Container(
+      width: 40 * scale,
+      height: 40 * scale,
+      decoration: BoxDecoration(
+        color: AppThemes.getSecondaryTextColor(context),
+        shape: BoxShape.circle,
+      ),
+      child: Center(
+        child:
+            call.name != null
+                ? Text(
+                  _getInitials(call.name!),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16 * scale,
+                    fontWeight: FontWeight.w500,
+                  ),
+                )
+                : Icon(
+                  CupertinoIcons.person_fill,
+                  color: Colors.white,
+                  size: 20 * scale,
+                ),
+      ),
+    );
+  }
+
+  /// Build call information
+  Widget _buildCallInfo(CallRecord call, double scale) {
+    final isMissed = call.type == CallType.missed;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              _getCallDirectionIcon(call.type),
+              color:
+                  isMissed
+                      ? const Color(0xFFFF3B30)
+                      : AppThemes.getSecondaryTextColor(context),
+              size: 16 * scale,
+            ),
+            SizedBox(width: 6 * scale),
+            Expanded(
+              child: Text(
+                call.name ?? call.number,
+                style: TextStyle(
+                  fontSize: 17 * scale,
+                  fontWeight: FontWeight.w400,
+                  color:
+                      isMissed
+                          ? const Color(0xFFFF3B30)
+                          : Theme.of(context).colorScheme.onSurface,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        if (call.name != null) ...[
+          SizedBox(height: 2 * scale),
+          Text(
+            call.number,
+            style: TextStyle(
+              fontSize: 15 * scale,
+              color: AppThemes.getSecondaryTextColor(context),
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// Build time information
+  Widget _buildTimeInfo(CallRecord call, double scale) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(
+          _formatRelativeTime(call.timestamp),
+          style: TextStyle(
+            fontSize: 15 * scale,
+            color: AppThemes.getSecondaryTextColor(context),
+          ),
+        ),
+        if (call.duration != Duration.zero) ...[
+          SizedBox(height: 2 * scale),
+          Text(
+            _formatDuration(call.duration),
+            style: TextStyle(
+              fontSize: 13 * scale,
+              color: AppThemes.getSecondaryTextColor(context),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// Build divider
+  Widget _buildDivider(double scale) {
+    return Container(
+      height: 0.5,
+      margin: EdgeInsets.only(left: 68 * scale),
+      color: AppThemes.getDividerColor(context),
+    );
+  }
+
+  /// Show call details modal
+  void _showCallDetails(CallRecord call) {
+    showCupertinoModalPopup(
+      context: context,
+      builder:
+          (BuildContext context) => Consumer<MultiAccountManager>(
+            builder: (context, accountManager, child) {
+              return CupertinoActionSheet(
+                title: Text(
+                  call.name ?? call.number,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                message: Column(
+                  children: [
+                    Text(
+                      '${_formatTime(call.timestamp)} • ${_formatDuration(call.duration)}',
+                      style: TextStyle(
+                        color: AppThemes.getSecondaryTextColor(context),
+                        fontSize: 14,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    _buildActiveAccountInfo(accountManager),
+                  ],
+                ),
+                actions: [
+                  _buildCallAction(accountManager, call.number),
+                  _buildDeleteAction(call),
+                ],
+                cancelButton: CupertinoActionSheetAction(
+                  onPressed: () => Navigator.pop(context),
+                  isDefaultAction: true,
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+    );
+  }
+
+  /// Build call action
+  Widget _buildCallAction(MultiAccountManager accountManager, String number) {
+    final canCall = _canMakeCall(accountManager);
+
+    return CupertinoActionSheetAction(
+      onPressed: () {
+        Navigator.pop(context);
+        if (canCall) {
+          _makeCallWithActiveAccount(accountManager, number);
+        }
+      },
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            CupertinoIcons.phone,
+            color:
+                canCall ? Theme.of(context).colorScheme.primary : Colors.grey,
+          ),
+          SizedBox(width: 8),
+          Text(
+            'Call',
+            style: TextStyle(
+              color:
+                  canCall ? Theme.of(context).colorScheme.primary : Colors.grey,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build delete action
+  Widget _buildDeleteAction(CallRecord call) {
+    return CupertinoActionSheetAction(
+      onPressed: () {
+        Navigator.pop(context);
+        _deleteCallRecord(call);
+      },
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(CupertinoIcons.delete, color: Color(0xFFFF3B30)),
+          SizedBox(width: 8),
+          Text('Delete', style: TextStyle(color: Color(0xFFFF3B30))),
+        ],
+      ),
+    );
+  }
+
+  /// Build active account info
+  Widget _buildActiveAccountInfo(MultiAccountManager accountManager) {
+    final activeAccount = accountManager.activeAccount;
+    final activeSipService = accountManager.activeSipService;
+
+    if (activeAccount == null) {
+      return Container(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.orange.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          'No active account',
+          style: TextStyle(
+            color: Colors.orange,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      );
     }
-    
+
+    final connectionStatus =
+        activeSipService?.status ?? SipConnectionStatus.disconnected;
+    final statusColor = _getConnectionStatusColor(connectionStatus);
+
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppThemes.getCardBackgroundColor(context).withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: statusColor,
+              shape: BoxShape.circle,
+            ),
+          ),
+          SizedBox(width: 6),
+          Text(
+            'Calling from ${activeAccount.displayName}',
+            style: TextStyle(
+              fontSize: 12,
+              color: AppThemes.getSecondaryTextColor(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Load call history from database
+  Future<void> _loadCallHistory() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final allCalls = await CallHistoryManager.getAllCalls();
+      final incomingCalls = await CallHistoryManager.getIncomingCalls();
+      final outgoingCalls = await CallHistoryManager.getOutgoingCalls();
+      final missedCalls = await CallHistoryManager.getMissedCalls();
+
+      setState(() {
+        _allCalls = allCalls;
+        _incomingCalls = incomingCalls;
+        _outgoingCalls = outgoingCalls;
+        _missedCalls = missedCalls;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('❌ [HistoryTab] Failed to load call history: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  /// Search calls based on query
+  Future<void> _searchCalls(String query) async {
+    if (query.isEmpty) {
+      await _loadCallHistory();
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final searchResults = await CallHistoryManager.searchCalls(query);
+
+      setState(() {
+        _allCalls = searchResults;
+        _incomingCalls =
+            searchResults
+                .where((call) => call.type == CallType.incoming)
+                .toList();
+        _outgoingCalls =
+            searchResults
+                .where((call) => call.type == CallType.outgoing)
+                .toList();
+        _missedCalls =
+            searchResults
+                .where((call) => call.type == CallType.missed)
+                .toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('❌ [HistoryTab] Failed to search calls: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  /// Handle search query change
+  void _onSearchChanged(String value) {
+    setState(() => _searchQuery = value);
+
+    // Debounce search
+    Future.delayed(Duration(milliseconds: 300), () {
+      if (_searchQuery == value) {
+        _searchCalls(value);
+      }
+    });
+  }
+
+  /// Check if call can be made with active account
+  bool _canMakeCall(MultiAccountManager accountManager) {
+    final activeSipService = accountManager.activeSipService;
+    return activeSipService?.status == SipConnectionStatus.connected;
+  }
+
+  /// Make call with active account
+  void _makeCallWithActiveAccount(
+    MultiAccountManager accountManager,
+    String number,
+  ) {
+    final activeSipService = accountManager.activeSipService;
+    if (activeSipService?.status == SipConnectionStatus.connected) {
+      activeSipService!.makeCall(number);
+    }
+  }
+
+  /// Delete call record
+  Future<void> _deleteCallRecord(CallRecord call) async {
+    await CallHistoryManager.deleteCall(call.id);
+
+    // Refresh the UI
+    if (_searchQuery.isNotEmpty) {
+      await _searchCalls(_searchQuery);
+    } else {
+      await _loadCallHistory();
+    }
+  }
+
+  // Helper methods
+  Color _getTabBarBackgroundColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Color(0xFF2C2C2E)
+        : Color(0xFFE5E5EA);
+  }
+
+  String _getInitials(String name) {
+    if (name.isEmpty) return '';
+    return name[0].toUpperCase();
+  }
+
+  IconData _getCallDirectionIcon(CallType type) {
+    switch (type) {
+      case CallType.incoming:
+        return CupertinoIcons.arrow_down_left;
+      case CallType.outgoing:
+        return CupertinoIcons.arrow_up_right;
+      case CallType.missed:
+        return CupertinoIcons.arrow_down_left;
+    }
+  }
+
+  Color _getConnectionStatusColor(SipConnectionStatus status) {
+    switch (status) {
+      case SipConnectionStatus.connected:
+        return Colors.green;
+      case SipConnectionStatus.connecting:
+        return Colors.orange;
+      case SipConnectionStatus.error:
+        return Colors.red;
+      case SipConnectionStatus.disconnected:
+        return Colors.grey;
+    }
+  }
+
+  String _getEmptyStateTitle() {
+    if (_searchQuery.isNotEmpty) return 'No results found';
+
     switch (_selectedTabIndex) {
       case 0:
         return 'No calls yet';
@@ -342,10 +704,8 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
   }
 
   String _getEmptyStateSubtitle() {
-    if (_searchQuery.isNotEmpty) {
-      return 'Try searching for something else';
-    }
-    
+    if (_searchQuery.isNotEmpty) return 'Try searching for something else';
+
     switch (_selectedTabIndex) {
       case 0:
         return 'Your call history will appear here';
@@ -361,10 +721,8 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
   }
 
   IconData _getEmptyStateIcon() {
-    if (_searchQuery.isNotEmpty) {
-      return CupertinoIcons.search;
-    }
-    
+    if (_searchQuery.isNotEmpty) return CupertinoIcons.search;
+
     switch (_selectedTabIndex) {
       case 0:
         return CupertinoIcons.phone;
@@ -380,10 +738,8 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
   }
 
   Color _getEmptyStateIconColor() {
-    if (_searchQuery.isNotEmpty) {
-      return Colors.orange;
-    }
-    
+    if (_searchQuery.isNotEmpty) return Colors.orange;
+
     switch (_selectedTabIndex) {
       case 0:
         return Colors.blue;
@@ -399,236 +755,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
   }
 
   Color _getEmptyStateIconBackgroundColor() {
-    if (_searchQuery.isNotEmpty) {
-      return Colors.orange.withOpacity(0.1);
-    }
-    
-    switch (_selectedTabIndex) {
-      case 0:
-        return Colors.blue.withOpacity(0.1);
-      case 1:
-        return Colors.green.withOpacity(0.1);
-      case 2:
-        return Colors.blue.withOpacity(0.1);
-      case 3:
-        return Colors.red.withOpacity(0.1);
-      default:
-        return Colors.blue.withOpacity(0.1);
-    }
-  }
-
-  Widget _buildCallTile(CallRecord call, bool isLast, double scale) {
-    return InkWell(
-      onTap: () {
-        _showCallDetails(call);
-      },
-      child: Column(
-        children: [
-          Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: 16 * scale,
-              vertical: 12 * scale,
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 40 * scale,
-                  height: 40 * scale,
-                  decoration: BoxDecoration(
-                    color: AppThemes.getSecondaryTextColor(context),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: call.name != null
-                        ? Text(
-                            _getInitials(call.name),
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16 * scale,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          )
-                        : Icon(
-                            CupertinoIcons.person_fill,
-                            color: Colors.white,
-                            size: 20 * scale,
-                          ),
-                  ),
-                ),
-
-                SizedBox(width: 12 * scale),
-
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            _getCallDirectionIcon(call.type),
-                            color: call.type == CallType.missed
-                                ? const Color(0xFFFF3B30)
-                                : AppThemes.getSecondaryTextColor(context),
-                            size: 16 * scale,
-                          ),
-                          SizedBox(width: 6 * scale),
-                          Expanded(
-                            child: Text(
-                              call.name ?? call.number,
-                              style: TextStyle(
-                                fontSize: 17 * scale,
-                                fontWeight: FontWeight.w400,
-                                color: call.type == CallType.missed
-                                    ? const Color(0xFFFF3B30)
-                                    : Theme.of(context).colorScheme.onSurface,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (call.name != null) ...[
-                        SizedBox(height: 2 * scale),
-                        Text(
-                          call.number,
-                          style: TextStyle(
-                            fontSize: 15 * scale,
-                            color: AppThemes.getSecondaryTextColor(context),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      _formatRelativeTime(call.timestamp),
-                      style: TextStyle(
-                        fontSize: 15 * scale,
-                        color: AppThemes.getSecondaryTextColor(context),
-                      ),
-                    ),
-                    if (call.duration != Duration.zero) ...[
-                      SizedBox(height: 2 * scale),
-                      Text(
-                        _formatDuration(call.duration),
-                        style: TextStyle(
-                          fontSize: 13 * scale,
-                          color: AppThemes.getSecondaryTextColor(context),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // iOS separator line
-          if (!isLast)
-            Container(
-              height: 0.5,
-              margin: EdgeInsets.only(left: 68 * scale),
-              color: AppThemes.getDividerColor(context),
-            ),
-        ],
-      ),
-    );
-  }
-
-  IconData _getCallDirectionIcon(CallType type) {
-    switch (type) {
-      case CallType.incoming:
-        return CupertinoIcons.arrow_down_left;
-      case CallType.outgoing:
-        return CupertinoIcons.arrow_up_right;
-      case CallType.missed:
-        return CupertinoIcons.arrow_down_left;
-    }
-  }
-
-  void _showCallDetails(CallRecord call) {
-    showCupertinoModalPopup(
-      context: context,
-      builder: (BuildContext context) => CupertinoActionSheet(
-        title: Text(
-          call.name ?? call.number,
-          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-        ),
-        message: Text(
-          '${_formatTime(call.timestamp)} • ${_formatDuration(call.duration)}',
-          style: TextStyle(color: AppThemes.getSecondaryTextColor(context)),
-        ),
-        actions: [
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(context);
-              // Make call
-              final sipService = Provider.of<SipService>(
-                context,
-                listen: false,
-              );
-              if (sipService.status == SipConnectionStatus.connected) {
-                sipService.makeCall(call.number);
-              }
-            },
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  CupertinoIcons.phone,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Call',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(context);
-              _deleteCallRecord(call);
-            },
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(CupertinoIcons.delete, color: Color(0xFFFF3B30)),
-                SizedBox(width: 8),
-                Text('Delete', style: TextStyle(color: Color(0xFFFF3B30))),
-              ],
-            ),
-          ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          onPressed: () => Navigator.pop(context),
-          isDefaultAction: true,
-          child: Text(
-            'Cancel',
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.primary,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _deleteCallRecord(CallRecord call) async {
-    // Delete from database
-    await CallHistoryManager.deleteCall(call.id);
-    // Refresh the UI
-    if (_searchQuery.isNotEmpty) {
-      await _searchCalls(_searchQuery);
-    } else {
-      await _loadCallHistory();
-    }
+    return _getEmptyStateIconColor().withOpacity(0.1);
   }
 
   String _formatRelativeTime(DateTime dateTime) {
@@ -649,18 +776,17 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
   }
 
   String _formatTime(DateTime dateTime) {
-    final hour = dateTime.hour == 0
-        ? 12
-        : (dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour);
+    final hour =
+        dateTime.hour == 0
+            ? 12
+            : (dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour);
     final minute = dateTime.minute.toString().padLeft(2, '0');
     final period = dateTime.hour >= 12 ? 'PM' : 'AM';
     return '$hour:$minute $period';
   }
 
   String _formatDuration(Duration duration) {
-    if (duration == Duration.zero) {
-      return 'No answer';
-    }
+    if (duration == Duration.zero) return 'No answer';
 
     final minutes = duration.inMinutes;
     final seconds = duration.inSeconds.remainder(60);

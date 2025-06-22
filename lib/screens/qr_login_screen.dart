@@ -1,8 +1,9 @@
-// lib/screens/qr_login_screen.dart - Updated with Account Name & Organization
+// lib/screens/qr_login_screen.dart - Updated with Multi-Account Support
 
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import '../services/multi_account_manager.dart';
 import 'dart:math' as math;
 
 class QRLoginScreen extends StatefulWidget {
@@ -611,7 +612,7 @@ class _QRLoginScreenState extends State<QRLoginScreen>
 
       final parts = qrCode.split(';');
 
-      // Updated validation for 7 parts: username;password;domain;port;protocol;firstname lastname;company
+      // Validate QR code format: username;password;domain;port;protocol;firstname lastname;company
       if (parts.length != 7) {
         throw Exception(
           'Invalid QR code format. Expected 7 values separated by semicolons.',
@@ -623,8 +624,8 @@ class _QRLoginScreenState extends State<QRLoginScreen>
       final domain = parts[2].trim();
       final portString = parts[3].trim();
       final protocol = parts[4].trim();
-      final fullName = parts[5].trim(); // e.g., "MojeerSalman" or "Mojeer Salman"
-      final company = parts[6].trim(); // e.g., "MUJEER"
+      final fullName = parts[5].trim();
+      final company = parts[6].trim();
 
       // Validate required fields
       if (username.isEmpty) throw Exception('Username cannot be empty');
@@ -644,7 +645,26 @@ class _QRLoginScreenState extends State<QRLoginScreen>
       }
 
       print('✅ [QRLogin] QR code validation successful');
-      await _saveCredentials(username, password, domain, port, fullName, company);
+      
+      // Use MultiAccountManager to add the account
+      final accountManager = Provider.of<MultiAccountManager>(context, listen: false);
+      
+      final success = await accountManager.addAccount(
+        sipServer: domain,
+        username: username,
+        password: password,
+        domain: domain,
+        port: port,
+        accountName: fullName,
+        organization: company,
+      );
+
+      if (!success) {
+        throw Exception('This account is already active.');
+      }
+
+      // Connect the newly added account
+      await accountManager.connectAllAccounts();
 
       if (mounted) {
         Navigator.of(context).pushReplacementNamed('/main');
@@ -664,32 +684,6 @@ class _QRLoginScreenState extends State<QRLoginScreen>
         });
       }
     }
-  }
-
-  Future<void> _saveCredentials(
-    String username,
-    String password,
-    String domain,
-    int port,
-    String fullName,
-    String company,
-  ) async {
-    print('💾 [QRLogin] Saving credentials to SharedPreferences...');
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('sip_server', domain);
-    await prefs.setString('sip_username', username);
-    await prefs.setString('sip_password', password);
-    await prefs.setString('sip_domain', domain);
-    await prefs.setInt('sip_port', port);
-    await prefs.setString('account_name', fullName); // NEW: Save account name
-    await prefs.setString('organization', company); // NEW: Save organization
-    await prefs.setBool('isLoggedIn', true);
-
-    print('✅ [QRLogin] Credentials saved successfully:');
-    print('   Account Name: $fullName');
-    print('   Organization: $company');
-    print('   Login Status: true');
   }
 
   void _retryScanning() {
