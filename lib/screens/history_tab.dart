@@ -1,10 +1,10 @@
-// lib/screens/history_tab.dart - Updated with Theme Support
+// lib/screens/history_tab.dart - Updated with Theme Support (Font removed)
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/sip_service.dart';
-import '../themes/app_themes.dart'; // ADD THIS
+import '../themes/app_themes.dart';
 
 class HistoryTab extends StatefulWidget {
   const HistoryTab({super.key});
@@ -20,7 +20,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this); // Changed to 4 tabs
+    _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() {
       setState(() {
         _selectedTabIndex = _tabController.index;
@@ -163,11 +163,11 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                CupertinoIcons.phone,
-                size: 64 * scale,
-                color: AppThemes.getSecondaryTextColor(context),
-              ),
+             Icon(
+  _getEmptyStateIcon(),
+  size: 64 * scale,
+  color: AppThemes.getSecondaryTextColor(context),
+),
               SizedBox(height: 16 * scale),
               Text(
                 _getEmptyStateTitle(),
@@ -182,9 +182,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
                 _getEmptyStateSubtitle(),
                 style: TextStyle(
                   fontSize: 14 * scale,
-                  color: AppThemes.getSecondaryTextColor(
-                    context,
-                  ), // UPDATED: Use theme-aware color
+                  color: AppThemes.getSecondaryTextColor(context),
                 ),
               ),
             ],
@@ -194,8 +192,8 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
     }
 
     return Container(
-  color: Theme.of(context).scaffoldBackgroundColor,
-        child: ListView.builder(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: ListView.builder(
         padding: EdgeInsets.zero,
         itemCount: calls.length,
         itemBuilder: (context, index) {
@@ -235,6 +233,20 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
         return 'Your call history will appear here';
     }
   }
+  IconData _getEmptyStateIcon() {
+  switch (_selectedTabIndex) {
+    case 0:
+      return CupertinoIcons.phone;
+    case 1:
+      return CupertinoIcons.arrow_down_left;
+    case 2:
+      return CupertinoIcons.arrow_up_right;
+    case 3:
+      return CupertinoIcons.phone_down;
+    default:
+      return CupertinoIcons.phone;
+  }
+}
 
   Widget _buildCallTile(CallRecord call, bool isLast, double scale) {
     return InkWell(
@@ -254,8 +266,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
                   width: 40 * scale,
                   height: 40 * scale,
                   decoration: BoxDecoration(
-                    color: AppThemes.getDividerColor(context),
-                    shape: BoxShape.circle,
+color: AppThemes.getSecondaryTextColor(context),                    shape: BoxShape.circle,
                   ),
                   child: Center(
                     child:
@@ -289,9 +300,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
                             color:
                                 call.type == CallType.missed
                                     ? const Color(0xFFFF3B30)
-                                    : AppThemes.getSecondaryTextColor(
-                                      context,
-                                    ), // UPDATED: Use theme-aware color
+                                    : AppThemes.getSecondaryTextColor(context),
                             size: 16 * scale,
                           ),
                           SizedBox(width: 6 * scale),
@@ -304,9 +313,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
                                 color:
                                     call.type == CallType.missed
                                         ? const Color(0xFFFF3B30)
-                                        : Theme.of(context)
-                                            .colorScheme
-                                            .onSurface, // UPDATED: Use theme color
+                                        : Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                           ),
@@ -318,9 +325,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
                           call.number,
                           style: TextStyle(
                             fontSize: 15 * scale,
-                            color: AppThemes.getSecondaryTextColor(
-                              context,
-                            ), // UPDATED: Use theme-aware color
+                            color: AppThemes.getSecondaryTextColor(context),
                           ),
                         ),
                       ],
@@ -335,9 +340,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
                       _formatRelativeTime(call.timestamp),
                       style: TextStyle(
                         fontSize: 15 * scale,
-                        color: AppThemes.getSecondaryTextColor(
-                          context,
-                        ), // UPDATED: Use theme-aware color
+                        color: AppThemes.getSecondaryTextColor(context),
                       ),
                     ),
                     if (call.duration != Duration.zero) ...[
@@ -346,9 +349,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
                         _formatDuration(call.duration),
                         style: TextStyle(
                           fontSize: 13 * scale,
-                          color: AppThemes.getSecondaryTextColor(
-                            context,
-                          ), // UPDATED: Use theme-aware color
+                          color: AppThemes.getSecondaryTextColor(context),
                         ),
                       ),
                     ],
@@ -363,10 +364,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
             Container(
               height: 0.5,
               margin: EdgeInsets.only(left: 68 * scale),
-              color: AppThemes.getDividerColor(
-                context,
-              ), // UPDATED: Use theme-aware color
-            ),
+color: AppThemes.getSecondaryTextColor(context),            ),
         ],
       ),
     );
@@ -414,19 +412,13 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
                   children: [
                     Icon(
                       CupertinoIcons.phone,
-                      color:
-                          Theme.of(
-                            context,
-                          ).colorScheme.primary, // UPDATED: Use theme color
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                     const SizedBox(width: 8),
                     Text(
                       'Call',
                       style: TextStyle(
-                        color:
-                            Theme.of(
-                              context,
-                            ).colorScheme.primary, // UPDATED: Use theme color
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                   ],
@@ -453,10 +445,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
               child: Text(
                 'Cancel',
                 style: TextStyle(
-                  color:
-                      Theme.of(
-                        context,
-                      ).colorScheme.primary, // UPDATED: Use theme color
+                  color: Theme.of(context).colorScheme.primary,
                 ),
               ),
             ),

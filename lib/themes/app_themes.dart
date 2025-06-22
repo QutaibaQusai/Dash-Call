@@ -1,6 +1,6 @@
+// lib/themes/app_themes.dart
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class AppThemes {
   // Light Theme Colors
@@ -19,12 +19,18 @@ class AppThemes {
   static const Color _darkOnSurface = Color(0xFFFFFFFF);
   static const Color _darkSecondary = Color(0xFF8E8E93);
 
+  // SF UI Text font family constant
+  static const String _fontFamily = '.SF UI Text';
+
   /// Light Theme
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
       scaffoldBackgroundColor: _lightBackground,
+      
+      // Set default font family for the entire app
+      fontFamily: _fontFamily,
       
       // Color Scheme - This replaces deprecated backgroundColor
       colorScheme: const ColorScheme.light(
@@ -38,38 +44,39 @@ class AppThemes {
         onSecondary: Colors.white,
       ),
 
-      // Text Theme
-      textTheme: GoogleFonts.tajawalTextTheme().copyWith(
-        displayLarge: GoogleFonts.tajawal(color: _lightOnBackground),
-        displayMedium: GoogleFonts.tajawal(color: _lightOnBackground),
-        displaySmall: GoogleFonts.tajawal(color: _lightOnBackground),
-        headlineLarge: GoogleFonts.tajawal(color: _lightOnBackground),
-        headlineMedium: GoogleFonts.tajawal(color: _lightOnBackground),
-        headlineSmall: GoogleFonts.tajawal(color: _lightOnBackground),
-        titleLarge: GoogleFonts.tajawal(color: _lightOnBackground, fontWeight: FontWeight.w600),
-        titleMedium: GoogleFonts.tajawal(color: _lightOnBackground, fontWeight: FontWeight.w500),
-        titleSmall: GoogleFonts.tajawal(color: _lightOnBackground, fontWeight: FontWeight.w500),
-        bodyLarge: GoogleFonts.tajawal(color: _lightOnBackground),
-        bodyMedium: GoogleFonts.tajawal(color: _lightOnBackground),
-        bodySmall: GoogleFonts.tajawal(color: _lightSecondary),
-        labelLarge: GoogleFonts.tajawal(color: _lightOnBackground, fontWeight: FontWeight.w500),
-        labelMedium: GoogleFonts.tajawal(color: _lightSecondary),
-        labelSmall: GoogleFonts.tajawal(color: _lightSecondary),
+      // Text Theme - Using .SF UI Text font family
+      textTheme: const TextTheme(
+        displayLarge: TextStyle(fontFamily: _fontFamily, color: _lightOnBackground),
+        displayMedium: TextStyle(fontFamily: _fontFamily, color: _lightOnBackground),
+        displaySmall: TextStyle(fontFamily: _fontFamily, color: _lightOnBackground),
+        headlineLarge: TextStyle(fontFamily: _fontFamily, color: _lightOnBackground),
+        headlineMedium: TextStyle(fontFamily: _fontFamily, color: _lightOnBackground),
+        headlineSmall: TextStyle(fontFamily: _fontFamily, color: _lightOnBackground),
+        titleLarge: TextStyle(fontFamily: _fontFamily, color: _lightOnBackground, fontWeight: FontWeight.w600),
+        titleMedium: TextStyle(fontFamily: _fontFamily, color: _lightOnBackground, fontWeight: FontWeight.w500),
+        titleSmall: TextStyle(fontFamily: _fontFamily, color: _lightOnBackground, fontWeight: FontWeight.w500),
+        bodyLarge: TextStyle(fontFamily: _fontFamily, color: _lightOnBackground),
+        bodyMedium: TextStyle(fontFamily: _fontFamily, color: _lightOnBackground),
+        bodySmall: TextStyle(fontFamily: _fontFamily, color: _lightSecondary),
+        labelLarge: TextStyle(fontFamily: _fontFamily, color: _lightOnBackground, fontWeight: FontWeight.w500),
+        labelMedium: TextStyle(fontFamily: _fontFamily, color: _lightSecondary),
+        labelSmall: TextStyle(fontFamily: _fontFamily, color: _lightSecondary),
       ),
 
       // App Bar Theme
-      appBarTheme: AppBarTheme(
+      appBarTheme: const AppBarTheme(
         centerTitle: true,
         elevation: 0,
         backgroundColor: _lightBackground,
         foregroundColor: _lightOnBackground,
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: GoogleFonts.tajawal(
+        titleTextStyle: TextStyle(
           fontSize: 28,
           fontWeight: FontWeight.w600,
           color: _lightOnBackground,
+          fontFamily: _fontFamily,
         ),
-        iconTheme: const IconThemeData(color: _lightPrimary),
+        iconTheme: IconThemeData(color: _lightPrimary),
       ),
 
       // Card Theme
@@ -85,7 +92,7 @@ class AppThemes {
         style: ElevatedButton.styleFrom(
           backgroundColor: _lightPrimary,
           foregroundColor: Colors.white,
-          textStyle: GoogleFonts.tajawal(fontWeight: FontWeight.w600),
+          textStyle: const TextStyle(fontWeight: FontWeight.w600, fontFamily: _fontFamily),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
@@ -93,7 +100,7 @@ class AppThemes {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: _lightPrimary,
-          textStyle: GoogleFonts.tajawal(fontWeight: FontWeight.w600),
+          textStyle: const TextStyle(fontWeight: FontWeight.w600, fontFamily: _fontFamily),
         ),
       ),
 
@@ -101,17 +108,17 @@ class AppThemes {
         style: OutlinedButton.styleFrom(
           foregroundColor: _lightPrimary,
           side: const BorderSide(color: _lightPrimary),
-          textStyle: GoogleFonts.tajawal(fontWeight: FontWeight.w600),
+          textStyle: const TextStyle(fontWeight: FontWeight.w600, fontFamily: _fontFamily),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
 
       // Input Decoration Theme
       inputDecorationTheme: InputDecorationTheme(
-        labelStyle: GoogleFonts.tajawal(color: _lightSecondary),
-        hintStyle: GoogleFonts.tajawal(color: _lightSecondary),
-        helperStyle: GoogleFonts.tajawal(color: _lightSecondary),
-        errorStyle: GoogleFonts.tajawal(color: Colors.red),
+        labelStyle: const TextStyle(color: _lightSecondary, fontFamily: _fontFamily),
+        hintStyle: const TextStyle(color: _lightSecondary, fontFamily: _fontFamily),
+        helperStyle: const TextStyle(color: _lightSecondary, fontFamily: _fontFamily),
+        errorStyle: const TextStyle(color: Colors.red, fontFamily: _fontFamily),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(color: _lightSecondary.withOpacity(0.3)),
@@ -127,12 +134,12 @@ class AppThemes {
       ),
 
       // Bottom Navigation Bar Theme
-      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: Colors.white,
         selectedItemColor: _lightPrimary,
         unselectedItemColor: _lightSecondary,
-        selectedLabelStyle: GoogleFonts.tajawal(fontWeight: FontWeight.w600),
-        unselectedLabelStyle: GoogleFonts.tajawal(fontWeight: FontWeight.w400),
+        selectedLabelStyle: TextStyle(fontWeight: FontWeight.w600, fontFamily: _fontFamily),
+        unselectedLabelStyle: TextStyle(fontWeight: FontWeight.w400, fontFamily: _fontFamily),
         type: BottomNavigationBarType.fixed,
         elevation: 0,
       ),
@@ -156,6 +163,9 @@ class AppThemes {
       brightness: Brightness.dark,
       scaffoldBackgroundColor: _darkBackground,
       
+      // Set default font family for the entire app
+      fontFamily: _fontFamily,
+      
       // Color Scheme - This replaces deprecated backgroundColor
       colorScheme: const ColorScheme.dark(
         primary: _darkPrimary,
@@ -168,38 +178,39 @@ class AppThemes {
         onSecondary: Colors.black,
       ),
 
-      // Text Theme
-      textTheme: GoogleFonts.tajawalTextTheme().copyWith(
-        displayLarge: GoogleFonts.tajawal(color: _darkOnBackground),
-        displayMedium: GoogleFonts.tajawal(color: _darkOnBackground),
-        displaySmall: GoogleFonts.tajawal(color: _darkOnBackground),
-        headlineLarge: GoogleFonts.tajawal(color: _darkOnBackground),
-        headlineMedium: GoogleFonts.tajawal(color: _darkOnBackground),
-        headlineSmall: GoogleFonts.tajawal(color: _darkOnBackground),
-        titleLarge: GoogleFonts.tajawal(color: _darkOnBackground, fontWeight: FontWeight.w600),
-        titleMedium: GoogleFonts.tajawal(color: _darkOnBackground, fontWeight: FontWeight.w500),
-        titleSmall: GoogleFonts.tajawal(color: _darkOnBackground, fontWeight: FontWeight.w500),
-        bodyLarge: GoogleFonts.tajawal(color: _darkOnBackground),
-        bodyMedium: GoogleFonts.tajawal(color: _darkOnBackground),
-        bodySmall: GoogleFonts.tajawal(color: _darkSecondary),
-        labelLarge: GoogleFonts.tajawal(color: _darkOnBackground, fontWeight: FontWeight.w500),
-        labelMedium: GoogleFonts.tajawal(color: _darkSecondary),
-        labelSmall: GoogleFonts.tajawal(color: _darkSecondary),
+      // Text Theme - Using .SF UI Text font family
+      textTheme: const TextTheme(
+        displayLarge: TextStyle(fontFamily: _fontFamily, color: _darkOnBackground),
+        displayMedium: TextStyle(fontFamily: _fontFamily, color: _darkOnBackground),
+        displaySmall: TextStyle(fontFamily: _fontFamily, color: _darkOnBackground),
+        headlineLarge: TextStyle(fontFamily: _fontFamily, color: _darkOnBackground),
+        headlineMedium: TextStyle(fontFamily: _fontFamily, color: _darkOnBackground),
+        headlineSmall: TextStyle(fontFamily: _fontFamily, color: _darkOnBackground),
+        titleLarge: TextStyle(fontFamily: _fontFamily, color: _darkOnBackground, fontWeight: FontWeight.w600),
+        titleMedium: TextStyle(fontFamily: _fontFamily, color: _darkOnBackground, fontWeight: FontWeight.w500),
+        titleSmall: TextStyle(fontFamily: _fontFamily, color: _darkOnBackground, fontWeight: FontWeight.w500),
+        bodyLarge: TextStyle(fontFamily: _fontFamily, color: _darkOnBackground),
+        bodyMedium: TextStyle(fontFamily: _fontFamily, color: _darkOnBackground),
+        bodySmall: TextStyle(fontFamily: _fontFamily, color: _darkSecondary),
+        labelLarge: TextStyle(fontFamily: _fontFamily, color: _darkOnBackground, fontWeight: FontWeight.w500),
+        labelMedium: TextStyle(fontFamily: _fontFamily, color: _darkSecondary),
+        labelSmall: TextStyle(fontFamily: _fontFamily, color: _darkSecondary),
       ),
 
       // App Bar Theme
-      appBarTheme: AppBarTheme(
+      appBarTheme: const AppBarTheme(
         centerTitle: true,
         elevation: 0,
         backgroundColor: _darkBackground,
         foregroundColor: _darkOnBackground,
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: GoogleFonts.tajawal(
+        titleTextStyle: TextStyle(
           fontSize: 28,
           fontWeight: FontWeight.w600,
           color: _darkOnBackground,
+          fontFamily: _fontFamily,
         ),
-        iconTheme: const IconThemeData(color: _darkPrimary),
+        iconTheme: IconThemeData(color: _darkPrimary),
       ),
 
       // Card Theme
@@ -215,7 +226,7 @@ class AppThemes {
         style: ElevatedButton.styleFrom(
           backgroundColor: _darkPrimary,
           foregroundColor: Colors.black,
-          textStyle: GoogleFonts.tajawal(fontWeight: FontWeight.w600),
+          textStyle: const TextStyle(fontWeight: FontWeight.w600, fontFamily: _fontFamily),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
@@ -223,7 +234,7 @@ class AppThemes {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: _darkPrimary,
-          textStyle: GoogleFonts.tajawal(fontWeight: FontWeight.w600),
+          textStyle: const TextStyle(fontWeight: FontWeight.w600, fontFamily: _fontFamily),
         ),
       ),
 
@@ -231,17 +242,17 @@ class AppThemes {
         style: OutlinedButton.styleFrom(
           foregroundColor: _darkPrimary,
           side: const BorderSide(color: _darkPrimary),
-          textStyle: GoogleFonts.tajawal(fontWeight: FontWeight.w600),
+          textStyle: const TextStyle(fontWeight: FontWeight.w600, fontFamily: _fontFamily),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
 
       // Input Decoration Theme
       inputDecorationTheme: InputDecorationTheme(
-        labelStyle: GoogleFonts.tajawal(color: _darkSecondary),
-        hintStyle: GoogleFonts.tajawal(color: _darkSecondary),
-        helperStyle: GoogleFonts.tajawal(color: _darkSecondary),
-        errorStyle: GoogleFonts.tajawal(color: Colors.redAccent),
+        labelStyle: const TextStyle(color: _darkSecondary, fontFamily: _fontFamily),
+        hintStyle: const TextStyle(color: _darkSecondary, fontFamily: _fontFamily),
+        helperStyle: const TextStyle(color: _darkSecondary, fontFamily: _fontFamily),
+        errorStyle: const TextStyle(color: Colors.redAccent, fontFamily: _fontFamily),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(color: _darkSecondary.withOpacity(0.3)),
@@ -257,12 +268,12 @@ class AppThemes {
       ),
 
       // Bottom Navigation Bar Theme
-      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: _darkSurface,
         selectedItemColor: _darkPrimary,
         unselectedItemColor: _darkSecondary,
-        selectedLabelStyle: GoogleFonts.tajawal(fontWeight: FontWeight.w600),
-        unselectedLabelStyle: GoogleFonts.tajawal(fontWeight: FontWeight.w400),
+        selectedLabelStyle: TextStyle(fontWeight: FontWeight.w600, fontFamily: _fontFamily),
+        unselectedLabelStyle: TextStyle(fontWeight: FontWeight.w400, fontFamily: _fontFamily),
         type: BottomNavigationBarType.fixed,
         elevation: 0,
       ),

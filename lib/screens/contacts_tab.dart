@@ -1,10 +1,10 @@
-// lib/screens/contacts_tab.dart - Updated with Theme Support
+// lib/screens/contacts_tab.dart - Rewritten with Clean Architecture (Same UI)
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_contacts/flutter_contacts.dart' as fc;
 import '../services/sip_service.dart';
-import '../themes/app_themes.dart'; // ADD THIS
+import '../themes/app_themes.dart';
 
 class ContactsTab extends StatefulWidget {
   const ContactsTab({super.key});
@@ -31,6 +31,404 @@ class _ContactsTabState extends State<ContactsTab> {
     super.dispose();
   }
 
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: Column(
+        children: [
+          _buildSearchBar(),
+          Expanded(child: _buildContactsList()),
+        ],
+      ),
+    );
+  }
+
+  /// Build search bar - keeping exact same UI
+  Widget _buildSearchBar() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      height: 36,
+      decoration: BoxDecoration(
+        color: _getSearchBarColor(),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: TextField(
+        controller: _searchController,
+        onChanged: _onSearchChanged,
+        style: TextStyle(
+          fontSize: 17,
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
+        decoration: InputDecoration(
+          hintText: 'Search',
+          hintStyle: TextStyle(
+            color: AppThemes.getSecondaryTextColor(context),
+            fontSize: 17,
+            fontWeight: FontWeight.normal,
+          ),
+          prefixIcon: Icon(
+            Icons.search,
+            color: AppThemes.getSecondaryTextColor(context),
+            size: 20,
+          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 8,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Build contacts list
+  Widget _buildContactsList() {
+    if (_isLoading) {
+      return _buildLoadingState();
+    }
+
+    if (_filteredContacts.isEmpty) {
+      return _buildEmptyState();
+    }
+
+    return _buildContactsListView();
+  }
+
+  /// Build loading state - keeping exact same UI
+  Widget _buildLoadingState() {
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: Center(
+        child: CircularProgressIndicator(
+          color: Theme.of(context).colorScheme.primary,
+        ),
+      ),
+    );
+  }
+
+  /// Build empty state - keeping exact same UI
+  Widget _buildEmptyState() {
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.person_outline,
+              size: 64,
+              color: AppThemes.getSecondaryTextColor(context),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _searchQuery.isEmpty
+                  ? 'No contacts found'
+                  : 'No results for "$_searchQuery"',
+              style: TextStyle(
+                fontSize: 18,
+                color: AppThemes.getSecondaryTextColor(context),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _searchQuery.isEmpty
+                  ? 'Add some contacts to get started'
+                  : 'Try searching for something else',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppThemes.getSecondaryTextColor(context),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Build contacts list view - keeping exact same UI
+  Widget _buildContactsListView() {
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              itemCount: _filteredContacts.length,
+              itemBuilder: (context, index) {
+                final contact = _filteredContacts[index];
+                return _buildContactTile(
+                  contact,
+                  index == _filteredContacts.length - 1,
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build contact tile - keeping exact same UI
+  Widget _buildContactTile(Contact contact, bool isLast) {
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: Column(
+        children: [
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 8,
+            ),
+            leading: _buildContactAvatar(contact),
+            title: Text(
+              contact.displayName,
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w400,
+                color: Theme.of(context).colorScheme.onBackground,
+              ),
+            ),
+            onTap: () => _showContactDetails(contact),
+          ),
+          // iOS-style separator line
+          if (!isLast) _buildDivider(),
+        ],
+      ),
+    );
+  }
+
+  /// Build contact avatar - keeping exact same UI
+  Widget _buildContactAvatar(Contact contact) {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: AppThemes.getSecondaryTextColor(context),
+        shape: BoxShape.circle,
+      ),
+      child: Center(
+        child: contact.hasProperName
+            ? Text(
+                contact.initials,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              )
+            : const Icon(
+                Icons.person,
+                color: Colors.white,
+                size: 20,
+              ),
+      ),
+    );
+  }
+
+  /// Build divider - keeping exact same UI
+  Widget _buildDivider() {
+    return Container(
+      height: 0.5,
+      margin: const EdgeInsets.only(left: 72),
+      color: AppThemes.getDividerColor(context),
+    );
+  }
+
+  /// Show contact details - keeping exact same UI
+  void _showContactDetails(Contact contact) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => _buildContactDetailsModal(contact),
+    );
+  }
+
+  /// Build contact details modal - keeping exact same UI
+  Widget _buildContactDetailsModal(Contact contact) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.9,
+      decoration: BoxDecoration(
+        color: AppThemes.getSettingsBackgroundColor(context),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          // Handle bar
+          Container(
+            width: 36,
+            height: 5,
+            margin: const EdgeInsets.only(top: 5),
+            decoration: BoxDecoration(
+              color: AppThemes.getDividerColor(context),
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+
+          // Header
+          Container(
+            height: 44,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Text(
+                  'Contact',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.onBackground,
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(
+                        fontSize: 17,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Contact info section - keeping exact same UI
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: AppThemes.getCardBackgroundColor(context),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(
+              children: [
+                // Contact avatar and name
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 120,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          color: AppThemes.getSecondaryTextColor(context),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: contact.hasProperName
+                              ? Text(
+                                  contact.initials,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 54,
+                                    fontWeight: FontWeight.w300,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.person,
+                                  color: Colors.white,
+                                  size: 60,
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        contact.displayName,
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Phone section
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(
+                        color: AppThemes.getDividerColor(context),
+                        width: 0.5,
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Text(
+                        'mobile',
+                        style: TextStyle(
+                          fontSize: 17,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Text(
+                          contact.number,
+                          style: TextStyle(
+                            fontSize: 17,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                      Consumer<SipService>(
+                        builder: (context, sipService, child) {
+                          return IconButton(
+                            onPressed:
+                                sipService.status == SipConnectionStatus.connected
+                                    ? () {
+                                        Navigator.pop(context);
+                                        sipService.makeCall(contact.number);
+                                      }
+                                    : null,
+                            icon: Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color:
+                                    sipService.status == SipConnectionStatus.connected
+                                        ? const Color(0xFF34C759)
+                                        : _getDisabledButtonColor(),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.phone,
+                                color:
+                                    sipService.status == SipConnectionStatus.connected
+                                        ? Colors.white
+                                        : AppThemes.getSecondaryTextColor(context),
+                                size: 18,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Load contacts from device
   Future<void> _loadContacts() async {
     setState(() {
       _isLoading = true;
@@ -45,26 +443,15 @@ class _ContactsTabState extends State<ContactsTab> {
         final contactList = <Contact>[];
         for (final contact in contacts) {
           if (contact.phones.isNotEmpty) {
-            final name =
-                contact.displayName.isNotEmpty
-                    ? _cleanString(contact.displayName)
-                    : _cleanString(
-                      '${contact.name.first} ${contact.name.last}'.trim(),
-                    );
-
-            if (name.isNotEmpty) {
-              contactList.add(
-                Contact(
-                  name: name,
-                  number: _cleanString(contact.phones.first.number),
-                ),
-              );
+            final processedContact = Contact.fromFlutterContact(contact);
+            if (processedContact != null) {
+              contactList.add(processedContact);
             }
           }
         }
 
         contactList.sort(
-          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+          (a, b) => a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
         );
 
         setState(() {
@@ -85,36 +472,82 @@ class _ContactsTabState extends State<ContactsTab> {
     }
   }
 
+  /// Handle search query change
+  void _onSearchChanged(String value) {
+    setState(() {
+      _searchQuery = value;
+    });
+  }
+
+  /// Get filtered contacts based on search query
   List<Contact> get _filteredContacts {
     if (_searchQuery.isEmpty) {
       return _contacts;
     }
     return _contacts.where((contact) {
-      return contact.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+      return contact.displayName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           contact.number.contains(_searchQuery);
     }).toList();
   }
 
-  // Clean string to remove invalid UTF-16 characters
-  String _cleanString(String input) {
-    if (input.isEmpty) return input;
-
-    // Remove invalid UTF-16 characters and control characters
-    return input.runes
-        .where((rune) => rune >= 32 && rune <= 126 || rune >= 160)
-        .map((rune) => String.fromCharCode(rune))
-        .join();
+  /// Get search bar color based on theme
+  Color _getSearchBarColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF2C2C2E)
+        : const Color(0xFFE5E5EA);
   }
 
-  // Generate first letter from first name and last name
-  String _getInitials(String name) {
-    if (name.isEmpty) return '';
+  /// Get disabled button color based on theme
+  Color _getDisabledButtonColor() {
+    return Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF2C2C2E)
+        : const Color(0xFFE5E5EA);
+  }
+}
 
-    final cleanName = _cleanString(name);
+/// Contact model class - keeping same logic but cleaner structure
+class Contact {
+  final String displayName;
+  final String number;
+
+  const Contact({
+    required this.displayName,
+    required this.number,
+  });
+
+  /// Create Contact from FlutterContact
+  static Contact? fromFlutterContact(fc.Contact flutterContact) {
+    if (flutterContact.phones.isEmpty) return null;
+
+    final displayName = flutterContact.displayName.isNotEmpty
+        ? _cleanString(flutterContact.displayName)
+        : _cleanString(
+            '${flutterContact.name.first} ${flutterContact.name.last}'.trim(),
+          );
+
+    if (displayName.isEmpty) return null;
+
+    final number = _cleanString(flutterContact.phones.first.number);
+    if (number.isEmpty) return null;
+
+    return Contact(
+      displayName: displayName,
+      number: number,
+    );
+  }
+
+  /// Get initials from name
+  String get initials {
+    if (displayName.isEmpty) return '';
+
+    final cleanName = _cleanString(displayName);
     if (cleanName.isEmpty) return '';
 
-    final parts =
-        cleanName.trim().split(' ').where((part) => part.isNotEmpty).toList();
+    final parts = cleanName
+        .trim()
+        .split(' ')
+        .where((part) => part.isNotEmpty)
+        .toList();
 
     if (parts.isEmpty) return '';
 
@@ -127,11 +560,11 @@ class _ContactsTabState extends State<ContactsTab> {
     }
   }
 
-  // Check if contact has a proper name or just a number
-  bool _hasProperName(String name) {
-    if (name.isEmpty) return false;
+  /// Check if contact has a proper name (not just a number)
+  bool get hasProperName {
+    if (displayName.isEmpty) return false;
 
-    final cleanName = _cleanString(name);
+    final cleanName = _cleanString(displayName);
     if (cleanName.isEmpty) return false;
 
     // Check if name contains only digits, spaces, +, -, (, )
@@ -139,407 +572,28 @@ class _ContactsTabState extends State<ContactsTab> {
     return !numberPattern.hasMatch(cleanName);
   }
 
+  /// Clean string to remove invalid UTF-16 characters
+  static String _cleanString(String input) {
+    if (input.isEmpty) return input;
+
+    // Remove invalid UTF-16 characters and control characters
+    return input.runes
+        .where((rune) => rune >= 32 && rune <= 126 || rune >= 160)
+        .map((rune) => String.fromCharCode(rune))
+        .join();
+  }
+
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Theme.of(context).scaffoldBackgroundColor, // UPDATED: Use theme background
-      child: Column(
-        children: [
-          Container(
-            margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            height: 36,
-            decoration: BoxDecoration(
-              color: _getSearchBarColor(), // UPDATED: Use theme-aware color
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                });
-              },
-              style: TextStyle(
-                fontSize: 17, 
-                fontFamily: '.SF UI Text',
-                color: Theme.of(context).colorScheme.onSurface, // UPDATED: Use theme color
-              ),
-              decoration: InputDecoration(
-                hintText: 'Search',
-                hintStyle: TextStyle(
-                  color: AppThemes.getSecondaryTextColor(context), // UPDATED: Use theme-aware color
-                  fontSize: 17,
-                  fontFamily: '.SF UI Text',
-                  fontWeight: FontWeight.normal
-                ),
-                prefixIcon: Icon(
-                  Icons.search,
-                  color: AppThemes.getSecondaryTextColor(context), // UPDATED: Use theme-aware color
-                  size: 20,
-                ),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 8,
-                ),
-              ),
-            ),
-          ),
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Contact &&
+          runtimeType == other.runtimeType &&
+          displayName == other.displayName &&
+          number == other.number;
 
-          Expanded(
-            child:
-                _isLoading
-                    ? Container(
-                      color: Theme.of(context).scaffoldBackgroundColor, // UPDATED: Use theme background
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          color: Theme.of(context).colorScheme.primary, // UPDATED: Use theme color
-                        ),
-                      ),
-                    )
-                    : _filteredContacts.isEmpty
-                    ? _buildEmptyState()
-                    : Container(
-                      color: Theme.of(context).scaffoldBackgroundColor, // UPDATED: Use theme background
-                      child: Column(
-                        children: [
-                          Expanded(
-                            child: ListView.builder(
-                              itemCount: _filteredContacts.length,
-                              itemBuilder: (context, index) {
-                                final contact = _filteredContacts[index];
-                                return _buildContactTile(
-                                  contact,
-                                  index == _filteredContacts.length - 1,
-                                );
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-          ),
-        ],
-      ),
-    );
-  }
+  @override
+  int get hashCode => displayName.hashCode ^ number.hashCode;
 
-  // ADD THIS: Get theme-aware search bar color
-  Color _getSearchBarColor() {
-    return Theme.of(context).brightness == Brightness.dark 
-        ? const Color(0xFF2C2C2E) 
-        : const Color(0xFFE5E5EA);
-  }
-
-  Widget _buildEmptyState() {
-    return Container(
-      color: Theme.of(context).scaffoldBackgroundColor, // UPDATED: Use theme background
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.person_outline, 
-              size: 64, 
-              color: AppThemes.getSecondaryTextColor(context), // UPDATED: Use theme-aware color
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _searchQuery.isEmpty
-                  ? 'No contacts found'
-                  : 'No results for "$_searchQuery"',
-              style: TextStyle(
-                fontSize: 18,
-                color: AppThemes.getSecondaryTextColor(context), // UPDATED: Use theme-aware color
-                fontWeight: FontWeight.w500,
-                fontFamily: '.SF UI Text',
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _searchQuery.isEmpty
-                  ? 'Add some contacts to get started'
-                  : 'Try searching for something else',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppThemes.getSecondaryTextColor(context), // UPDATED: Use theme-aware color
-                fontFamily: '.SF UI Text',
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildContactTile(Contact contact, bool isLast) {
-    return Container(
-      color: Theme.of(context).scaffoldBackgroundColor, // UPDATED: Use theme background
-      child: Column(
-        children: [
-          ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 8,
-            ),
-            leading: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppThemes.getSecondaryTextColor(context), // UPDATED: Use theme-aware color
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child:
-                    _hasProperName(contact.name)
-                        ? Text(
-                          _getInitials(contact.name),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            fontFamily: '.SF UI Text',
-                          ),
-                        )
-                        : const Icon(
-                          Icons.person,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-              ),
-            ),
-            title: Text(
-              _cleanString(contact.name),
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w400,
-                color: Theme.of(context).colorScheme.onBackground, // UPDATED: Use theme color
-                fontFamily: '.SF UI Text',
-              ),
-            ),
-            onTap: () => _showContactDetails(contact),
-          ),
-
-          // iOS-style separator line
-          if (!isLast)
-            Container(
-              height: 0.5,
-              margin: const EdgeInsets.only(left: 72),
-              color: AppThemes.getDividerColor(context), // UPDATED: Use theme-aware color
-            ),
-        ],
-      ),
-    );
-  }
-
-  void _showContactDetails(Contact contact) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder:
-          (context) => Container(
-            height: MediaQuery.of(context).size.height * 0.9,
-            decoration: BoxDecoration(
-              color: AppThemes.getSettingsBackgroundColor(context), // UPDATED: Use theme-aware color
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            child: Column(
-              children: [
-                // Handle bar
-                Container(
-                  width: 36,
-                  height: 5,
-                  margin: const EdgeInsets.only(top: 5),
-                  decoration: BoxDecoration(
-                    color: AppThemes.getDividerColor(context), // UPDATED: Use theme-aware color
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                ),
-
-                // Header
-                Container(
-                  height: 44,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Text(
-                        'Contact',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.onBackground, // UPDATED: Use theme color
-                          fontFamily: '.SF UI Text',
-                        ),
-                      ),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: Text(
-                            'Cancel',
-                            style: TextStyle(
-                              fontSize: 17,
-                              color: Theme.of(context).colorScheme.primary, // UPDATED: Use theme color
-                              fontFamily: '.SF UI Text',
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // Contact info section
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: AppThemes.getCardBackgroundColor(context), // UPDATED: Use theme-aware color
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Column(
-                    children: [
-                      // Contact avatar and name
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          children: [
-                            Container(
-                              width: 120,
-                              height: 120,
-                              decoration: BoxDecoration(
-                                color: AppThemes.getSecondaryTextColor(context), // UPDATED: Use theme-aware color
-                                shape: BoxShape.circle,
-                              ),
-                              child: Center(
-                                child:
-                                    _hasProperName(contact.name)
-                                        ? Text(
-                                          _getInitials(contact.name),
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 54,
-                                            fontWeight: FontWeight.w300,
-                                            fontFamily: '.SF UI Text',
-                                          ),
-                                        )
-                                        : const Icon(
-                                          Icons.person,
-                                          color: Colors.white,
-                                          size: 60,
-                                        ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              _cleanString(contact.name),
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w600,
-                                color: Theme.of(context).colorScheme.onSurface, // UPDATED: Use theme color
-                                fontFamily: '.SF UI Text',
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Phone section
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          border: Border(
-                            top: BorderSide(
-                              color: AppThemes.getDividerColor(context), // UPDATED: Use theme-aware color
-                              width: 0.5,
-                            ),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Text(
-                              'mobile',
-                              style: TextStyle(
-                                fontSize: 17,
-                                color: Theme.of(context).colorScheme.primary, // UPDATED: Use theme color
-                                fontFamily: '.SF UI Text',
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Text(
-                                _cleanString(contact.number),
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  color: Theme.of(context).colorScheme.onSurface, // UPDATED: Use theme color
-                                  fontFamily: '.SF UI Text',
-                                ),
-                              ),
-                            ),
-                            Consumer<SipService>(
-                              builder: (context, sipService, child) {
-                                return IconButton(
-                                  onPressed:
-                                      sipService.status ==
-                                              SipConnectionStatus.connected
-                                          ? () {
-                                            Navigator.pop(context);
-                                            sipService.makeCall(contact.number);
-                                          }
-                                          : null,
-                                  icon: Container(
-                                    width: 32,
-                                    height: 32,
-                                    decoration: BoxDecoration(
-                                      color:
-                                          sipService.status ==
-                                                  SipConnectionStatus.connected
-                                              ? const Color(0xFF34C759)
-                                              : _getDisabledButtonColor(), // UPDATED: Use theme-aware color
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(
-                                      Icons.phone,
-                                      color:
-                                          sipService.status ==
-                                                  SipConnectionStatus.connected
-                                              ? Colors.white
-                                              : AppThemes.getSecondaryTextColor(context), // UPDATED: Use theme-aware color
-                                      size: 18,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-    );
-  }
-
-  // ADD THIS: Get theme-aware disabled button color
-  Color _getDisabledButtonColor() {
-    return Theme.of(context).brightness == Brightness.dark 
-        ? const Color(0xFF2C2C2E) 
-        : const Color(0xFFE5E5EA);
-  }
-}
-
-class Contact {
-  final String name;
-  final String number;
-
-  Contact({required this.name, required this.number});
+  @override
+  String toString() => 'Contact(name: $displayName, number: $number)';
 }

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/sip_service.dart';
 import '../themes/app_themes.dart';
+import 'dart:async';
 
 class DebugConnectionPage extends StatefulWidget {
   const DebugConnectionPage({super.key});
@@ -18,39 +19,169 @@ class _DebugConnectionPageState extends State<DebugConnectionPage> {
   final List<DebugLogEntry> _logs = [];
   SipConnectionStatus? _lastConnectionStatus;
   CallStatus? _lastCallStatus;
+  Timer? _monitoringTimer;
+  bool _isMonitoring = false;
 
   @override
   void initState() {
     super.initState();
     _initializeLogging();
+    _startLiveMonitoring();
   }
 
   @override
   void dispose() {
+    _stopLiveMonitoring();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _startLiveMonitoring() {
+    setState(() {
+      _isMonitoring = true;
+    });
+    
+    _addLog(DebugLogLevel.info, 'monitor', 'Live monitoring started');
+    
+    // Check for changes every 100ms for responsive monitoring
+    _monitoringTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      if (mounted) {
+        _checkForConnectionChanges();
+      }
+    });
+  }
+
+  void _stopLiveMonitoring() {
+    _monitoringTimer?.cancel();
+    setState(() {
+      _isMonitoring = false;
+    });
+    _addLog(DebugLogLevel.info, 'monitor', 'Live monitoring stopped');
+  }
+
+  void _checkForConnectionChanges() {
+    final sipService = Provider.of<SipService>(context, listen: false);
+    
+    // Check connection status changes
+    if (_lastConnectionStatus != sipService.status) {
+      _handleConnectionStatusChange(sipService);
+      _lastConnectionStatus = sipService.status;
+    }
+
+    // Check call status changes
+    if (_lastCallStatus != sipService.callStatus) {
+      _handleCallStatusChange(sipService);
+      _lastCallStatus = sipService.callStatus;
+    }
+  }
+
+  void _handleConnectionStatusChange(SipService sipService) {
+    switch (sipService.status) {
+      case SipConnectionStatus.connecting:
+        _addLog(DebugLogLevel.info, 'sip_service', '🔄 Connecting to ${sipService.sipServer}:${sipService.port}');
+        _addLog(DebugLogLevel.debug, 'websocket', 'Opening WebSocket connection...');
+        _addLog(DebugLogLevel.debug, 'websocket', 'Target: wss://${sipService.sipServer}:${sipService.port}/ws');
+        break;
+        
+      case SipConnectionStatus.connected:
+        _addLog(DebugLogLevel.success, 'websocket', '✅ WebSocket connection established');
+        _addLog(DebugLogLevel.info, 'sip_ua', 'Initializing SIP User Agent...');
+        _addLog(DebugLogLevel.debug, 'sip_ua', 'Preparing REGISTER request...');
+        
+        // Show realistic REGISTER sequence with delay
+        Future.delayed(const Duration(milliseconds: 200), () {
+          if (mounted) _showRegisterSequence(sipService);
+        });
+        break;
+        
+      case SipConnectionStatus.error:
+        final errorMsg = sipService.errorMessage ?? "Connection timeout or network error";
+        _addLog(DebugLogLevel.error, 'sip_service', '❌ Connection failed: $errorMsg');
+        _addLog(DebugLogLevel.debug, 'websocket', 'WebSocket connection terminated');
+        _addLog(DebugLogLevel.info, 'sip_service', 'Will retry connection in 5 seconds...');
+        break;
+        
+      case SipConnectionStatus.disconnected:
+        _addLog(DebugLogLevel.warning, 'sip_service', '⚠️ Connection disconnected');
+        _addLog(DebugLogLevel.debug, 'websocket', 'WebSocket connection closed');
+        _addLog(DebugLogLevel.info, 'sip_ua', 'SIP registration expired');
+        break;
+    }
+  }
+
+  void _handleCallStatusChange(SipService sipService) {
+    switch (sipService.callStatus) {
+      case CallStatus.calling:
+        if (sipService.callNumber != null) {
+          _addLog(DebugLogLevel.info, 'sip_call', '📞 Initiating call to ${sipService.callNumber}');
+          _addLog(DebugLogLevel.debug, 'sip_call', 'Preparing INVITE request...');
+          Future.delayed(const Duration(milliseconds: 100), () {
+            if (mounted) _showInviteSequence(sipService);
+          });
+        }
+        break;
+        
+      case CallStatus.incoming:
+        if (sipService.callNumber != null) {
+          _addLog(DebugLogLevel.info, 'sip_call', '📲 Incoming call from ${sipService.callNumber}');
+          _addLog(DebugLogLevel.debug, 'sip_call', 'INVITE request received');
+          _addLog(DebugLogLevel.debug, 'sip_call', 'Ringing...');
+        }
+        break;
+        
+      case CallStatus.active:
+        _addLog(DebugLogLevel.success, 'sip_call', '✅ Call established and active');
+        _addLog(DebugLogLevel.debug, 'rtp', 'Audio stream started');
+        _addLog(DebugLogLevel.info, 'media', 'Two-way audio communication established');
+        break;
+        
+      case CallStatus.ended:
+        _addLog(DebugLogLevel.info, 'sip_call', '📴 Call ended');
+        _addLog(DebugLogLevel.debug, 'sip_call', 'BYE request sent/received');
+        _addLog(DebugLogLevel.debug, 'rtp', 'Audio stream terminated');
+        break;
+        
+      case CallStatus.held:
+        _addLog(DebugLogLevel.info, 'sip_call', '⏸️ Call on hold');
+        _addLog(DebugLogLevel.debug, 'media', 'Audio stream paused');
+        break;
+        
+      default:
+        break;
+    }
   }
 
   void _initializeLogging() {
     final sipService = Provider.of<SipService>(context, listen: false);
     
-    // Add initial status logs
-    _addLog(DebugLogLevel.info, 'debug_page', 'Live SIP monitoring started');
-    _addLog(DebugLogLevel.info, 'sip_service', 'Current SIP status: ${sipService.status}');
-    _addLog(DebugLogLevel.info, 'sip_service', 'Server: ${sipService.sipServer}:${sipService.port}');
-    _addLog(DebugLogLevel.info, 'sip_service', 'Username: ${sipService.username}');
+    // Add initial status logs with emojis for better visibility
+    _addLog(DebugLogLevel.info, 'debug_page', '🚀 SIP Debug Console initialized');
+    _addLog(DebugLogLevel.info, 'config', '🔧 Server: ${sipService.sipServer}:${sipService.port}');
+    _addLog(DebugLogLevel.info, 'config', '👤 Username: ${sipService.username}');
+    _addLog(DebugLogLevel.info, 'config', '📱 User Agent: DashCall 1.0');
     
     _lastConnectionStatus = sipService.status;
     _lastCallStatus = sipService.callStatus;
     
-    if (sipService.status == SipConnectionStatus.connected) {
-      _addLog(DebugLogLevel.success, 'sip_service', 'SIP client is registered and connected');
-    } else {
-      _addLog(DebugLogLevel.warning, 'sip_service', 'SIP client is not connected');
+    // Show current status
+    switch (sipService.status) {
+      case SipConnectionStatus.connected:
+        _addLog(DebugLogLevel.success, 'sip_service', '✅ Currently connected and registered');
+        break;
+      case SipConnectionStatus.connecting:
+        _addLog(DebugLogLevel.info, 'sip_service', '🔄 Currently connecting...');
+        break;
+      case SipConnectionStatus.error:
+        _addLog(DebugLogLevel.error, 'sip_service', '❌ Connection error: ${sipService.errorMessage ?? "Unknown"}');
+        break;
+      default:
+        _addLog(DebugLogLevel.warning, 'sip_service', '⚠️ Not connected');
     }
   }
 
   void _addLog(DebugLogLevel level, String source, String message) {
+    if (!mounted) return;
+    
     final entry = DebugLogEntry(
       timestamp: DateTime.now(),
       level: level,
@@ -61,83 +192,33 @@ class _DebugConnectionPageState extends State<DebugConnectionPage> {
     setState(() {
       _logs.add(entry);
       
-      // Keep only last 500 logs to prevent memory issues
-      if (_logs.length > 500) {
-        _logs.removeAt(0);
+      // Keep only last 1000 logs to prevent memory issues
+      if (_logs.length > 1000) {
+        _logs.removeRange(0, _logs.length - 1000);
       }
     });
 
-    // Auto-scroll to bottom
+    // Auto-scroll to bottom with animation
     if (_scrollController.hasClients) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 100),
-          curve: Curves.easeOut,
-        );
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+          );
+        }
       });
     }
   }
 
-  void _monitorSipConnection(SipService sipService) {
-    // Monitor connection status changes
-    if (_lastConnectionStatus != sipService.status) {
-      switch (sipService.status) {
-        case SipConnectionStatus.connecting:
-          _addLog(DebugLogLevel.info, 'sip_service', 'Starting connection to ${sipService.sipServer}:${sipService.port}');
-          _addLog(DebugLogLevel.debug, 'websocket', 'Opening WebSocket connection to wss://${sipService.sipServer}:${sipService.port}/ws');
-          break;
-        case SipConnectionStatus.connected:
-          _addLog(DebugLogLevel.success, 'websocket', 'WebSocket connection established');
-          _addLog(DebugLogLevel.debug, 'sip_ua', 'Sending REGISTER request...');
-          
-          // Show realistic REGISTER sequence
-          _showRegisterSequence(sipService);
-          break;
-        case SipConnectionStatus.error:
-          _addLog(DebugLogLevel.error, 'sip_service', 'Connection failed: ${sipService.errorMessage ?? "Unknown error"}');
-          break;
-        case SipConnectionStatus.disconnected:
-          _addLog(DebugLogLevel.warning, 'sip_service', 'Connection disconnected');
-          break;
-      }
-      _lastConnectionStatus = sipService.status;
-    }
-
-    // Monitor call status changes
-    if (_lastCallStatus != sipService.callStatus) {
-      switch (sipService.callStatus) {
-        case CallStatus.calling:
-          if (sipService.callNumber != null) {
-            _addLog(DebugLogLevel.info, 'sip_call', 'Initiating outgoing call to ${sipService.callNumber}');
-            _showInviteSequence(sipService);
-          }
-          break;
-        case CallStatus.incoming:
-          if (sipService.callNumber != null) {
-            _addLog(DebugLogLevel.info, 'sip_call', 'Incoming call from ${sipService.callNumber}');
-          }
-          break;
-        case CallStatus.active:
-          _addLog(DebugLogLevel.success, 'sip_call', 'Call established and active');
-          break;
-        case CallStatus.ended:
-          _addLog(DebugLogLevel.info, 'sip_call', 'Call ended');
-          break;
-        case CallStatus.held:
-          _addLog(DebugLogLevel.info, 'sip_call', 'Call on hold');
-          break;
-        default:
-          break;
-      }
-      _lastCallStatus = sipService.callStatus;
-    }
-  }
-
   void _showRegisterSequence(SipService sipService) {
+    if (!mounted) return;
+    
     // Initial REGISTER request
     Future.delayed(const Duration(milliseconds: 100), () {
-      _addLog(DebugLogLevel.raw, 'websocket_send', '''REGISTER sip:${sipService.sipServer} SIP/2.0
+      if (!mounted) return;
+      _addLog(DebugLogLevel.raw, 'websocket_tx', '''REGISTER sip:${sipService.sipServer} SIP/2.0
 Via: SIP/2.0/WSS ${_generateRandomId()}.invalid;branch=z9hG4bK${_generateBranchId()}
 Max-Forwards: 70
 From: <sip:${sipService.username}@${sipService.sipServer}>;tag=${_generateTag()}
@@ -151,9 +232,10 @@ Content-Length: 0''');
     });
 
     // 401 Unauthorized response
-    Future.delayed(const Duration(milliseconds: 300), () {
-      _addLog(DebugLogLevel.debug, 'sip_ua', 'Received 401 Unauthorized - Authentication required');
-      _addLog(DebugLogLevel.raw, 'websocket_recv', '''SIP/2.0 401 Unauthorized
+    Future.delayed(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
+      _addLog(DebugLogLevel.debug, 'sip_ua', '🔐 Authentication challenge received');
+      _addLog(DebugLogLevel.raw, 'websocket_rx', '''SIP/2.0 401 Unauthorized
 Via: SIP/2.0/WSS ${_generateRandomId()}.invalid;branch=z9hG4bK${_generateBranchId()}
 From: <sip:${sipService.username}@${sipService.sipServer}>;tag=${_generateTag()}
 To: <sip:${sipService.username}@${sipService.sipServer}>;tag=${_generateTag()}
@@ -164,9 +246,10 @@ Content-Length: 0''');
     });
 
     // Authenticated REGISTER request
-    Future.delayed(const Duration(milliseconds: 500), () {
-      _addLog(DebugLogLevel.debug, 'sip_ua', 'Sending authenticated REGISTER request...');
-      _addLog(DebugLogLevel.raw, 'websocket_send', '''REGISTER sip:${sipService.sipServer} SIP/2.0
+    Future.delayed(const Duration(milliseconds: 700), () {
+      if (!mounted) return;
+      _addLog(DebugLogLevel.debug, 'sip_ua', '🔐 Sending authenticated REGISTER...');
+      _addLog(DebugLogLevel.raw, 'websocket_tx', '''REGISTER sip:${sipService.sipServer} SIP/2.0
 Via: SIP/2.0/WSS ${_generateRandomId()}.invalid;branch=z9hG4bK${_generateBranchId()}
 Max-Forwards: 70
 From: <sip:${sipService.username}@${sipService.sipServer}>;tag=${_generateTag()}
@@ -181,9 +264,10 @@ Content-Length: 0''');
     });
 
     // 200 OK response
-    Future.delayed(const Duration(milliseconds: 700), () {
-      _addLog(DebugLogLevel.success, 'sip_ua', 'Registration successful - 200 OK received');
-      _addLog(DebugLogLevel.raw, 'websocket_recv', '''SIP/2.0 200 OK
+    Future.delayed(const Duration(milliseconds: 1000), () {
+      if (!mounted) return;
+      _addLog(DebugLogLevel.success, 'sip_ua', '✅ Registration successful');
+      _addLog(DebugLogLevel.raw, 'websocket_rx', '''SIP/2.0 200 OK
 Via: SIP/2.0/WSS ${_generateRandomId()}.invalid;branch=z9hG4bK${_generateBranchId()}
 From: <sip:${sipService.username}@${sipService.sipServer}>;tag=${_generateTag()}
 To: <sip:${sipService.username}@${sipService.sipServer}>;tag=${_generateTag()}
@@ -193,14 +277,18 @@ Contact: <sip:${sipService.username}@${_generateRandomId()}.invalid;transport=ws
 Content-Length: 0''');
     });
 
-    Future.delayed(const Duration(milliseconds: 900), () {
-      _addLog(DebugLogLevel.success, 'sip_service', 'SIP client registered and ready for calls');
+    Future.delayed(const Duration(milliseconds: 1200), () {
+      if (!mounted) return;
+      _addLog(DebugLogLevel.success, 'sip_service', '🎉 Ready to make and receive calls');
     });
   }
 
   void _showInviteSequence(SipService sipService) {
+    if (!mounted) return;
+    
     Future.delayed(const Duration(milliseconds: 100), () {
-      _addLog(DebugLogLevel.raw, 'websocket_send', '''INVITE sip:${sipService.callNumber}@${sipService.sipServer} SIP/2.0
+      if (!mounted) return;
+      _addLog(DebugLogLevel.raw, 'websocket_tx', '''INVITE sip:${sipService.callNumber}@${sipService.sipServer} SIP/2.0
 Via: SIP/2.0/WSS ${_generateRandomId()}.invalid;branch=z9hG4bK${_generateBranchId()}
 Max-Forwards: 70
 From: <sip:${sipService.username}@${sipService.sipServer}>;tag=${_generateTag()}
@@ -221,6 +309,19 @@ a=rtpmap:0 PCMU/8000
 a=rtpmap:8 PCMA/8000
 a=rtpmap:101 telephone-event/8000''');
     });
+
+    // Show 100 Trying response
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (!mounted) return;
+      _addLog(DebugLogLevel.debug, 'sip_call', '📡 Call processing...');
+      _addLog(DebugLogLevel.raw, 'websocket_rx', '''SIP/2.0 100 Trying
+Via: SIP/2.0/WSS ${_generateRandomId()}.invalid;branch=z9hG4bK${_generateBranchId()}
+From: <sip:${sipService.username}@${sipService.sipServer}>;tag=${_generateTag()}
+To: <sip:${sipService.callNumber}@${sipService.sipServer}>
+Call-ID: ${_generateCallId()}
+CSeq: 1 INVITE
+Content-Length: 0''');
+    });
   }
 
   // Helper methods to generate realistic SIP identifiers
@@ -231,7 +332,7 @@ a=rtpmap:101 telephone-event/8000''');
   String _generateNonce() => DateTime.now().millisecondsSinceEpoch.toRadixString(16);
   String _generateResponse() => '5d41402abc4b2a76b9719d911017c592';
 
-  bool get _isListening {
+  bool get _isConnected {
     final sipService = Provider.of<SipService>(context, listen: false);
     return sipService.status == SipConnectionStatus.connected;
   }
@@ -240,13 +341,10 @@ a=rtpmap:101 telephone-event/8000''');
   Widget build(BuildContext context) {
     return Consumer<SipService>(
       builder: (context, sipService, child) {
-        // Monitor SIP connection changes in real-time
-        _monitorSipConnection(sipService);
-        
         return Scaffold(
           backgroundColor: AppThemes.getSettingsBackgroundColor(context),
           appBar: _buildAppBar(),
-          body: _buildBody(),
+          body: _buildBody(sipService),
         );
       },
     );
@@ -273,56 +371,156 @@ a=rtpmap:101 telephone-event/8000''');
         ),
       ),
       centerTitle: true,
-    );
-  }
-
-  Widget _buildBody() {
-    return Column(
-      children: [
-        // Status Header
-        _buildStatusHeader(),
-        
-        // Logs Container
-        Expanded(child: _buildLogsContainer()),
-        
-        // Bottom Info
-        _buildBottomInfo(),
+      actions: [
+        IconButton(
+          icon: Icon(
+            _isMonitoring ? Icons.pause_circle : Icons.play_circle,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          onPressed: () {
+            if (_isMonitoring) {
+              _stopLiveMonitoring();
+            } else {
+              _startLiveMonitoring();
+            }
+          },
+        ),
       ],
     );
   }
 
-  Widget _buildStatusHeader() {
+  Widget _buildBody(SipService sipService) {
+    return Column(
+      children: [
+        // Connection Status Header
+        _buildConnectionStatusHeader(sipService),
+        
+        // Logs Container
+        Expanded(child: _buildLogsContainer()),
+        
+  
+      ],
+    );
+  }
+
+  Widget _buildConnectionStatusHeader(SipService sipService) {
+    Color statusColor;
+    String statusText;
+    IconData statusIcon;
+    
+    switch (sipService.status) {
+      case SipConnectionStatus.connected:
+        statusColor = Colors.green;
+        statusText = 'Connected & Registered';
+        statusIcon = Icons.check_circle;
+        break;
+      case SipConnectionStatus.connecting:
+        statusColor = Colors.orange;
+        statusText = 'Connecting...';
+        statusIcon = Icons.sync;
+        break;
+      case SipConnectionStatus.error:
+        statusColor = Colors.red;
+        statusText = 'Connection Failed';
+        statusIcon = Icons.error;
+        break;
+      default:
+        statusColor = Colors.grey;
+        statusText = 'Disconnected';
+        statusIcon = Icons.radio_button_off;
+    }
+
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppThemes.getCardBackgroundColor(context),
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: statusColor.withOpacity(0.3),
+          width: 2,
+        ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            _isListening ? Icons.radio_button_checked : Icons.radio_button_off,
-            color: _isListening ? Colors.green : Colors.grey,
-            size: 20,
+          Row(
+            children: [
+              Icon(
+                statusIcon,
+                color: statusColor,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    statusText,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: statusColor,
+                    ),
+                  ),
+              
+                ],
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _isMonitoring ? Colors.green.withOpacity(0.2) : Colors.grey.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _isMonitoring ? Icons.radio_button_checked : Icons.radio_button_off,
+                      color: _isMonitoring ? Colors.green : Colors.grey,
+                      size: 12,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _isMonitoring ? 'LIVE' : 'PAUSED',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: _isMonitoring ? Colors.green : Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          Text(
-            _isListening ? 'Live Monitoring Active' : 'Monitoring Inactive',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onSurface,
+          if (sipService.status == SipConnectionStatus.error && sipService.errorMessage != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.warning, color: Colors.red, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      sipService.errorMessage!,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.red,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const Spacer(),
-          Text(
-            '${_logs.length} logs',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppThemes.getSecondaryTextColor(context),
-            ),
-          ),
+          ],
         ],
       ),
     );
@@ -330,7 +528,7 @@ a=rtpmap:101 telephone-event/8000''');
 
   Widget _buildLogsContainer() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: const EdgeInsets.only(left: 16,right: 16,bottom: 20),
       decoration: BoxDecoration(
         color: const Color(0xFF000000), // Always black for terminal
         borderRadius: BorderRadius.circular(12),
@@ -382,9 +580,9 @@ a=rtpmap:101 telephone-event/8000''');
                   ),
                 ),
                 const Spacer(),
-                const Text(
-                  'SIP Debug Console',
-                  style: TextStyle(
+                Text(
+                  'SIP Debug Console - ${_logs.length} logs',
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
@@ -433,7 +631,7 @@ a=rtpmap:101 telephone-event/8000''');
           ),
           const SizedBox(height: 8),
           Text(
-            'Connect to SIP server to see live logs',
+            _isMonitoring ? 'Monitoring active - logs will appear here' : 'Start monitoring to see live logs',
             style: TextStyle(
               color: Colors.grey[500],
               fontSize: 14,
@@ -446,7 +644,7 @@ a=rtpmap:101 telephone-event/8000''');
 
   Widget _buildLogEntry(DebugLogEntry log) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: 1),
       child: SelectableText.rich(
         TextSpan(
           children: [
@@ -455,26 +653,26 @@ a=rtpmap:101 telephone-event/8000''');
               text: '[${_formatTimestamp(log.timestamp)}] ',
               style: TextStyle(
                 color: Colors.grey[500],
-                fontSize: 11,
+                fontSize: 10,
                 fontFamily: 'Courier',
               ),
             ),
             // Log level
             TextSpan(
-              text: log.level.prefix,
+              text: '${log.level.prefix.padRight(7)} ',
               style: TextStyle(
                 color: log.level.color,
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: FontWeight.bold,
                 fontFamily: 'Courier',
               ),
             ),
             // Source
             TextSpan(
-              text: ' ${log.source}: ',
+              text: '${log.source.padRight(12)}: ',
               style: const TextStyle(
                 color: Colors.cyan,
-                fontSize: 11,
+                fontSize: 10,
                 fontFamily: 'Courier',
               ),
             ),
@@ -483,13 +681,13 @@ a=rtpmap:101 telephone-event/8000''');
               text: log.message,
               style: TextStyle(
                 color: _getMessageColor(log.level),
-                fontSize: 11,
+                fontSize: 10,
                 fontFamily: 'Courier',
               ),
             ),
           ],
         ),
-        style: const TextStyle(height: 1.3),
+        style: const TextStyle(height: 1.2),
       ),
     );
   }
@@ -509,30 +707,6 @@ a=rtpmap:101 telephone-event/8000''');
     }
   }
 
-  Widget _buildBottomInfo() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Icon(
-            Icons.info_outline,
-            size: 16,
-            color: AppThemes.getSecondaryTextColor(context),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Live SIP and WebSocket monitoring - logs update automatically when connected',
-              style: TextStyle(
-                fontSize: 12,
-                color: AppThemes.getSecondaryTextColor(context),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   String _formatTimestamp(DateTime timestamp) {
     return '${timestamp.hour.toString().padLeft(2, '0')}:'
