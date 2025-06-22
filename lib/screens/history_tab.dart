@@ -1,9 +1,11 @@
-// lib/screens/history_tab.dart - Updated with Theme Support (Font removed)
+// lib/screens/history_tab.dart - Updated with SQLite Database (Same UI)
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/sip_service.dart';
+import '../services/call_history_manager.dart';
+import '../services/call_history_database.dart';
 import '../themes/app_themes.dart';
 
 class HistoryTab extends StatefulWidget {
@@ -16,6 +18,13 @@ class HistoryTab extends StatefulWidget {
 class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
   late TabController _tabController;
   int _selectedTabIndex = 0;
+  
+  // Database-backed call lists
+  List<CallRecord> _allCalls = [];
+  List<CallRecord> _incomingCalls = [];
+  List<CallRecord> _outgoingCalls = [];
+  List<CallRecord> _missedCalls = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -26,6 +35,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
         _selectedTabIndex = _tabController.index;
       });
     });
+    _loadCallHistory();
   }
 
   @override
@@ -34,10 +44,38 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  List<CallRecord> get _allCalls => CallHistoryManager.getAllCalls();
-  List<CallRecord> get _incomingCalls => CallHistoryManager.getIncomingCalls();
-  List<CallRecord> get _outgoingCalls => CallHistoryManager.getOutgoingCalls();
-  List<CallRecord> get _missedCalls => CallHistoryManager.getMissedCalls();
+  /// Load call history from database
+  Future<void> _loadCallHistory() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final allCalls = await CallHistoryManager.getAllCalls();
+      final incomingCalls = await CallHistoryManager.getIncomingCalls();
+      final outgoingCalls = await CallHistoryManager.getOutgoingCalls();
+      final missedCalls = await CallHistoryManager.getMissedCalls();
+
+      setState(() {
+        _allCalls = allCalls;
+        _incomingCalls = incomingCalls;
+        _outgoingCalls = outgoingCalls;
+        _missedCalls = missedCalls;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('❌ [HistoryTab] Failed to load call history: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // Getters for compatibility with existing UI code
+  List<CallRecord> get allCalls => _allCalls;
+  List<CallRecord> get incomingCalls => _incomingCalls;
+  List<CallRecord> get outgoingCalls => _outgoingCalls;
+  List<CallRecord> get missedCalls => _missedCalls;
 
   String _getInitials(String? name) {
     if (name == null || name.isEmpty) return '';
@@ -82,15 +120,15 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
                   ),
                 ),
 
-                // Tab content
+                // Tab content - same UI, different data source
                 Expanded(
                   child: TabBarView(
                     controller: _tabController,
                     children: [
-                      _buildCallList(_allCalls, scale),
-                      _buildCallList(_incomingCalls, scale),
-                      _buildCallList(_outgoingCalls, scale),
-                      _buildCallList(_missedCalls, scale),
+                      _buildCallList(allCalls, scale),
+                      _buildCallList(incomingCalls, scale),
+                      _buildCallList(outgoingCalls, scale),
+                      _buildCallList(missedCalls, scale),
                     ],
                   ),
                 ),
@@ -156,6 +194,18 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
   }
 
   Widget _buildCallList(List<CallRecord> calls, double scale) {
+    // Show loading only if we're still loading and have no data
+    if (_isLoading && calls.isEmpty) {
+      return Container(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: Center(
+          child: CircularProgressIndicator(
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+      );
+    }
+
     if (calls.isEmpty) {
       return Container(
         color: Theme.of(context).scaffoldBackgroundColor,
@@ -163,11 +213,11 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-             Icon(
-  _getEmptyStateIcon(),
-  size: 64 * scale,
-  color: AppThemes.getSecondaryTextColor(context),
-),
+              Icon(
+                _getEmptyStateIcon(),
+                size: 64 * scale,
+                color: AppThemes.getSecondaryTextColor(context),
+              ),
               SizedBox(height: 16 * scale),
               Text(
                 _getEmptyStateTitle(),
@@ -233,20 +283,21 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
         return 'Your call history will appear here';
     }
   }
+
   IconData _getEmptyStateIcon() {
-  switch (_selectedTabIndex) {
-    case 0:
-      return CupertinoIcons.phone;
-    case 1:
-      return CupertinoIcons.arrow_down_left;
-    case 2:
-      return CupertinoIcons.arrow_up_right;
-    case 3:
-      return CupertinoIcons.phone_down;
-    default:
-      return CupertinoIcons.phone;
+    switch (_selectedTabIndex) {
+      case 0:
+        return CupertinoIcons.phone;
+      case 1:
+        return CupertinoIcons.arrow_down_left;
+      case 2:
+        return CupertinoIcons.arrow_up_right;
+      case 3:
+        return CupertinoIcons.phone_down;
+      default:
+        return CupertinoIcons.phone;
+    }
   }
-}
 
   Widget _buildCallTile(CallRecord call, bool isLast, double scale) {
     return InkWell(
@@ -266,24 +317,24 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
                   width: 40 * scale,
                   height: 40 * scale,
                   decoration: BoxDecoration(
-color: AppThemes.getSecondaryTextColor(context),                    shape: BoxShape.circle,
+                    color: AppThemes.getSecondaryTextColor(context),
+                    shape: BoxShape.circle,
                   ),
                   child: Center(
-                    child:
-                        call.name != null
-                            ? Text(
-                              _getInitials(call.name),
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16 * scale,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            )
-                            : Icon(
-                              CupertinoIcons.person_fill,
+                    child: call.name != null
+                        ? Text(
+                            _getInitials(call.name),
+                            style: TextStyle(
                               color: Colors.white,
-                              size: 20 * scale,
+                              fontSize: 16 * scale,
+                              fontWeight: FontWeight.w500,
                             ),
+                          )
+                        : Icon(
+                            CupertinoIcons.person_fill,
+                            color: Colors.white,
+                            size: 20 * scale,
+                          ),
                   ),
                 ),
 
@@ -297,10 +348,9 @@ color: AppThemes.getSecondaryTextColor(context),                    shape: BoxSh
                         children: [
                           Icon(
                             _getCallDirectionIcon(call.type),
-                            color:
-                                call.type == CallType.missed
-                                    ? const Color(0xFFFF3B30)
-                                    : AppThemes.getSecondaryTextColor(context),
+                            color: call.type == CallType.missed
+                                ? const Color(0xFFFF3B30)
+                                : AppThemes.getSecondaryTextColor(context),
                             size: 16 * scale,
                           ),
                           SizedBox(width: 6 * scale),
@@ -310,10 +360,9 @@ color: AppThemes.getSecondaryTextColor(context),                    shape: BoxSh
                               style: TextStyle(
                                 fontSize: 17 * scale,
                                 fontWeight: FontWeight.w400,
-                                color:
-                                    call.type == CallType.missed
-                                        ? const Color(0xFFFF3B30)
-                                        : Theme.of(context).colorScheme.onSurface,
+                                color: call.type == CallType.missed
+                                    ? const Color(0xFFFF3B30)
+                                    : Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                           ),
@@ -364,7 +413,8 @@ color: AppThemes.getSecondaryTextColor(context),                    shape: BoxSh
             Container(
               height: 0.5,
               margin: EdgeInsets.only(left: 68 * scale),
-color: AppThemes.getSecondaryTextColor(context),            ),
+              color: AppThemes.getDividerColor(context),
+            ),
         ],
       ),
     );
@@ -384,79 +434,79 @@ color: AppThemes.getSecondaryTextColor(context),            ),
   void _showCallDetails(CallRecord call) {
     showCupertinoModalPopup(
       context: context,
-      builder:
-          (BuildContext context) => CupertinoActionSheet(
-            title: Text(
-              call.name ?? call.number,
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-            ),
-            message: Text(
-              '${_formatTime(call.timestamp)} • ${_formatDuration(call.duration)}',
-              style: TextStyle(color: AppThemes.getSecondaryTextColor(context)),
-            ),
-            actions: [
-              CupertinoActionSheetAction(
-                onPressed: () {
-                  Navigator.pop(context);
-                  // Make call
-                  final sipService = Provider.of<SipService>(
-                    context,
-                    listen: false,
-                  );
-                  if (sipService.status == SipConnectionStatus.connected) {
-                    sipService.makeCall(call.number);
-                  }
-                },
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      CupertinoIcons.phone,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Call',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              CupertinoActionSheetAction(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _deleteCallRecord(call);
-                },
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(CupertinoIcons.delete, color: Color(0xFFFF3B30)),
-                    SizedBox(width: 8),
-                    Text('Delete', style: TextStyle(color: Color(0xFFFF3B30))),
-                  ],
-                ),
-              ),
-            ],
-            cancelButton: CupertinoActionSheetAction(
-              onPressed: () => Navigator.pop(context),
-              isDefaultAction: true,
-              child: Text(
-                'Cancel',
-                style: TextStyle(
+      builder: (BuildContext context) => CupertinoActionSheet(
+        title: Text(
+          call.name ?? call.number,
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+        ),
+        message: Text(
+          '${_formatTime(call.timestamp)} • ${_formatDuration(call.duration)}',
+          style: TextStyle(color: AppThemes.getSecondaryTextColor(context)),
+        ),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              // Make call
+              final sipService = Provider.of<SipService>(
+                context,
+                listen: false,
+              );
+              if (sipService.status == SipConnectionStatus.connected) {
+                sipService.makeCall(call.number);
+              }
+            },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  CupertinoIcons.phone,
                   color: Theme.of(context).colorScheme.primary,
                 ),
-              ),
+                const SizedBox(width: 8),
+                Text(
+                  'Call',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ],
             ),
           ),
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteCallRecord(call);
+            },
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(CupertinoIcons.delete, color: Color(0xFFFF3B30)),
+                SizedBox(width: 8),
+                Text('Delete', style: TextStyle(color: Color(0xFFFF3B30))),
+              ],
+            ),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(context),
+          isDefaultAction: true,
+          child: Text(
+            'Cancel',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
-  void _deleteCallRecord(CallRecord call) {
-    setState(() {
-      CallHistoryManager.deleteCall(call.id);
-    });
+  Future<void> _deleteCallRecord(CallRecord call) async {
+    // Delete from database
+    await CallHistoryManager.deleteCall(call.id);
+    // Refresh the UI
+    await _loadCallHistory();
   }
 
   String _formatRelativeTime(DateTime dateTime) {
@@ -477,10 +527,9 @@ color: AppThemes.getSecondaryTextColor(context),            ),
   }
 
   String _formatTime(DateTime dateTime) {
-    final hour =
-        dateTime.hour == 0
-            ? 12
-            : (dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour);
+    final hour = dateTime.hour == 0
+        ? 12
+        : (dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour);
     final minute = dateTime.minute.toString().padLeft(2, '0');
     final period = dateTime.hour >= 12 ? 'PM' : 'AM';
     return '$hour:$minute $period';
@@ -498,170 +547,6 @@ color: AppThemes.getSecondaryTextColor(context),            ),
       return '${minutes}m ${seconds}s';
     } else {
       return '${seconds}s';
-    }
-  }
-}
-
-// Enhanced CallRecord and CallHistoryManager
-enum CallType { incoming, outgoing, missed }
-
-class CallRecord {
-  final String id;
-  final String number;
-  final String? name;
-  final CallType type;
-  final DateTime timestamp;
-  final Duration duration;
-
-  CallRecord({
-    required this.id,
-    required this.number,
-    this.name,
-    required this.type,
-    required this.timestamp,
-    required this.duration,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'number': number,
-      'name': name,
-      'type': type.index,
-      'timestamp': timestamp.millisecondsSinceEpoch,
-      'duration': duration.inSeconds,
-    };
-  }
-
-  factory CallRecord.fromJson(Map<String, dynamic> json) {
-    return CallRecord(
-      id: json['id'],
-      number: json['number'],
-      name: json['name'],
-      type: CallType.values[json['type']],
-      timestamp: DateTime.fromMillisecondsSinceEpoch(json['timestamp']),
-      duration: Duration(seconds: json['duration']),
-    );
-  }
-}
-
-class CallHistoryManager {
-  static final List<CallRecord> _callHistory = [];
-
-  // Add a new call record
-  static void addCall({
-    required String number,
-    String? name,
-    required CallType type,
-    required DateTime timestamp,
-    Duration duration = Duration.zero,
-  }) {
-    final record = CallRecord(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      number: number,
-      name: name,
-      type: type,
-      timestamp: timestamp,
-      duration: duration,
-    );
-
-    _callHistory.insert(0, record); // Insert at beginning for latest first
-
-    // Keep only last 100 calls to prevent memory issues
-    if (_callHistory.length > 100) {
-      _callHistory.removeRange(100, _callHistory.length);
-    }
-
-    print('📱 [CallHistory] Added ${type.name} call: $number');
-  }
-
-  // Get all calls
-  static List<CallRecord> getAllCalls() {
-    return List.from(_callHistory);
-  }
-
-  // Get incoming calls
-  static List<CallRecord> getIncomingCalls() {
-    return _callHistory
-        .where((call) => call.type == CallType.incoming)
-        .toList();
-  }
-
-  // Get outgoing calls
-  static List<CallRecord> getOutgoingCalls() {
-    return _callHistory
-        .where((call) => call.type == CallType.outgoing)
-        .toList();
-  }
-
-  // Get missed calls
-  static List<CallRecord> getMissedCalls() {
-    return _callHistory.where((call) => call.type == CallType.missed).toList();
-  }
-
-  // Delete a specific call
-  static void deleteCall(String id) {
-    _callHistory.removeWhere((call) => call.id == id);
-    print('📱 [CallHistory] Deleted call: $id');
-  }
-
-  // Clear all calls
-  static void clearHistory() {
-    _callHistory.clear();
-    print('📱 [CallHistory] Cleared all call history');
-  }
-
-  // Update call duration (for when call ends)
-  static void updateCallDuration(String number, Duration duration) {
-    final index = _callHistory.indexWhere(
-      (call) =>
-          call.number == number &&
-          call.duration == Duration.zero &&
-          DateTime.now().difference(call.timestamp).inMinutes <
-              5, // Recent call
-    );
-
-    if (index != -1) {
-      final oldCall = _callHistory[index];
-      final updatedCall = CallRecord(
-        id: oldCall.id,
-        number: oldCall.number,
-        name: oldCall.name,
-        type: oldCall.type,
-        timestamp: oldCall.timestamp,
-        duration: duration,
-      );
-
-      _callHistory[index] = updatedCall;
-      print(
-        '📱 [CallHistory] Updated call duration: $number -> ${duration.inSeconds}s',
-      );
-    }
-  }
-
-  // Mark call as missed
-  static void markAsMissed(String number) {
-    final index = _callHistory.indexWhere(
-      (call) =>
-          call.number == number &&
-          call.type == CallType.incoming &&
-          DateTime.now().difference(call.timestamp).inMinutes <
-              5, // Recent call
-    );
-
-    if (index != -1) {
-      final oldCall = _callHistory[index];
-      final missedCall = CallRecord(
-        id: oldCall.id,
-        number: oldCall.number,
-        name: oldCall.name,
-        type: CallType.missed,
-        timestamp: oldCall.timestamp,
-        duration: Duration.zero,
-      );
-
-      _callHistory[index] = missedCall;
-      print('📱 [CallHistory] Marked call as missed: $number');
     }
   }
 }

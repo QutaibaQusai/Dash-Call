@@ -1,11 +1,11 @@
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/sip_service.dart';
-import 'services/theme_service.dart' as services; // ADD THIS with alias
-import 'themes/app_themes.dart'; // ADD THIS
+import 'services/theme_service.dart' as services;
+import 'services/call_history_manager.dart'; // ADD THIS
+import 'themes/app_themes.dart';
 import 'screens/main_screen.dart';
 import 'screens/qr_login_screen.dart';
 import 'dart:io';
@@ -13,11 +13,15 @@ import 'dart:io';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize database first
+  await CallHistoryManager.initialize(); // ADD THIS
+
   await _requestPermissions();
 
   runApp(const DashCallApp());
 }
 
+// Rest of your existing code remains the same...
 Future<void> _requestPermissions() async {
   print('🔐 [Permissions] Requesting permissions...');
 
@@ -131,16 +135,15 @@ class DashCallApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider( // CHANGED: Use MultiProvider for multiple providers
+    return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => SipService()..initialize()),
-        ChangeNotifierProvider(create: (_) => services.ThemeService()..initialize()), // ADD THIS
+        ChangeNotifierProvider(create: (_) => services.ThemeService()..initialize()),
       ],
-      child: Consumer<services.ThemeService>( // ADD THIS: Listen to theme changes
+      child: Consumer<services.ThemeService>(
         builder: (context, themeService, child) {
           return MaterialApp(
             title: 'DashCall',
-            // UPDATED: Use dynamic themes based on ThemeService
             theme: AppThemes.lightTheme,
             darkTheme: AppThemes.darkTheme,
             themeMode: _convertThemeMode(themeService.themeMode),
@@ -150,9 +153,7 @@ class DashCallApp extends StatelessWidget {
               '/qr-login': (context) => const QRLoginScreen(),
             },
             debugShowCheckedModeBanner: false,
-            // ADD THIS: Handle system brightness changes
             builder: (context, child) {
-              // Listen for system brightness changes
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 themeService.handleSystemBrightnessChange();
               });
@@ -164,7 +165,6 @@ class DashCallApp extends StatelessWidget {
     );
   }
 
-  // ADD THIS: Convert ThemeService.ThemeMode to Flutter's ThemeMode
   ThemeMode _convertThemeMode(services.ThemeMode themeMode) {
     switch (themeMode) {
       case services.ThemeMode.light:
