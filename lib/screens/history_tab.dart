@@ -2,9 +2,7 @@
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../services/multi_account_manager.dart';
-import '../services/sip_service.dart';
+
 import '../services/call_history_manager.dart';
 import '../services/call_history_database.dart';
 import '../themes/app_themes.dart';
@@ -58,13 +56,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
         child: Column(
           children: [
             const SizedBox(height: 16),
-
-            // Tab bar FIRST
             _buildTabBar(),
-
-            const SizedBox(height: 12),
-
-            // Search bar UNDER tabs
             SearchBarWidget(
               controller: _searchController,
               onChanged: _onSearchChanged,

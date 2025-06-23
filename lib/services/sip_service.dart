@@ -1,4 +1,4 @@
-// lib/services/sip_service.dart - Updated with Account Name & Organization
+// lib/services/sip_service.dart - FIXED: Only CallKit for incoming calls
 
 import 'package:dash_call/services/call_history_database.dart';
 import 'package:dash_call/services/call_history_manager.dart';
@@ -31,7 +31,7 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
   String _domain = '';
   int _port = 8088;
 
-  // NEW: Account Information
+  // Account Information
   String _accountName = '';
   String _organization = '';
 
@@ -44,6 +44,9 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
   bool _isMuted = false;
   bool _isSpeakerOn = false;
 
+  // FIXED: Add flag to track if we're showing CallKit
+  bool _isShowingCallKit = false;
+
   // Getters
   SipConnectionStatus get status => _status;
   CallStatus get callStatus => _callStatus;
@@ -54,11 +57,8 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
   String get password => _password;
   String get domain => _domain;
   int get port => _port;
-  
-  // NEW: Account Information Getters
   String get accountName => _accountName;
   String get organization => _organization;
-  
   Call? get currentCall => _currentCall;
   String? get callNumber => _callNumber;
   DateTime? get callStartTime => _callStartTime;
@@ -66,6 +66,14 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
   bool get isRegistered => _isRegistered;
   bool get isMuted => _isMuted;
   bool get isSpeakerOn => _isSpeakerOn;
+
+  // FIXED: New getter to check if we should show Flutter call screen
+  bool get shouldShowFlutterCallScreen {
+    // Only show Flutter call screen if:
+    // 1. We have an active call AND
+    // 2. We're NOT showing CallKit for incoming call
+    return _callStatus == CallStatus.active && !_isShowingCallKit;
+  }
 
   /// Toggle microphone mute
   Future<void> toggleMute() async {
@@ -185,19 +193,28 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     }
   }
 
-  // CallKit callback handlers
+  // FIXED: CallKit callback handlers - Only handle accepts for incoming calls
   void _onCallKitAccepted(String callUuid) {
     print('🟢 [SipService] CallKit: User ACCEPTED call $callUuid');
+    
+    // FIXED: Clear CallKit flag and answer the call
+    _isShowingCallKit = false;
     answerCall();
   }
 
   void _onCallKitRejected(String callUuid) {
     print('🔴 [SipService] CallKit: User REJECTED call $callUuid');
+    
+    // FIXED: Clear CallKit flag and reject the call
+    _isShowingCallKit = false;
     rejectCall();
   }
 
   void _onCallKitEnded(String callUuid) {
     print('📞 [SipService] CallKit: Call ENDED $callUuid');
+    
+    // FIXED: Clear CallKit flag and hang up
+    _isShowingCallKit = false;
     hangupCall();
   }
 
@@ -211,7 +228,7 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     _domain = prefs.getString('sip_domain') ?? '';
     _port = prefs.getInt('sip_port') ?? 8088;
     
-    // NEW: Load account information
+    // Load account information
     _accountName = prefs.getString('account_name') ?? '';
     _organization = prefs.getString('organization') ?? '';
 
@@ -247,7 +264,7 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     await prefs.setString('sip_domain', domain);
     await prefs.setInt('sip_port', port);
     
-    // NEW: Save account information if provided
+    // Save account information if provided
     if (accountName != null) {
       await prefs.setString('account_name', accountName);
       _accountName = accountName;
@@ -310,7 +327,7 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
       settings.uri = sipUri;
       settings.authorizationUser = _username;
       settings.password = _password;
-      settings.displayName = displayName; // Use account name as display name
+      settings.displayName = displayName;
       settings.userAgent = 'DashCall 1.0';
       settings.register = true;
       settings.transportType = TransportType.WS;
@@ -395,17 +412,14 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
       // Record outgoing call in history
       CallHistoryManager.addCall(
         number: phoneNumber,
-        name: null, // You can enhance this to lookup contact name
+        name: null,
         type: CallType.outgoing,
         timestamp: DateTime.now(),
         duration: Duration.zero,
       );
 
-      // Show native outgoing call UI
-      await CallKitService.startCall(
-        callerName: phoneNumber,
-        callerNumber: phoneNumber,
-      );
+      // FIXED: Don't show CallKit for outgoing calls - let Flutter handle it
+      _isShowingCallKit = false;
 
       _helper!.call(phoneNumber);
       print('✅ [SipService] Call initiated successfully');
@@ -431,6 +445,9 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
         print('📞 [SipService] Calling answer() on current call');
         _currentCall!.answer(_helper!.buildCallOptions());
         _callStartTime = DateTime.now();
+        
+        // FIXED: When answering, clear CallKit flag and set to active
+        _isShowingCallKit = false;
         _setCallStatus(CallStatus.active);
         _setStatusMessage('Call active');
 
@@ -467,6 +484,8 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
         // End call in CallKit
         await CallKitService.endCall();
 
+        // FIXED: Clear CallKit flag
+        _isShowingCallKit = false;
         _endCall();
         print('✅ [SipService] Call rejected successfully');
       } catch (e) {
@@ -487,6 +506,8 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
         // End call in CallKit
         await CallKitService.endCall();
 
+        // FIXED: Clear CallKit flag
+        _isShowingCallKit = false;
         _endCall();
       } catch (e) {
         _setError('Failed to hangup call: $e');
@@ -537,25 +558,32 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
 
     _currentCall = call;
 
-    // Check if this is an incoming call - Always use CallKit
+    // FIXED: Handle incoming calls - ONLY show CallKit, no Flutter screens
     if (call.direction == 'INCOMING' &&
         state.state == CallStateEnum.CALL_INITIATION) {
       print('📲 [SipService] 🚨 INCOMING CALL DETECTED! 🚨');
       _callNumber = call.remote_identity ?? 'Unknown';
-      _setCallStatus(CallStatus.incoming);
+      
+      // FIXED: Set flag to indicate we're showing CallKit
+      _isShowingCallKit = true;
+      
+      // Set status to incoming but DON'T notify listeners yet to prevent Flutter UI
+      _callStatus = CallStatus.incoming;
 
       // Record incoming call in history
       CallHistoryManager.addCall(
         number: call.remote_identity ?? 'Unknown',
-        name: null, // You can enhance this to lookup contact name
+        name: null,
         type: CallType.incoming,
         timestamp: DateTime.now(),
         duration: Duration.zero,
       );
 
-      // Always show native CallKit UI
-      print('📱 [SipService] Showing native CallKit incoming call screen');
+      // Show ONLY CallKit - no Flutter screens
+      print('📱 [SipService] Showing ONLY CallKit incoming call screen');
       _showNativeIncomingCall(call.remote_identity ?? 'Unknown');
+      
+      // FIXED: Don't call notifyListeners() here to prevent Flutter UI from showing
       return;
     }
 
@@ -565,10 +593,8 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
         if (call.direction == 'OUTGOING') {
           _setCallStatus(CallStatus.calling);
           _setStatusMessage('Initiating call...');
-        } else if (call.direction == 'INCOMING') {
-          _setCallStatus(CallStatus.incoming);
-          _setStatusMessage('Incoming call...');
         }
+        // FIXED: Don't handle incoming here - handled above
         break;
 
       case CallStateEnum.PROGRESS:
@@ -581,6 +607,9 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
       case CallStateEnum.ACCEPTED:
       case CallStateEnum.CONFIRMED:
         print('✅ [CallState] Call accepted/confirmed');
+        
+        // FIXED: Clear CallKit flag when call becomes active
+        _isShowingCallKit = false;
         _setCallStatus(CallStatus.active);
         _setStatusMessage('Call connected');
 
@@ -621,7 +650,8 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
         // End call in CallKit
         CallKitService.endCall();
 
-        // Clean up call state and audio
+        // FIXED: Clear CallKit flag and clean up
+        _isShowingCallKit = false;
         _endCall();
         break;
 
@@ -797,6 +827,9 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     _isMuted = false;
     _isSpeakerOn = false;
 
+    // FIXED: Clear CallKit flag
+    _isShowingCallKit = false;
+
     // Cleanup audio routing - restore normal audio
     try {
       Helper.setSpeakerphoneOn(false);
@@ -848,6 +881,7 @@ class SipService extends ChangeNotifier implements SipUaHelperListener {
     print('🗑️ [SipService] Disposing SIP service...');
     _isConnecting = false;
     _isRegistered = false;
+    _isShowingCallKit = false; // FIXED: Clear CallKit flag
 
     if (_helper != null) {
       try {

@@ -1,13 +1,16 @@
-// lib/screens/qr_login_screen.dart - Updated with Multi-Account Support
+// lib/screens/qr_login_screen.dart - Updated with Custom Design
 
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
 import '../services/multi_account_manager.dart';
+import '../themes/app_themes.dart';
 import 'dart:math' as math;
 
 class QRLoginScreen extends StatefulWidget {
-  const QRLoginScreen({super.key});
+  final bool autoStartScanning; // NEW: Option to start scanning immediately
+
+  const QRLoginScreen({super.key, this.autoStartScanning = false});
 
   @override
   State<QRLoginScreen> createState() => _QRLoginScreenState();
@@ -49,41 +52,70 @@ class _QRLoginScreenState extends State<QRLoginScreen>
     ).animate(
       CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
     );
+
+    // NEW: Auto-start scanning if requested
+    if (widget.autoStartScanning) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _startScanning();
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-
+    // FIXED: Use app theme colors instead of custom gradient
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment(0.0, -1.0),
-            end: Alignment(0.0, 1.0),
-            colors: [
-              Color(0xFF1501FF), // #1501FF
-              Color(0xFF00A3FF), // #00A3FF
-            ],
-          ),
-        ),
+        decoration: _buildThemedBackground(context),
         child: Stack(
           children: [
+            // FIXED: Reduced floating particles for cleaner look
             ...List.generate(
-              20,
-              (index) => _buildFloatingParticle(index, size),
+              8, // Reduced from 20 to 8
+              (index) =>
+                  _buildFloatingParticle(index, MediaQuery.of(context).size),
             ),
 
             SafeArea(
               child:
                   !showScanner
-                      ? _buildWelcomeScreen(size)
-                      : _buildScannerScreen(size),
+                      ? _buildWelcomeScreen(context)
+                      : _buildScannerScreen(context),
             ),
           ],
         ),
       ),
     );
+  }
+
+  // FIXED: Use app theme for background
+  BoxDecoration _buildThemedBackground(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    if (isDark) {
+      return BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0xFF1C1C1E),
+            Theme.of(context).scaffoldBackgroundColor,
+          ],
+        ),
+      );
+    } else {
+      return BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Theme.of(context).colorScheme.primary.withOpacity(0.1),
+            Theme.of(context).scaffoldBackgroundColor,
+          ],
+        ),
+      );
+    }
   }
 
   Widget _buildFloatingParticle(int index, Size size) {
@@ -103,7 +135,7 @@ class _QRLoginScreenState extends State<QRLoginScreen>
               startY +
               math.cos(_floatingController.value * 2 * math.pi + index) * 10,
           child: Opacity(
-            opacity: 0.08 + (scale * 0.15),
+            opacity: 0.05 + (scale * 0.1),
             child: Transform.scale(
               scale: scale,
               child: Container(
@@ -111,14 +143,8 @@ class _QRLoginScreenState extends State<QRLoginScreen>
                 height: 4,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.white.withOpacity(0.3),
-                      blurRadius: 8,
-                      spreadRadius: 1,
-                    ),
-                  ],
+                  color: Theme.of(context).colorScheme.primary,
+           
                 ),
               ),
             ),
@@ -128,7 +154,7 @@ class _QRLoginScreenState extends State<QRLoginScreen>
     );
   }
 
-  Widget _buildWelcomeScreen(Size size) {
+  Widget _buildWelcomeScreen(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32),
       child: Column(
@@ -137,75 +163,67 @@ class _QRLoginScreenState extends State<QRLoginScreen>
 
           Column(
             children: [
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    colors: [Colors.white, Color(0xFFF0F0F0)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.white.withOpacity(0.3),
-                      blurRadius: 30,
-                      spreadRadius: 10,
-                    ),
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.phone_android_rounded,
-                  size: 80,
-                  color: Color(0xFF1501FF),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.asset(
+                  'assets/icon/dashcall_icon.png',
+                  width: 150,
+                  height: 150,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary,
+                        borderRadius: BorderRadius.circular(40),
+                      ),
+                      child: Icon(
+                        Icons.phone_android_rounded,
+                        size: 40,
+                        color: Colors.white,
+                      ),
+                    );
+                  },
                 ),
               ),
 
               const SizedBox(height: 40),
 
-              // Welcome text
-              const Text(
-                'Hello! 👋',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w300,
-                  color: Colors.white,
-                  letterSpacing: 1,
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              const Text(
+              // FIXED: Removed "Hello! 👋" and simplified
+              Text(
                 'Welcome to',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w400,
-                  color: Colors.white70,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withOpacity(0.8),
                 ),
               ),
 
               const SizedBox(height: 8),
 
-              // App name with gradient
-              ShaderMask(
-                shaderCallback:
-                    (bounds) => const LinearGradient(
-                      colors: [Colors.white, Color(0xFFE0E0E0)],
-                    ).createShader(bounds),
-                child: const Text(
-                  'DashCall',
-                  style: TextStyle(
-                    fontSize: 48,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: 2,
-                  ),
+              // App name with themed styling
+              Text(
+                'DashCall',
+                style: TextStyle(
+                  fontSize: 48,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface,
+                  letterSpacing: 2,
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Subtitle
+              Text(
+                'Work Remotely, Anywhere',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w400,
+                  color: AppThemes.getSecondaryTextColor(context),
                 ),
               ),
 
@@ -215,28 +233,42 @@ class _QRLoginScreenState extends State<QRLoginScreen>
 
           const Spacer(),
 
+          // FIXED: Themed feature section
           Container(
             padding: const EdgeInsets.all(24),
             margin: const EdgeInsets.only(bottom: 40),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: AppThemes.getCardBackgroundColor(context),
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.white.withOpacity(0.2)),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+              ),
+            
             ),
             child: Column(
               children: [
-                _buildFeatureItem(Icons.security_rounded, 'Secure Login'),
+                _buildFeatureItem(
+                  Icons.security_rounded,
+                  'Secure Login',
+                  Theme.of(context).colorScheme.primary,
+                ),
                 const SizedBox(height: 16),
                 _buildFeatureItem(
                   Icons.qr_code_scanner_rounded,
                   'QR Code Scanner',
+                  Theme.of(context).colorScheme.primary,
                 ),
                 const SizedBox(height: 16),
-                _buildFeatureItem(Icons.speed_rounded, 'Quick Setup'),
+                _buildFeatureItem(
+                  Icons.speed_rounded,
+                  'Quick Setup',
+                  Theme.of(context).colorScheme.primary,
+                ),
               ],
             ),
           ),
 
+          // FIXED: Themed scan button
           AnimatedBuilder(
             animation: _floatingAnimation,
             builder: (context, child) {
@@ -247,22 +279,14 @@ class _QRLoginScreenState extends State<QRLoginScreen>
                   height: 60,
                   margin: const EdgeInsets.only(bottom: 40),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Colors.white, Color(0xFFF5F5F5)],
+                    gradient: LinearGradient(
+                      colors: [
+                        Theme.of(context).colorScheme.primary,
+                        Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                      ],
                     ),
                     borderRadius: BorderRadius.circular(30),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                      BoxShadow(
-                        color: Colors.white.withOpacity(0.3),
-                        blurRadius: 15,
-                        offset: const Offset(0, -5),
-                      ),
-                    ],
+               
                   ),
                   child: Material(
                     color: Colors.transparent,
@@ -275,7 +299,7 @@ class _QRLoginScreenState extends State<QRLoginScreen>
                           children: [
                             Icon(
                               Icons.qr_code_scanner_rounded,
-                              color: Color(0xFF1501FF),
+                              color: Colors.white,
                               size: 28,
                             ),
                             SizedBox(width: 12),
@@ -284,7 +308,7 @@ class _QRLoginScreenState extends State<QRLoginScreen>
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF1501FF),
+                                color: Colors.white,
                                 letterSpacing: 0.5,
                               ),
                             ),
@@ -302,22 +326,22 @@ class _QRLoginScreenState extends State<QRLoginScreen>
     );
   }
 
-  Widget _buildFeatureItem(IconData icon, String text) {
+  Widget _buildFeatureItem(IconData icon, String text, Color color) {
     return Row(
       children: [
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
+            color: color.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, color: Colors.white, size: 20),
+          child: Icon(icon, color: color, size: 20),
         ),
         const SizedBox(width: 16),
         Text(
           text,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
             fontSize: 16,
             fontWeight: FontWeight.w500,
           ),
@@ -326,156 +350,181 @@ class _QRLoginScreenState extends State<QRLoginScreen>
     );
   }
 
-  Widget _buildScannerScreen(Size size) {
+  Widget _buildScannerScreen(BuildContext context) {
     return SlideTransition(
       position: _slideAnimation,
-      child: Column(
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(24),
-            child: Row(
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: IconButton(
-                    onPressed: _goBack,
-                    icon: const Icon(
-                      Icons.arrow_back_rounded,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                const Spacer(),
-                const Column(
-                  children: [
-                    Text(
-                      'Scan QR Code',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+      child: Container(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(24),
+              color: Theme.of(context).scaffoldBackgroundColor,
+              child: Row(
+                children: [
+                  // Back button
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppThemes.getCardBackgroundColor(context),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withOpacity(0.2),
                       ),
                     ),
-                    Text(
-                      'Position the QR code in the frame',
-                      style: TextStyle(fontSize: 14, color: Colors.white70),
+                    child: IconButton(
+                      onPressed: _goBack,
+                      icon: Icon(
+                        Icons.arrow_back_rounded,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                     ),
-                  ],
-                ),
-                const Spacer(),
-                const SizedBox(width: 48),
-              ],
-            ),
-          ),
-
-          Expanded(
-            child: Container(
-              margin: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(32),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 30,
-                    offset: const Offset(0, 15),
                   ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(32),
-                child: Stack(
-                  children: [
-                    MobileScanner(
-                      controller: controller,
-                      onDetect: (capture) {
-                        final List<Barcode> barcodes = capture.barcodes;
-                        for (final barcode in barcodes) {
-                          if (barcode.rawValue != null && !isProcessing) {
-                            _processQRCode(barcode.rawValue!);
-                            break;
-                          }
-                        }
-                      },
-                    ),
 
-                    // Scanning overlay
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(32),
-                      ),
-                      child: CustomPaint(
-                        painter: ScannerOverlayPainter(),
-                        size: Size.infinite,
-                      ),
-                    ),
+                  const SizedBox(width: 16),
 
-                    // Processing overlay
-                    if (isProcessing)
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(32),
-                          color: Colors.black.withOpacity(0.8),
-                        ),
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(20),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.1),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const SizedBox(
-                                  width: 50,
-                                  height: 50,
-                                  child: CircularProgressIndicator(
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white,
-                                    ),
-                                    strokeWidth: 3,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 24),
-                              const Text(
-                                'Processing QR Code...',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              const Text(
-                                'Please wait a moment',
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
+                  // Left-aligned text
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start, // Align text to left
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Scan QR Code',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
+                        Text(
+                          'Position the QR code in the frame',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppThemes.getSecondaryTextColor(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(width: 48),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Container(
+                margin: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(32),
+                  border: Border.all(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withOpacity(0.3),
+                    width: 2,
+                  ),
+           
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(30),
+                  child: Stack(
+                    children: [
+                      MobileScanner(
+                        controller: controller,
+                        onDetect: (capture) {
+                          final List<Barcode> barcodes = capture.barcodes;
+                          for (final barcode in barcodes) {
+                            if (barcode.rawValue != null && !isProcessing) {
+                              _processQRCode(barcode.rawValue!);
+                              break;
+                            }
+                          }
+                        },
                       ),
-                  ],
+
+                      // Scanning overlay
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        child: CustomPaint(
+                          painter: ScannerOverlayPainter(
+                            Theme.of(context).colorScheme.primary,
+                          ),
+                          size: Size.infinite,
+                        ),
+                      ),
+
+                      // Processing overlay
+                      if (isProcessing)
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(30),
+                            color: Colors.black.withOpacity(0.8),
+                          ),
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary.withOpacity(0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: SizedBox(
+                                    width: 50,
+                                    height: 50,
+                                    child: CircularProgressIndicator(
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Theme.of(context).colorScheme.primary,
+                                      ),
+                                      strokeWidth: 3,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                const Text(
+                                  'Processing QR Code...',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'Please wait a moment',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
 
-          Container(
-            padding: const EdgeInsets.all(24),
-            child:
-                errorMessage != null
-                    ? _buildErrorSection()
-                    : _buildInstructionsSection(),
-          ),
-        ],
+            Container(
+              padding: const EdgeInsets.all(24),
+              color: Theme.of(context).scaffoldBackgroundColor,
+              child:
+                  errorMessage != null
+                      ? _buildErrorSection()
+                      : _buildInstructionsSection(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -520,8 +569,8 @@ class _QRLoginScreenState extends State<QRLoginScreen>
                     const SizedBox(height: 4),
                     Text(
                       errorMessage!,
-                      style: const TextStyle(
-                        color: Colors.white70,
+                      style: TextStyle(
+                        color: AppThemes.getSecondaryTextColor(context),
                         fontSize: 14,
                       ),
                     ),
@@ -538,8 +587,8 @@ class _QRLoginScreenState extends State<QRLoginScreen>
           child: ElevatedButton(
             onPressed: _retryScanning,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: const Color(0xFF1501FF),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(25),
               ),
@@ -559,18 +608,28 @@ class _QRLoginScreenState extends State<QRLoginScreen>
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: AppThemes.getCardBackgroundColor(context),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.3)),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+        ),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.info_outline_rounded, color: Colors.white, size: 24),
-          SizedBox(width: 16),
+          Icon(
+            Icons.info_outline_rounded,
+            color: Theme.of(context).colorScheme.primary,
+            size: 24,
+          ),
+          const SizedBox(width: 16),
           Expanded(
             child: Text(
               'Hold your device steady and ensure the QR code is clearly visible within the frame',
-              style: TextStyle(color: Colors.white, fontSize: 14, height: 1.4),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontSize: 14,
+                height: 1.4,
+              ),
             ),
           ),
         ],
@@ -645,10 +704,13 @@ class _QRLoginScreenState extends State<QRLoginScreen>
       }
 
       print('✅ [QRLogin] QR code validation successful');
-      
+
       // Use MultiAccountManager to add the account
-      final accountManager = Provider.of<MultiAccountManager>(context, listen: false);
-      
+      final accountManager = Provider.of<MultiAccountManager>(
+        context,
+        listen: false,
+      );
+
       final success = await accountManager.addAccount(
         sipServer: domain,
         username: username,
@@ -705,11 +767,15 @@ class _QRLoginScreenState extends State<QRLoginScreen>
 
 // Custom painter for scanner overlay
 class ScannerOverlayPainter extends CustomPainter {
+  final Color cornerColor;
+
+  ScannerOverlayPainter(this.cornerColor);
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint =
         Paint()
-          ..color = Colors.white
+          ..color = cornerColor
           ..strokeWidth = 4
           ..style = PaintingStyle.stroke;
 

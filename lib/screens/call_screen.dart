@@ -1,5 +1,3 @@
-// lib/screens/call_screen.dart - FIXED: Null Safety Issues
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -16,7 +14,9 @@ class CallScreen extends StatefulWidget {
 
 class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
   late AnimationController _pulseController;
+  late AnimationController _slideController;
   late Animation<double> _pulseAnimation;
+  late Animation<Offset> _slideAnimation;
 
   @override
   void initState() {
@@ -31,11 +31,28 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
     _pulseAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+
+    // Slide animation for controls
+    _slideController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _slideController,
+      curve: Curves.easeOut,
+    ));
+
+    _slideController.forward();
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
+    _slideController.dispose();
     super.dispose();
   }
 
@@ -51,7 +68,6 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
 
   void _toggleHold() {
     HapticFeedback.lightImpact();
-
     if (widget.sipService.callStatus == CallStatus.held) {
       widget.sipService.resumeCall();
     } else {
@@ -59,9 +75,24 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
     }
   }
 
+  void _showKeypad() {
+    HapticFeedback.lightImpact();
+    // Handle keypad display
+  }
+
   void _endCall() {
     HapticFeedback.heavyImpact();
     widget.sipService.hangupCall();
+  }
+
+  void _answerCall() {
+    HapticFeedback.lightImpact();
+    widget.sipService.answerCall();
+  }
+
+  void _rejectCall() {
+    HapticFeedback.heavyImpact();
+    widget.sipService.rejectCall();
   }
 
   String _getCallStatusText() {
@@ -95,25 +126,36 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _getCallScreenBackground(),
+      backgroundColor: Colors.black,
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: _getCallScreenGradient(),
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment.topCenter,
+            radius: 1.5,
+            colors: [
+              Color(0xFF1C1C1E),
+              Color(0xFF000000),
+            ],
+          ),
+        ),
         child: SafeArea(
           child: Column(
             children: [
-              // Status bar spacing
-              const SizedBox(height: 30),
+              // Top section with call info
+              Expanded(
+                child: _buildCallInfoSection(),
+              ),
 
-              // Call info section
-              Expanded(child: _buildCallInfoSection()),
-
-              // Controls section
-              _buildControlsSection(),
-
-              // Bottom spacing
-              const SizedBox(height: 50),
+              // Controls section - Fixed height to prevent overflow
+              Container(
+                height: MediaQuery.of(context).size.height * 0.4,
+                child: SlideTransition(
+                  position: _slideAnimation,
+                  child: _buildControlsSection(),
+                ),
+              ),
             ],
           ),
         ),
@@ -121,95 +163,108 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
     );
   }
 
-  Color _getCallScreenBackground() {
-    return Theme.of(context).brightness == Brightness.dark 
-        ? const Color(0xFF000000) 
-        : const Color(0xFF000000); // Keep dark for call screen
-  }
-
-  BoxDecoration _getCallScreenGradient() {
-    if (Theme.of(context).brightness == Brightness.dark) {
-      return const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF1C1C1E), Color(0xFF000000)],
-          stops: [0.0, 0.3],
-        ),
-      );
-    } else {
-      // For light theme, use a darker gradient to maintain readability
-      return const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF2C2C2E), Color(0xFF000000)],
-          stops: [0.0, 0.3],
-        ),
-      );
-    }
-  }
-
   Widget _buildCallInfoSection() {
+    final size = MediaQuery.of(context).size.height/6;
+
     return Container(
       width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 32),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Spacer(),
+          
+                     SizedBox(height: size),
 
-          const SizedBox(height: 40),
+
+    
 
           // Contact name/number
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Text(
-              widget.sipService.callNumber ?? 'Unknown',
-              style: const TextStyle(
-                fontSize: 36,
-                fontWeight: FontWeight.w300,
-                color: Colors.white, // Always white on call screen
-                letterSpacing: -0.5,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          // Call status
           Text(
-            _getCallStatusText(),
+            widget.sipService.callNumber ?? 'Unknown',
             style: const TextStyle(
-              fontSize: 18,
-              color: Color(0xFF8E8E93), // Keep consistent for call screen
-              fontWeight: FontWeight.w400,
+              fontSize: 50,
+              fontWeight: FontWeight.w500,
+              color: Colors.white,
+              letterSpacing: -0.5,
             ),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
 
-          // Call duration (for active calls) - FIXED: Null safety
+          const SizedBox(height: 8),
+
+          // Call status with animation for active calls
+          widget.sipService.callStatus == CallStatus.active
+              ? AnimatedBuilder(
+                  animation: _pulseAnimation,
+                  builder: (context, child) {
+                    return Transform.scale(
+                      scale: _pulseAnimation.value,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: Colors.green,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _getCallStatusText(),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                color: Colors.green,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                )
+              : Text(
+                  _getCallStatusText(),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    color: Color(0xFF8E8E93),
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+
+          // Call duration
           if (widget.sipService.callStartTime != null &&
               widget.sipService.callStatus == CallStatus.active)
             Padding(
-              padding: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.only(top: 12),
               child: StreamBuilder(
                 stream: Stream.periodic(const Duration(seconds: 1)),
                 builder: (context, snapshot) {
                   final callStartTime = widget.sipService.callStartTime;
-                  // FIXED: Add null check to prevent the error
                   if (callStartTime == null) {
                     return const SizedBox.shrink();
                   }
-                  
+
                   final duration = DateTime.now().difference(callStartTime);
                   return Text(
                     _formatDuration(duration),
                     style: const TextStyle(
-                      fontSize: 16,
-                      color: Color(0xFF8E8E93), // Keep consistent for call screen
-                      fontWeight: FontWeight.w400,
+                      fontSize: 24,
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w300,
                       fontFeatures: [FontFeature.tabularFigures()],
                     ),
                   );
@@ -224,150 +279,286 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildControlsSection() {
-    if (widget.sipService.callStatus == CallStatus.incoming) {
-      return _buildIncomingCallControls();
-    } else if (widget.sipService.callStatus == CallStatus.calling) {
-      return _buildOutgoingCallControls();
-    } else {
-      return _buildActiveCallControls();
+    switch (widget.sipService.callStatus) {
+      case CallStatus.incoming:
+        return _buildIncomingCallControls();
+      case CallStatus.calling:
+        return _buildOutgoingCallControls();
+      case CallStatus.active:
+      case CallStatus.held:
+        return _buildActiveCallControls();
+      default:
+        return _buildActiveCallControls();
     }
   }
 
   Widget _buildIncomingCallControls() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 80),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // Decline button
-          _buildCircularButton(
-            icon: CupertinoIcons.phone_down_fill,
-            backgroundColor: const Color(0xFFFF3B30),
-            onPressed: () => widget.sipService.rejectCall(),
-            size: 75,
-          ),
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        const SizedBox(height: 20),
+        
+        // Additional options for incoming call
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _buildSmallControlButton(
+              icon: CupertinoIcons.chat_bubble_fill,
+              label: 'Message',
+              onPressed: () {
+                // Handle message
+              },
+            ),
+            _buildSmallControlButton(
+              icon: CupertinoIcons.person_add_solid,
+              label: 'Add to contacts',
+              onPressed: () {
+                // Handle add contact
+              },
+            ),
+          ],
+        ),
 
-          // Accept button
-          _buildCircularButton(
-            icon: CupertinoIcons.phone_fill,
-            backgroundColor: const Color(0xFF34C759),
-            onPressed: () => widget.sipService.answerCall(),
-            size: 75,
-          ),
-        ],
-      ),
+        // Answer/Decline buttons
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _buildAnswerButton(
+              icon: CupertinoIcons.phone_down_fill,
+              backgroundColor: const Color(0xFFFF3B30),
+              onPressed: _rejectCall,
+              size: 70,
+            ),
+            _buildAnswerButton(
+              icon: CupertinoIcons.phone_fill,
+              backgroundColor: const Color(0xFF34C759),
+              onPressed: _answerCall,
+              size: 70,
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 20),
+      ],
     );
   }
 
   Widget _buildOutgoingCallControls() {
-    return Container(
-      width: double.infinity,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          // Loading indicator
-          const SizedBox(
-            width: 24,
-            height: 24,
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8E8E93)),
-              strokeWidth: 2,
-            ),
+          const SizedBox(height: 20),
+          
+          // First row - 3 buttons with only speaker enabled
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildControlButton(
+                icon: widget.sipService.isMuted
+                    ? CupertinoIcons.mic_slash_fill
+                    : CupertinoIcons.mic_fill,
+                label: 'Mute',
+                isActive: widget.sipService.isMuted,
+                isEnabled: false, // Disabled when calling
+                onPressed: _toggleMute,
+              ),
+              _buildControlButton(
+                icon: Icons.dialpad,
+                label: 'Keypad',
+                isActive: false,
+                isEnabled: false, // Disabled when calling
+                onPressed: _showKeypad,
+              ),
+              _buildControlButton(
+                icon: CupertinoIcons.speaker_3_fill,
+                label: 'Speaker',
+                isActive: widget.sipService.isSpeakerOn,
+                isEnabled: true, // Only speaker is enabled when calling
+                onPressed: _toggleSpeaker,
+              ),
+            ],
           ),
 
-          const SizedBox(height: 50),
-
-          // End call button - centered
-          Center(
-            child: _buildCircularButton(
-              icon: CupertinoIcons.phone_down_fill,
-              backgroundColor: const Color(0xFFFF3B30),
-              onPressed: _endCall,
-              size: 75,
-            ),
+          // Second row - Hold button disabled
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildControlButton(
+                icon: CupertinoIcons.pause_fill,
+                label: 'Hold',
+                isActive: false,
+                isEnabled: false, // Disabled when calling
+                onPressed: _toggleHold,
+              ),
+            ],
           ),
+
+          // End call button
+          _buildAnswerButton(
+            icon: CupertinoIcons.phone_down_fill,
+            backgroundColor: const Color(0xFFFF3B30),
+            onPressed: _endCall,
+            size: 70,
+          ),
+
+          const SizedBox(height: 20),
         ],
       ),
     );
   }
 
   Widget _buildActiveCallControls() {
-    return Container(
-      width: double.infinity,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          // Control buttons row
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 60),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                // Mute button
-                _buildControlButton(
-                  icon:
-                      widget.sipService.isMuted
-                          ? CupertinoIcons.mic_slash_fill
-                          : CupertinoIcons.mic_fill,
-                  label: 'mute',
-                  isActive: widget.sipService.isMuted,
-                  onPressed: _toggleMute,
-                ),
-
-                // Hold button
-                _buildControlButton(
-                  icon: CupertinoIcons.pause_fill,
-                  label: 'hold',
-                  isActive: widget.sipService.callStatus == CallStatus.held,
-                  onPressed: _toggleHold,
-                ),
-
-                // Speaker button
-                _buildControlButton(
-                  icon: CupertinoIcons.speaker_3_fill,
-                  label: 'speaker',
-                  isActive: widget.sipService.isSpeakerOn,
-                  onPressed: _toggleSpeaker,
-                ),
-              ],
-            ),
+          const SizedBox(height: 20),
+          
+          // First row of controls - all enabled when connected
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildControlButton(
+                icon: widget.sipService.isMuted
+                    ? CupertinoIcons.mic_slash_fill
+                    : CupertinoIcons.mic_fill,
+                label: 'Mute',
+                isActive: widget.sipService.isMuted,
+                isEnabled: true, // Enabled when connected
+                onPressed: _toggleMute,
+              ),
+              _buildControlButton(
+                icon: Icons.dialpad,
+                label: 'Keypad',
+                isActive: false,
+                isEnabled: true, // Enabled when connected
+                onPressed: _showKeypad,
+              ),
+              _buildControlButton(
+                icon: CupertinoIcons.speaker_3_fill,
+                label: 'Speaker',
+                isActive: widget.sipService.isSpeakerOn,
+                isEnabled: true, // Enabled when connected
+                onPressed: _toggleSpeaker,
+              ),
+            ],
           ),
 
-          const SizedBox(height: 70),
-
-          // End call button - centered
-          Center(
-            child: _buildCircularButton(
-              icon: CupertinoIcons.phone_down_fill,
-              backgroundColor: const Color(0xFFFF3B30),
-              onPressed: _endCall,
-              size: 75,
-            ),
+          // Second row - Hold button enabled when connected
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildControlButton(
+                icon: widget.sipService.callStatus == CallStatus.held
+                    ? CupertinoIcons.play_fill
+                    : CupertinoIcons.pause_fill,
+                label: widget.sipService.callStatus == CallStatus.held ? 'Resume' : 'Hold',
+                isActive: widget.sipService.callStatus == CallStatus.held,
+                isEnabled: true, // Enabled when connected
+                onPressed: _toggleHold,
+              ),
+            ],
           ),
+
+          // End call button
+          _buildAnswerButton(
+            icon: CupertinoIcons.phone_down_fill,
+            backgroundColor: const Color(0xFFFF3B30),
+            onPressed: _endCall,
+            size: 70,
+          ),
+
+          const SizedBox(height: 20),
         ],
       ),
     );
   }
 
-  Widget _buildControlButton({
+Widget _buildControlButton({
+  required IconData icon,
+  required String label,
+  required bool isActive,
+  required bool isEnabled,
+  required VoidCallback onPressed,
+}) {
+  const double size = 70; // Same as "End Call" button
+
+  final Color backgroundColor = isActive
+      ? Colors.white
+      : isEnabled
+          ? const Color(0xFF2C2C2E)
+          : const Color(0xFF1C1C1E);
+
+  final Color iconColor = isActive
+      ? Colors.black
+      : isEnabled
+          ? Colors.white
+          : Colors.white.withOpacity(0.3);
+
+  return Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: backgroundColor,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.4),
+              blurRadius: 15,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(size / 2),
+            onTap: isEnabled ? onPressed : null,
+            child: Icon(
+              icon,
+              color: iconColor,
+              size: size * 0.35, // ~24px for size 70
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(height: 6),
+      Text(
+        label,
+        style: TextStyle(
+          fontSize: 14,
+          color: isActive
+              ? Colors.white
+              : isEnabled
+                  ? const Color(0xFF8E8E93)
+                  : const Color(0xFF8E8E93).withOpacity(0.5),
+          fontWeight: FontWeight.w400,
+        ),
+      ),
+    ],
+  );
+}
+
+  Widget _buildSmallControlButton({
     required IconData icon,
     required String label,
-    required bool isActive,
     required VoidCallback onPressed,
   }) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 68,
-          height: 68,
+          width: 50,
+          height: 50,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: isActive ? Colors.white : _getInactiveControlButtonColor(),
-            border: Border.all(
-              color: isActive ? Colors.white : _getControlButtonBorderColor(),
-              width: 1,
-            ),
+            color: const Color(0xFF2C2C2E),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.3),
@@ -379,22 +570,22 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(34),
+              borderRadius: BorderRadius.circular(25),
               onTap: onPressed,
               child: Icon(
                 icon,
-                color: isActive ? Colors.black : Colors.white,
-                size: 28,
+                color: Colors.white,
+                size: 22,
               ),
             ),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Text(
           label,
-          style: TextStyle(
-            fontSize: 13,
-            color: isActive ? Colors.white : const Color(0xFF8E8E93),
+          style: const TextStyle(
+            fontSize: 11,
+            color: Color(0xFF8E8E93),
             fontWeight: FontWeight.w400,
           ),
         ),
@@ -402,19 +593,7 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
     );
   }
 
-  Color _getInactiveControlButtonColor() {
-    return Theme.of(context).brightness == Brightness.dark 
-        ? const Color(0xFF2C2C2E) 
-        : const Color(0xFF2C2C2E); // Keep consistent for call screen
-  }
-
-  Color _getControlButtonBorderColor() {
-    return Theme.of(context).brightness == Brightness.dark 
-        ? const Color(0xFF3A3A3C) 
-        : const Color(0xFF3A3A3C); // Keep consistent for call screen
-  }
-
-  Widget _buildCircularButton({
+  Widget _buildAnswerButton({
     required IconData icon,
     required Color backgroundColor,
     required VoidCallback onPressed,
@@ -428,15 +607,15 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
         color: backgroundColor,
         boxShadow: [
           BoxShadow(
-            color: backgroundColor.withOpacity(0.3),
-            blurRadius: 20,
-            spreadRadius: 2,
-            offset: const Offset(0, 8),
+            color: backgroundColor.withOpacity(0.4),
+            blurRadius: 25,
+            spreadRadius: 3,
+            offset: const Offset(0, 10),
           ),
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
+            color: Colors.black.withOpacity(0.6),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -445,7 +624,11 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
         child: InkWell(
           borderRadius: BorderRadius.circular(size / 2),
           onTap: onPressed,
-          child: Icon(icon, color: Colors.white, size: size * 0.35),
+          child: Icon(
+            icon,
+            color: Colors.white,
+            size: size * 0.35,
+          ),
         ),
       ),
     );

@@ -1,4 +1,4 @@
-// lib/screens/main_screen.dart - FIXED: Call Status Detection
+// lib/screens/main_screen.dart - UPDATED: Connection status in app bar
 
 import 'package:dash_call/screens/dialer_screen.dart';
 import 'package:flutter/cupertino.dart';
@@ -27,11 +27,12 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Consumer<MultiAccountManager>(
       builder: (context, accountManager, child) {
-        // FIXED: Better call status detection
-        SipService? callingSipService = _findActiveCallService(accountManager);
+        // FIXED: Better call status detection using shouldShowFlutterCallScreen
+        SipService? callingSipService = _findServiceRequiringFlutterCallScreen(accountManager);
 
-        // Show call screen if any account has an active call
+        // FIXED: Only show Flutter call screen when explicitly needed
         if (callingSipService != null) {
+          print('📱 [MainScreen] Showing Flutter CallScreen for service: ${callingSipService.username}');
           return CallScreen(sipService: callingSipService);
         }
 
@@ -47,16 +48,26 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  // FIXED: Better logic to find active call service
-  SipService? _findActiveCallService(MultiAccountManager accountManager) {
+  // FIXED: Only return service if it should show Flutter call screen
+  SipService? _findServiceRequiringFlutterCallScreen(MultiAccountManager accountManager) {
     for (final sipService in accountManager.allSipServices.values) {
-      final callStatus = sipService.callStatus;
-      // Check for any non-idle call status
-      if (callStatus != CallStatus.idle && callStatus != CallStatus.ended) {
-        print('🔍 [MainScreen] Found active call on service: ${sipService.username} - Status: $callStatus');
+      // FIXED: Use the new shouldShowFlutterCallScreen getter
+      if (sipService.shouldShowFlutterCallScreen) {
+        print('🔍 [MainScreen] Service ${sipService.username} requires Flutter call screen');
+        print('   - Call Status: ${sipService.callStatus}');
+        print('   - Should Show Flutter Screen: ${sipService.shouldShowFlutterCallScreen}');
         return sipService;
       }
     }
+    
+    // Also check for outgoing calls that need Flutter UI
+    for (final sipService in accountManager.allSipServices.values) {
+      if (sipService.callStatus == CallStatus.calling) {
+        print('🔍 [MainScreen] Service ${sipService.username} has outgoing call - showing Flutter UI');
+        return sipService;
+      }
+    }
+    
     return null;
   }
 
@@ -83,14 +94,217 @@ class _MainScreenState extends State<MainScreen> {
         ),
       ),
       actions: [
+        // Connection status indicator
+        if (accountManager.hasAccounts && accountManager.activeSipService != null)
+          _buildConnectionStatusIndicator(accountManager.activeSipService!),
+        
         // Account Switcher - show on all tabs except Settings
         if (_currentIndex != 3 && accountManager.hasAccounts) ...[
           const Padding(
             padding: EdgeInsets.only(right: 16),
             child: AccountSwitcherWidget(),
           ),
+        ] else if (_currentIndex != 3 && !accountManager.hasAccounts) ...[
+          // Show "No Account" indicator when no accounts are configured
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: _buildNoAccountIndicator(),
+          ),
         ],
       ],
+    );
+  }
+
+  Widget _buildConnectionStatusIndicator(SipService sipService) {
+    final statusIcon = _getConnectionStatusIcon(sipService.status);
+    final statusColor = _getConnectionStatusColor(sipService.status);
+    final statusText = _getConnectionStatusText(sipService.status);
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: GestureDetector(
+        onTap: () => _showConnectionStatusDialog(sipService),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: statusColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: statusColor.withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                statusIcon,
+                color: statusColor,
+                size: 16,
+              ),
+              if (sipService.status != SipConnectionStatus.connected) ...[
+                const SizedBox(width: 4),
+                Text(
+                  statusText,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNoAccountIndicator() {
+    return GestureDetector(
+      onTap: () {
+        // Navigate to settings to add account
+        setState(() {
+          _currentIndex = 3;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.orange.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Colors.orange.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.warning,
+              color: Colors.orange,
+              size: 16,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'No Account',
+              style: TextStyle(
+                color: Colors.orange,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  IconData _getConnectionStatusIcon(SipConnectionStatus status) {
+    switch (status) {
+      case SipConnectionStatus.connecting:
+        return Icons.sync;
+      case SipConnectionStatus.error:
+        return Icons.error;
+      case SipConnectionStatus.disconnected:
+        return Icons.signal_wifi_off;
+      case SipConnectionStatus.connected:
+        return Icons.signal_wifi_4_bar;
+    }
+  }
+
+  String _getConnectionStatusText(SipConnectionStatus status) {
+    switch (status) {
+      case SipConnectionStatus.connecting:
+        return 'Connecting';
+      case SipConnectionStatus.error:
+        return 'Error';
+      case SipConnectionStatus.disconnected:
+        return 'Offline';
+      case SipConnectionStatus.connected:
+        return 'Online';
+    }
+  }
+
+  Color _getConnectionStatusColor(SipConnectionStatus status) {
+    switch (status) {
+      case SipConnectionStatus.connecting:
+        return Colors.orange;
+      case SipConnectionStatus.error:
+        return Colors.red;
+      case SipConnectionStatus.disconnected:
+        return Colors.grey;
+      case SipConnectionStatus.connected:
+        return Colors.green;
+    }
+  }
+
+  void _showConnectionStatusDialog(SipService sipService) {
+    final statusText = _getConnectionStatusText(sipService.status);
+    final statusColor = _getConnectionStatusColor(sipService.status);
+    
+    String message;
+    switch (sipService.status) {
+      case SipConnectionStatus.connected:
+        message = 'Account is connected and ready to make calls';
+        break;
+      case SipConnectionStatus.connecting:
+        message = 'Connecting to server...';
+        break;
+      case SipConnectionStatus.error:
+        message = 'Connection failed. Check your account settings and internet connection.';
+        break;
+      case SipConnectionStatus.disconnected:
+        message = 'Not connected to server. Check your internet connection.';
+        break;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              _getConnectionStatusIcon(sipService.status),
+              color: statusColor,
+              size: 24,
+            ),
+            const SizedBox(width: 8),
+            Text(statusText),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(message),
+            const SizedBox(height: 8),
+            Text(
+              'Account: ${sipService.username}',
+              style: TextStyle(
+                color: AppThemes.getSecondaryTextColor(context),
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+          if (sipService.status != SipConnectionStatus.connected)
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                // You can add retry logic here
+                sipService;
+              },
+              child: const Text('Retry'),
+            ),
+        ],
+      ),
     );
   }
 

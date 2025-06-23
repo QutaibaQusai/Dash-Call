@@ -183,115 +183,113 @@ class _AccountSwitcherModal extends StatelessWidget {
   }
 
   Widget _buildAccountAction(BuildContext context, AccountInfo account) {
-    final isActive = accountManager.activeAccountId == account.id;
-    final sipService = accountManager.getSipService(account.id);
-    final connectionStatus =
-        sipService?.status ?? SipConnectionStatus.disconnected;
+  final isActive = accountManager.activeAccountId == account.id;
+  final sipService = accountManager.getSipService(account.id);
+  final connectionStatus =
+      sipService?.status ?? SipConnectionStatus.disconnected;
 
-    return CupertinoActionSheetAction(
-      onPressed: () {
-        Navigator.pop(context);
-        if (!isActive) {
-          accountManager.setActiveAccount(account.id);
-        }
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            // Avatar
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: _getAvatarColor(account.id),
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Text(
-                  _getInitials(account.displayName),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
+  return CupertinoActionSheetAction(
+    onPressed: () {
+      Navigator.pop(context);
+      if (!isActive) {
+        accountManager.setActiveAccount(account.id);
+      }
+    },
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // 1. Avatar
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: _getAvatarColor(account.id),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                _getInitials(account.displayName),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
+          ),
 
-            const SizedBox(width: 12),
-
-            // Account info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          // 2. Account Info (column), directly next to avatar
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          account.displayName,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color:
-                                isActive
-                                    ? Theme.of(context).colorScheme.primary
-                                    : Theme.of(context).colorScheme.onSurface,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (isActive)
-                        Icon(
-                          Icons.check_circle,
-                          color: Theme.of(context).colorScheme.primary,
-                          size: 20,
-                        ),
-                    ],
+                  Text(
+                    account.displayName,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: isActive
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.onSurface,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          account.username,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppThemes.getSecondaryTextColor(context),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: _getConnectionStatusColor(connectionStatus),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _getConnectionStatusText(connectionStatus),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppThemes.getSecondaryTextColor(context),
-                        ),
-                      ),
-                    ],
-                  ),
+                  const SizedBox(width: 4),
+                  if (isActive)
+                    Icon(
+                      Icons.check_circle,
+                      color: Theme.of(context).colorScheme.primary,
+                      size: 20,
+                    ),
                 ],
               ),
-            ),
-          ],
-        ),
+              const SizedBox(height: 2),
+              Text(
+                account.username,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppThemes.getSecondaryTextColor(context),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+
+          // 3. Push connection status to end
+          const Spacer(),
+
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: _getConnectionStatusColor(connectionStatus),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                _getConnectionStatusText(connectionStatus),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppThemes.getSecondaryTextColor(context),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   String _getInitials(String name) {
     if (name.isEmpty) return '?';

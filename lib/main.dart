@@ -1,9 +1,7 @@
-// lib/main.dart - FIXED: Better initialization sequence
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'services/multi_account_manager.dart';
 import 'services/theme_service.dart' as services;
 import 'services/call_history_manager.dart';
@@ -235,43 +233,8 @@ class _LoginCheckScreenState extends State<LoginCheckScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // App logo or icon
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Icon(
-                Icons.phone,
-                color: Colors.white,
-                size: 40,
-              ),
-            ),
-            
-            const SizedBox(height: 24),
-            
-            // Loading indicator
-            CircularProgressIndicator(
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // Status text
-            Text(
-              'Initializing DashCall...',
-              style: TextStyle(
-                fontSize: 16,
-                color: Theme.of(context).colorScheme.onSurface,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
+        child: CircularProgressIndicator(
+          color: Theme.of(context).colorScheme.primary,
         ),
       ),
     );
