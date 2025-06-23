@@ -1,4 +1,4 @@
-// lib/screens/account_settings_page.dart - Fixed notifyListeners error
+// lib/screens/account_settings_page.dart - FIXED: Proper navigation when deleting last account
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -611,35 +611,76 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
     );
   }
 
+  // FIXED: Proper navigation when deleting last account
   Future<void> _deleteAccount(MultiAccountManager accountManager) async {
     Navigator.of(context).pop(); // Close dialog
 
     try {
+      // Check if this is the last account before deletion
+      final isLastAccount = accountManager.accountCount == 1;
+      
+      print('🗑️ [AccountSettings] Deleting account: ${widget.account.displayName}');
+      print('📊 [AccountSettings] Is last account: $isLastAccount');
+      
       final success = await accountManager.removeAccount(widget.account.id);
 
       if (success && mounted) {
-        Navigator.of(context).pop(); // Go back to settings
-
-        showCupertinoDialog(
-          context: context,
-          builder:
-              (context) => CupertinoAlertDialog(
-                title: const Text('Account Deleted'),
-                content: Text(
-                  '${widget.account.displayName} was successfully removed.',
-                ),
-                actions: [
-                  CupertinoDialogAction(
-                    child: const Text('OK'),
-                    onPressed: () => Navigator.of(context).pop(),
+        if (isLastAccount) {
+          // FIXED: Navigate to login screen when deleting the last account
+          print('🔄 [AccountSettings] Last account deleted, navigating to login...');
+          
+          // Navigate to login and clear all previous routes
+          Navigator.of(context).pushNamedAndRemoveUntil(
+            '/qr-login',
+            (route) => false, // Remove all previous routes
+          );
+          
+          // Show confirmation that the account was deleted
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              showCupertinoDialog(
+                context: context,
+                builder: (context) => CupertinoAlertDialog(
+                  title: const Text('Account Deleted'),
+                  content: Text(
+                    '${widget.account.displayName} was successfully removed. Please add a new account to continue.',
                   ),
-                ],
+                  actions: [
+                    CupertinoDialogAction(
+                      child: const Text('OK'),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+              );
+            }
+          });
+        } else {
+          // FIXED: Navigate back to settings when there are still other accounts
+          print('🔄 [AccountSettings] Account deleted, returning to settings...');
+          Navigator.of(context).pop(); // Go back to settings
+
+          showCupertinoDialog(
+            context: context,
+            builder: (context) => CupertinoAlertDialog(
+              title: const Text('Account Deleted'),
+              content: Text(
+                '${widget.account.displayName} was successfully removed.',
               ),
-        );
+              actions: [
+                CupertinoDialogAction(
+                  child: const Text('OK'),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+          );
+        }
       } else if (mounted) {
         _showErrorDialog('Failed to delete the account. Please try again.');
       }
     } catch (error) {
+      print('❌ [AccountSettings] Error deleting account: $error');
       if (mounted) {
         _showErrorDialog('An error occurred while deleting the account.');
       }
@@ -649,17 +690,16 @@ class _AccountSettingsPageState extends State<AccountSettingsPage>
   void _showErrorDialog(String message) {
     showCupertinoDialog(
       context: context,
-      builder:
-          (context) => CupertinoAlertDialog(
-            title: const Text('Error'),
-            content: Text(message),
-            actions: [
-              CupertinoDialogAction(
-                child: const Text('OK'),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Error'),
+        content: Text(message),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('OK'),
+            onPressed: () => Navigator.of(context).pop(),
           ),
+        ],
+      ),
     );
   }
 }

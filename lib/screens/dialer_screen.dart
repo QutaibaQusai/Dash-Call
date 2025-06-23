@@ -437,7 +437,7 @@ class _DialerTabState extends State<DialerTab> {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: isEnabled ? const Color(0xFF34C759) : Colors.grey.shade400,
+        color:  const Color(0xFF34C759) ,
         shape: BoxShape.circle,
       ),
       child: Material(
