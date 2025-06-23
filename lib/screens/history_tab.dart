@@ -1,4 +1,4 @@
-// lib/screens/history_tab.dart - Rewritten with Multi-Account Support
+// lib/screens/history_tab.dart - Updated with Shared Action Sheet
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +9,7 @@ import '../services/call_history_manager.dart';
 import '../services/call_history_database.dart';
 import '../themes/app_themes.dart';
 import '../widgets/search_bar_widget.dart';
+import '../widgets/shared_contact_action_sheet.dart'; // NEW: Import shared component
 
 class HistoryTab extends StatefulWidget {
   const HistoryTab({super.key});
@@ -251,7 +252,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
   /// Build individual call tile
   Widget _buildCallTile(CallRecord call, bool isLast, double scale) {
     return InkWell(
-      onTap: () => _showCallDetails(call),
+      onTap: () => _showCallDetails(call), // UPDATED: Use shared sheet
       child: Column(
         children: [
           Padding(
@@ -396,159 +397,16 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
     );
   }
 
-  /// Show call details modal
+  // UPDATED: Use shared action sheet helper
   void _showCallDetails(CallRecord call) {
-    showCupertinoModalPopup(
+    ContactActionSheetHelper.show(
       context: context,
-      builder:
-          (BuildContext context) => Consumer<MultiAccountManager>(
-            builder: (context, accountManager, child) {
-              return CupertinoActionSheet(
-                title: Text(
-                  call.name ?? call.number,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                message: Column(
-                  children: [
-                    Text(
-                      '${_formatTime(call.timestamp)} • ${_formatDuration(call.duration)}',
-                      style: TextStyle(
-                        color: AppThemes.getSecondaryTextColor(context),
-                        fontSize: 14,
-                      ),
-                    ),
-                    SizedBox(height: 8),
-                    _buildActiveAccountInfo(accountManager),
-                  ],
-                ),
-                actions: [
-                  _buildCallAction(accountManager, call.number),
-                  _buildDeleteAction(call),
-                ],
-                cancelButton: CupertinoActionSheetAction(
-                  onPressed: () => Navigator.pop(context),
-                  isDefaultAction: true,
-                  child: Text(
-                    'Cancel',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-    );
-  }
-
-  /// Build call action
-  Widget _buildCallAction(MultiAccountManager accountManager, String number) {
-    final canCall = _canMakeCall(accountManager);
-
-    return CupertinoActionSheetAction(
-      onPressed: () {
-        Navigator.pop(context);
-        if (canCall) {
-          _makeCallWithActiveAccount(accountManager, number);
-        }
-      },
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            CupertinoIcons.phone,
-            color:
-                canCall ? Theme.of(context).colorScheme.primary : Colors.grey,
-          ),
-          SizedBox(width: 8),
-          Text(
-            'Call',
-            style: TextStyle(
-              color:
-                  canCall ? Theme.of(context).colorScheme.primary : Colors.grey,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Build delete action
-  Widget _buildDeleteAction(CallRecord call) {
-    return CupertinoActionSheetAction(
-      onPressed: () {
-        Navigator.pop(context);
-        _deleteCallRecord(call);
-      },
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(CupertinoIcons.delete, color: Color(0xFFFF3B30)),
-          SizedBox(width: 8),
-          Text('Delete', style: TextStyle(color: Color(0xFFFF3B30))),
-        ],
-      ),
-    );
-  }
-
-  /// Build active account info
-  Widget _buildActiveAccountInfo(MultiAccountManager accountManager) {
-    final activeAccount = accountManager.activeAccount;
-    final activeSipService = accountManager.activeSipService;
-
-    if (activeAccount == null) {
-      return Container(
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.orange.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          'No active account',
-          style: TextStyle(
-            color: Colors.orange,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      );
-    }
-
-    final connectionStatus =
-        activeSipService?.status ?? SipConnectionStatus.disconnected;
-    final statusColor = _getConnectionStatusColor(connectionStatus);
-
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppThemes.getCardBackgroundColor(context).withOpacity(0.3),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              color: statusColor,
-              shape: BoxShape.circle,
-            ),
-          ),
-          SizedBox(width: 6),
-          Text(
-            'Calling from ${activeAccount.displayName}',
-            style: TextStyle(
-              fontSize: 12,
-              color: AppThemes.getSecondaryTextColor(context),
-            ),
-          ),
-        ],
-      ),
+      displayName: call.name ?? call.number,
+      phoneNumber: call.number,
+      showDeleteAction: true, // History items have delete action
+      onDelete: () => _deleteCallRecord(call),
+      callTimestamp: call.timestamp,
+      callDuration: call.duration,
     );
   }
 
@@ -621,23 +479,6 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
     });
   }
 
-  /// Check if call can be made with active account
-  bool _canMakeCall(MultiAccountManager accountManager) {
-    final activeSipService = accountManager.activeSipService;
-    return activeSipService?.status == SipConnectionStatus.connected;
-  }
-
-  /// Make call with active account
-  void _makeCallWithActiveAccount(
-    MultiAccountManager accountManager,
-    String number,
-  ) {
-    final activeSipService = accountManager.activeSipService;
-    if (activeSipService?.status == SipConnectionStatus.connected) {
-      activeSipService!.makeCall(number);
-    }
-  }
-
   /// Delete call record
   Future<void> _deleteCallRecord(CallRecord call) async {
     await CallHistoryManager.deleteCall(call.id);
@@ -670,19 +511,6 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
         return CupertinoIcons.arrow_up_right;
       case CallType.missed:
         return CupertinoIcons.arrow_down_left;
-    }
-  }
-
-  Color _getConnectionStatusColor(SipConnectionStatus status) {
-    switch (status) {
-      case SipConnectionStatus.connected:
-        return Colors.green;
-      case SipConnectionStatus.connecting:
-        return Colors.orange;
-      case SipConnectionStatus.error:
-        return Colors.red;
-      case SipConnectionStatus.disconnected:
-        return Colors.grey;
     }
   }
 
@@ -773,16 +601,6 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
     } else {
       return 'Just now';
     }
-  }
-
-  String _formatTime(DateTime dateTime) {
-    final hour =
-        dateTime.hour == 0
-            ? 12
-            : (dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour);
-    final minute = dateTime.minute.toString().padLeft(2, '0');
-    final period = dateTime.hour >= 12 ? 'PM' : 'AM';
-    return '$hour:$minute $period';
   }
 
   String _formatDuration(Duration duration) {
