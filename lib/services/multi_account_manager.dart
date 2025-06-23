@@ -1,8 +1,9 @@
-// lib/services/multi_account_manager.dart
+// lib/services/multi_account_manager.dart - FIXED: Connection Status Updates
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'dart:async';
 import 'sip_service.dart';
 
 class AccountInfo {
@@ -78,6 +79,9 @@ class MultiAccountManager extends ChangeNotifier {
   final Map<String, AccountInfo> _accounts = {};
   String? _activeAccountId;
   bool _isInitialized = false;
+  
+  // FIXED: Add periodic status checker
+  Timer? _statusUpdateTimer;
 
   // Getters
   Map<String, AccountInfo> get accounts => Map.unmodifiable(_accounts);
@@ -103,6 +107,7 @@ class MultiAccountManager extends ChangeNotifier {
     try {
       await _loadAccounts();
       await _initializeSipServices();
+      _startStatusUpdateTimer(); // FIXED: Start status monitoring
       _isInitialized = true;
       
       print('✅ [MultiAccountManager] Initialized with ${_accounts.length} accounts');
@@ -111,6 +116,29 @@ class MultiAccountManager extends ChangeNotifier {
       print('❌ [MultiAccountManager] Initialization failed: $e');
       rethrow;
     }
+  }
+
+  // FIXED: Add status update timer to monitor connection changes
+  void _startStatusUpdateTimer() {
+    _statusUpdateTimer?.cancel();
+    _statusUpdateTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+      // Check if any SIP service status changed and notify listeners
+      bool shouldNotify = false;
+      
+      for (final sipService in _sipServices.values) {
+        // Listen to SIP service changes and trigger UI updates
+        if (sipService.hasListeners) {
+          shouldNotify = true;
+          break;
+        }
+      }
+      
+      if (shouldNotify) {
+        notifyListeners();
+      }
+    });
+    
+    print('⏱️ [MultiAccountManager] Status update timer started');
   }
 
   /// Load accounts from SharedPreferences
@@ -193,6 +221,13 @@ class MultiAccountManager extends ChangeNotifier {
       
       final sipService = SipService();
       await sipService.initialize();
+      
+      // FIXED: Set up listener to monitor SIP service changes
+      sipService.addListener(() {
+        print('📡 [MultiAccountManager] SipService status changed for ${account.displayName}: ${sipService.status}');
+        // Trigger UI update when any SIP service status changes
+        notifyListeners();
+      });
       
       // Configure the service with account settings
       await sipService.saveSettings(
@@ -356,11 +391,18 @@ class MultiAccountManager extends ChangeNotifier {
         try {
           print('🔌 [MultiAccountManager] Connecting ${account.displayName}...');
           await sipService.register();
+          
+          // FIXED: Wait a bit and then notify listeners to update UI
+          await Future.delayed(const Duration(milliseconds: 100));
+          notifyListeners();
         } catch (e) {
           print('❌ [MultiAccountManager] Failed to connect ${account.displayName}: $e');
         }
       }
     }
+    
+    // FIXED: Final notification after all connections attempted
+    notifyListeners();
   }
 
   /// Disconnect all accounts
@@ -381,6 +423,8 @@ class MultiAccountManager extends ChangeNotifier {
         }
       }
     }
+    
+    notifyListeners();
   }
 
   /// Get account connection status summary
@@ -398,9 +442,17 @@ class MultiAccountManager extends ChangeNotifier {
     return _accounts.values.any((account) => account.identifier == identifier);
   }
 
+  /// FIXED: Force refresh UI (useful for settings page)
+  void forceNotifyListeners() {
+    notifyListeners();
+  }
+
   @override
   void dispose() {
     print('🗑️ [MultiAccountManager] Disposing...');
+    
+    // FIXED: Cancel status update timer
+    _statusUpdateTimer?.cancel();
     
     // Dispose all SipServices
     for (final sipService in _sipServices.values) {

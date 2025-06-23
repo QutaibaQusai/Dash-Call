@@ -1,4 +1,4 @@
-// lib/screens/dialer_screen.dart - Updated with Multi-Account Support
+// lib/screens/dialer_screen.dart - FIXED: Layout Overflow Issue
 
 import 'package:adaptive_dialog/adaptive_dialog.dart';
 import 'package:flutter/cupertino.dart';
@@ -64,18 +64,19 @@ class _DialerTabState extends State<DialerTab> {
           body: SafeArea(
             child: Column(
               children: [
-                // No Active Account Warning
+                // Account status warnings
                 if (!accountManager.hasAccounts)
                   _buildNoAccountWarning()
                 else if (activeSipService == null)
-                  _buildNoActiveAccountWarning(),
+                  _buildNoActiveAccountWarning()
+                else if (activeSipService.status != SipConnectionStatus.connected)
+                  _buildConnectionWarning(activeSipService),
                 
-                // Dialer Interface
+                // FIXED: Use Expanded for dialer interface to prevent overflow
                 Expanded(
                   child: LayoutBuilder(
                     builder: (context, constraints) {
-                      final layout = _calculateLayout(constraints);
-                      return _buildDialerInterface(activeSipService, layout);
+                      return _buildDialerInterface(activeSipService, constraints);
                     },
                   ),
                 ),
@@ -169,33 +170,115 @@ class _DialerTabState extends State<DialerTab> {
     );
   }
 
-  _DialerLayout _calculateLayout(BoxConstraints constraints) {
-    final screenHeight = constraints.maxHeight;
-    final screenWidth = constraints.maxWidth;
+  Widget _buildConnectionWarning(SipService sipService) {
+    final statusText = _getConnectionStatusText(sipService.status);
+    final statusColor = _getConnectionStatusColor(sipService.status);
 
-    return _DialerLayout(
-      screenWidth: screenWidth,
-      screenHeight: screenHeight,
-      numberDisplayHeight: screenHeight * 0.15,
-      dialPadHeight: screenHeight * 0.65,
-      controlsHeight: screenHeight * 0.20,
-      buttonSize: (screenWidth - 60) / 3.5,
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: statusColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: statusColor.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.signal_wifi_off, color: statusColor, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  statusText,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: statusColor,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Check your internet connection and try again',
+                  style: TextStyle(
+                    color: AppThemes.getSecondaryTextColor(context),
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildDialerInterface(SipService? sipService, _DialerLayout layout) {
+  String _getConnectionStatusText(SipConnectionStatus status) {
+    switch (status) {
+      case SipConnectionStatus.connecting:
+        return 'Connecting...';
+      case SipConnectionStatus.error:
+        return 'Connection Error';
+      case SipConnectionStatus.disconnected:
+        return 'Not Connected';
+      case SipConnectionStatus.connected:
+        return 'Connected';
+    }
+  }
+
+  Color _getConnectionStatusColor(SipConnectionStatus status) {
+    switch (status) {
+      case SipConnectionStatus.connecting:
+        return Colors.orange;
+      case SipConnectionStatus.error:
+        return Colors.red;
+      case SipConnectionStatus.disconnected:
+        return Colors.grey;
+      case SipConnectionStatus.connected:
+        return Colors.green;
+    }
+  }
+
+  // FIXED: Responsive layout calculation
+  Widget _buildDialerInterface(SipService? sipService, BoxConstraints constraints) {
+    final screenHeight = constraints.maxHeight;
+    final screenWidth = constraints.maxWidth;
+    
+    // Calculate responsive sizes
+    final numberDisplayHeight = screenHeight * 0.12; // Reduced from 0.15
+    final controlsHeight = screenHeight * 0.16; // Reduced from 0.20
+    final dialPadHeight = screenHeight - numberDisplayHeight - controlsHeight - 32; // 32 for spacing
+    final buttonSize = (screenWidth - 80) / 3.8; // More conservative sizing
+
     return Column(
       children: [
-        _buildNumberDisplay(layout),
-        _buildDialPad(layout),
-        _buildControls(sipService, layout),
+        // Number display
+        SizedBox(
+          height: numberDisplayHeight,
+          child: _buildNumberDisplay(),
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // FIXED: Use Flexible instead of Expanded to prevent overflow
+        Flexible(
+          child: _buildDialPad(dialPadHeight, buttonSize, screenWidth),
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // Controls
+        SizedBox(
+          height: controlsHeight,
+          child: _buildControls(sipService, buttonSize),
+        ),
       ],
     );
   }
 
-  Widget _buildNumberDisplay(_DialerLayout layout) {
+  Widget _buildNumberDisplay() {
     return Container(
-      height: layout.numberDisplayHeight,
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Center(
@@ -207,7 +290,7 @@ class _DialerTabState extends State<DialerTab> {
                 ? ''
                 : _formatPhoneNumber(_phoneController.text),
             style: TextStyle(
-              fontSize: 40,
+              fontSize: 36, // Reduced from 40
               fontWeight: FontWeight.w600,
               color: Theme.of(context).colorScheme.onBackground,
               letterSpacing: 1.0,
@@ -219,20 +302,19 @@ class _DialerTabState extends State<DialerTab> {
     );
   }
 
-  Widget _buildDialPad(_DialerLayout layout) {
-    return Expanded(
-      child: Container(
-        height: layout.dialPadHeight,
-        padding: EdgeInsets.symmetric(horizontal: layout.screenWidth * 0.08),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: _dialerNumbers.asMap().entries.map((entry) {
-            final rowIndex = entry.key;
-            final numbers = entry.value;
-            final letters = _dialerLetters[rowIndex];
-            return _buildDialerRow(numbers, letters, layout.buttonSize);
-          }).toList(),
-        ),
+  // FIXED: Better dial pad layout with proper spacing
+  Widget _buildDialPad(double height, double buttonSize, double screenWidth) {
+    return Container(
+      height: height,
+      padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.06), // Reduced padding
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: _dialerNumbers.asMap().entries.map((entry) {
+          final rowIndex = entry.key;
+          final numbers = entry.value;
+          final letters = _dialerLetters[rowIndex];
+          return _buildDialerRow(numbers, letters, buttonSize);
+        }).toList(),
       ),
     );
   }
@@ -272,64 +354,71 @@ class _DialerTabState extends State<DialerTab> {
   }
 
   Widget _buildButtonContent(String number, String letters, double size) {
-    final numberFontSize = size * 0.4;
-    final letterFontSize = size * 0.12;
+    final numberFontSize = size * 0.38; // Slightly increased for better visibility
+    final letterFontSize = size * 0.11; // Slightly increased
 
-    return Stack(
-      children: [
-        Positioned(
-          top: letters.isNotEmpty ? size * 0.22 : size * 0.35,
-          left: 0,
-          right: 0,
-          child: Center(
-            child: Text(
-              number,
+    return Container(
+      width: size,
+      height: size,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Top spacing for better centering
+          if (letters.isNotEmpty && letters != '.') 
+            SizedBox(height: size * 0.12)
+          else 
+            SizedBox(height: size * 0.25),
+          
+          // Number - perfectly centered
+          Text(
+            number,
+            style: TextStyle(
+              fontSize: numberFontSize,
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.onSurface,
+              height: 1.0, // Tight line height for better centering
+            ),
+            textAlign: TextAlign.center,
+          ),
+          
+          // Letters below number (if exists)
+          if (letters.isNotEmpty && letters != '.') ...[
+            SizedBox(height: size * 0.02), // Small gap between number and letters
+            Text(
+              letters,
               style: TextStyle(
-                fontSize: numberFontSize,
-                fontWeight: FontWeight.w600,
+                fontSize: letterFontSize,
+                fontWeight: FontWeight.w800,
                 color: Theme.of(context).colorScheme.onSurface,
+                letterSpacing: size * 0.01,
+                height: 1.0, // Tight line height
               ),
+              textAlign: TextAlign.center,
             ),
-          ),
-        ),
-        if (letters.isNotEmpty && letters != '.')
-          Positioned(
-            bottom: size * 0.18,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Text(
-                letters,
-                style: TextStyle(
-                  fontSize: letterFontSize,
-                  fontWeight: FontWeight.w800,
-                  color: Theme.of(context).colorScheme.onSurface,
-                  letterSpacing: size * 0.02,
-                  height: 1.0,
-                ),
-              ),
-            ),
-          ),
-      ],
+            SizedBox(height: size * 0.12), // Bottom spacing
+          ] else
+            SizedBox(height: size * 0.25), // Bottom spacing when no letters
+        ],
+      ),
     );
   }
 
-  Widget _buildControls(SipService? sipService, _DialerLayout layout) {
+  Widget _buildControls(SipService? sipService, double buttonSize) {
     return Container(
-      height: layout.controlsHeight,
       padding: const EdgeInsets.symmetric(horizontal: 30),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Expanded(child: SizedBox()),
-          _buildCallButton(sipService, layout.buttonSize * 0.95),
+          _buildCallButton(sipService, buttonSize * 0.90), // Slightly smaller
           Expanded(
             child: _phoneController.text.isNotEmpty
                 ? Align(
                     alignment: Alignment.centerRight,
                     child: Padding(
                       padding: const EdgeInsets.only(right: 20),
-                      child: _buildDeleteButton(layout.buttonSize * 0.6),
+                      child: _buildDeleteButton(buttonSize * 0.55), // Slightly smaller
                     ),
                   )
                 : const SizedBox(),
@@ -341,12 +430,14 @@ class _DialerTabState extends State<DialerTab> {
 
   Widget _buildCallButton(SipService? sipService, double size) {
     final canCall = sipService?.status == SipConnectionStatus.connected;
+    final hasNumber = _phoneController.text.trim().isNotEmpty;
+    final isEnabled = canCall && hasNumber;
 
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: canCall ? const Color(0xFF34C759) : Colors.grey.shade400,
+        color: isEnabled ? const Color(0xFF34C759) : Colors.grey.shade400,
         shape: BoxShape.circle,
       ),
       child: Material(
@@ -355,7 +446,7 @@ class _DialerTabState extends State<DialerTab> {
           borderRadius: BorderRadius.circular(size / 2),
           splashColor: Colors.white.withOpacity(0.2),
           highlightColor: Colors.white.withOpacity(0.1),
-          onTap: canCall ? () => _makeCall(sipService!) : null,
+          onTap: isEnabled ? () => _makeCall(sipService!) : null,
           child: Icon(
             CupertinoIcons.phone_fill,
             color: Colors.white,
@@ -423,11 +514,10 @@ class _DialerTabState extends State<DialerTab> {
   void _sendDTMFToActiveCall(String digit) {
     final accountManager = Provider.of<MultiAccountManager>(context, listen: false);
     
-    // Send DTMF to any active call across all accounts
     for (final sipService in accountManager.allSipServices.values) {
       if (sipService.callStatus == CallStatus.active) {
         sipService.sendDTMF(digit);
-        break; // Only send to the first active call found
+        break;
       }
     }
   }
@@ -436,9 +526,33 @@ class _DialerTabState extends State<DialerTab> {
     final number = _phoneController.text.trim();
     if (number.isEmpty) return;
 
-    final success = await sipService.makeCall(number);
-    if (!success && mounted) {
-      _showErrorDialog(sipService.errorMessage ?? 'Failed to make call');
+    if (sipService.status != SipConnectionStatus.connected) {
+      _showErrorDialog('Not connected to server. Please check your connection.');
+      return;
+    }
+
+    if (sipService.callStatus != CallStatus.idle) {
+      _showErrorDialog('Another call is already in progress.');
+      return;
+    }
+
+    print('📞 [DialerTab] Attempting to make call to: $number');
+    print('📊 [DialerTab] SIP Status: ${sipService.status}');
+    print('📊 [DialerTab] Call Status: ${sipService.callStatus}');
+
+    try {
+      final success = await sipService.makeCall(number);
+      if (!success && mounted) {
+        final errorMsg = sipService.errorMessage ?? 'Failed to make call';
+        _showErrorDialog(errorMsg);
+      } else {
+        print('✅ [DialerTab] Call initiated successfully');
+      }
+    } catch (e) {
+      print('❌ [DialerTab] Exception making call: $e');
+      if (mounted) {
+        _showErrorDialog('Failed to make call: $e');
+      }
     }
   }
 
@@ -471,22 +585,4 @@ class _DialerTabState extends State<DialerTab> {
       return '$countryCode $areaCode $prefix $lineNumber';
     }
   }
-}
-
-class _DialerLayout {
-  final double screenWidth;
-  final double screenHeight;
-  final double numberDisplayHeight;
-  final double dialPadHeight;
-  final double controlsHeight;
-  final double buttonSize;
-
-  const _DialerLayout({
-    required this.screenWidth,
-    required this.screenHeight,
-    required this.numberDisplayHeight,
-    required this.dialPadHeight,
-    required this.controlsHeight,
-    required this.buttonSize,
-  });
 }

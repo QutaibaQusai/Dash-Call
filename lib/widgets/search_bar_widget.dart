@@ -42,24 +42,24 @@ class SearchBarWidget extends StatelessWidget {
             fontSize: 17,
             fontWeight: FontWeight.normal,
           ),
-          prefixIcon: Icon(
-            Icons.search,
-            color: AppThemes.getSecondaryTextColor(context),
-            size: 20,
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 8, right: 4),
+            child: Icon(
+              Icons.search,
+              color: AppThemes.getSecondaryTextColor(context),
+              size: 20,
+            ),
           ),
           prefixIconConstraints: const BoxConstraints(
-            minWidth: 30,
-            maxWidth: 30,
+            minWidth: 32,
+            maxWidth: 36,
           ),
           border: InputBorder.none,
           focusedBorder: InputBorder.none,
           enabledBorder: InputBorder.none,
           errorBorder: InputBorder.none,
           disabledBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 0,
-            vertical: 8,
-          ),
+          contentPadding: const EdgeInsets.symmetric(vertical: 8),
         ),
       ),
     );

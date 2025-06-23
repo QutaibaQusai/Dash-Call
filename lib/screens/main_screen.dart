@@ -1,4 +1,4 @@
-// lib/screens/main_screen.dart - Updated with Account Switcher
+// lib/screens/main_screen.dart - FIXED: Call Status Detection
 
 import 'package:dash_call/screens/dialer_screen.dart';
 import 'package:flutter/cupertino.dart';
@@ -27,22 +27,15 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Consumer<MultiAccountManager>(
       builder: (context, accountManager, child) {
-        // Check if any account has an active call
-        final activeSipService = accountManager.activeSipService;
-        
-        // Check all accounts for incoming/active calls
-        SipService? callingSipService;
-        for (final sipService in accountManager.allSipServices.values) {
-          if (sipService.callStatus != CallStatus.idle) {
-            callingSipService = sipService;
-            break;
-          }
-        }
+        // FIXED: Better call status detection
+        SipService? callingSipService = _findActiveCallService(accountManager);
 
         // Show call screen if any account has an active call
         if (callingSipService != null) {
           return CallScreen(sipService: callingSipService);
         }
+
+        final activeSipService = accountManager.activeSipService;
 
         return Scaffold(
           backgroundColor: _getBackgroundColor(),
@@ -52,6 +45,19 @@ class _MainScreenState extends State<MainScreen> {
         );
       },
     );
+  }
+
+  // FIXED: Better logic to find active call service
+  SipService? _findActiveCallService(MultiAccountManager accountManager) {
+    for (final sipService in accountManager.allSipServices.values) {
+      final callStatus = sipService.callStatus;
+      // Check for any non-idle call status
+      if (callStatus != CallStatus.idle && callStatus != CallStatus.ended) {
+        print('🔍 [MainScreen] Found active call on service: ${sipService.username} - Status: $callStatus');
+        return sipService;
+      }
+    }
+    return null;
   }
 
   Color _getBackgroundColor() {

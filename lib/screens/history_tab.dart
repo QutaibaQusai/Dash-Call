@@ -1,4 +1,4 @@
-// lib/screens/history_tab.dart - Updated with Shared Action Sheet
+// lib/screens/history_tab.dart - FIXED: No font resizing on search
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -9,7 +9,7 @@ import '../services/call_history_manager.dart';
 import '../services/call_history_database.dart';
 import '../themes/app_themes.dart';
 import '../widgets/search_bar_widget.dart';
-import '../widgets/shared_contact_action_sheet.dart'; // NEW: Import shared component
+import '../widgets/shared_contact_action_sheet.dart';
 
 class HistoryTab extends StatefulWidget {
   const HistoryTab({super.key});
@@ -55,113 +55,97 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
       child: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final scale = _calculateScale(constraints);
-
-            return Column(
-              children: [
-                SizedBox(height: 16 * scale),
-
-                // Search bar
-                SearchBarWidget(
-                  controller: _searchController,
-                  onChanged: _onSearchChanged,
-                  hintText: 'Search',
-                ),
-
-                SizedBox(height: 12 * scale),
-
-                // Tab bar
-                _buildTabBar(scale),
-
-                // Tab content
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildCallList(_allCalls, scale),
-                      _buildCallList(_incomingCalls, scale),
-                      _buildCallList(_outgoingCalls, scale),
-                      _buildCallList(_missedCalls, scale),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  /// Calculate responsive scale
-  double _calculateScale(BoxConstraints constraints) {
-    const baseWidth = 375.0;
-    const baseHeight = 667.0;
-    final scaleWidth = constraints.maxWidth / baseWidth;
-    final scaleHeight = constraints.maxHeight / baseHeight;
-    return (scaleWidth + scaleHeight) / 2;
-  }
-
-  /// Build tab bar
-  Widget _buildTabBar(double scale) {
-    return Container(
-      color: Theme.of(context).scaffoldBackgroundColor,
-      padding: EdgeInsets.fromLTRB(16 * scale, 0, 16 * scale, 8 * scale),
-      child: Container(
-        decoration: BoxDecoration(
-          color: _getTabBarBackgroundColor(),
-          borderRadius: BorderRadius.circular(8 * scale),
-        ),
-        child: Row(
+        child: Column(
           children: [
-            _buildTabButton('All', 0, scale),
-            _buildTabButton('Incoming', 1, scale),
-            _buildTabButton('Outgoing', 2, scale),
-            _buildTabButton('Missed', 3, scale),
+            const SizedBox(height: 16),
+
+            // Tab bar FIRST
+            _buildTabBar(),
+
+            const SizedBox(height: 12),
+
+            // Search bar UNDER tabs
+            SearchBarWidget(
+              controller: _searchController,
+              onChanged: _onSearchChanged,
+              hintText: 'Search',
+            ),
+
+            const SizedBox(height: 12),
+
+            // Tab content
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildCallList(_allCalls),
+                  _buildCallList(_incomingCalls),
+                  _buildCallList(_outgoingCalls),
+                  _buildCallList(_missedCalls),
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  /// Build individual tab button
-  Widget _buildTabButton(String text, int index, double scale) {
+  /// Build tab bar - FIXED: No scaling
+  Widget _buildTabBar() {
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Container(
+        decoration: BoxDecoration(
+          color: _getTabBarBackgroundColor(),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            _buildTabButton('All', 0),
+            _buildTabButton('Incoming', 1),
+            _buildTabButton('Outgoing', 2),
+            _buildTabButton('Missed', 3),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Build individual tab button - FIXED: No scaling
+  Widget _buildTabButton(String text, int index) {
     final isSelected = _selectedTabIndex == index;
 
     return Expanded(
       child: GestureDetector(
         onTap: () => _tabController.animateTo(index),
         child: Container(
-          margin: EdgeInsets.all(2 * scale),
-          padding: EdgeInsets.symmetric(vertical: 6 * scale),
+          margin: const EdgeInsets.all(2),
+          padding: const EdgeInsets.symmetric(vertical: 6),
           decoration: BoxDecoration(
-            color:
-                isSelected
-                    ? AppThemes.getCardBackgroundColor(context)
-                    : Colors.transparent,
-            borderRadius: BorderRadius.circular(6 * scale),
-            boxShadow:
-                isSelected
-                    ? [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
-                        blurRadius: 2 * scale,
-                        offset: Offset(0, 1 * scale),
-                      ),
-                    ]
-                    : null,
+            color: isSelected
+                ? AppThemes.getCardBackgroundColor(context)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 2,
+                      offset: const Offset(0, 1),
+                    ),
+                  ]
+                : null,
           ),
           child: Text(
             text,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color:
-                  isSelected
-                      ? Theme.of(context).colorScheme.onSurface
-                      : AppThemes.getSecondaryTextColor(context),
-              fontSize: 12 * scale,
+              color: isSelected
+                  ? Theme.of(context).colorScheme.onSurface
+                  : AppThemes.getSecondaryTextColor(context),
+              fontSize: 12,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -170,14 +154,14 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
     );
   }
 
-  /// Build call list for each tab
-  Widget _buildCallList(List<CallRecord> calls, double scale) {
+  /// Build call list for each tab - FIXED: No scaling
+  Widget _buildCallList(List<CallRecord> calls) {
     if (_isLoading && calls.isEmpty) {
       return _buildLoadingState();
     }
 
     if (calls.isEmpty) {
-      return _buildEmptyState(scale);
+      return _buildEmptyState();
     }
 
     return Container(
@@ -188,7 +172,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
         itemBuilder: (context, index) {
           final call = calls[index];
           final isLast = index == calls.length - 1;
-          return _buildCallTile(call, isLast, scale);
+          return _buildCallTile(call, isLast);
         },
       ),
     );
@@ -206,8 +190,8 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
     );
   }
 
-  /// Build empty state
-  Widget _buildEmptyState(double scale) {
+  /// Build empty state - FIXED: No scaling
+  Widget _buildEmptyState() {
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
       child: Center(
@@ -215,31 +199,31 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: EdgeInsets.all(20 * scale),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: _getEmptyStateIconBackgroundColor(),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 _getEmptyStateIcon(),
-                size: 44 * scale,
+                size: 44,
                 color: _getEmptyStateIconColor(),
               ),
             ),
-            SizedBox(height: 16 * scale),
+            const SizedBox(height: 16),
             Text(
               _getEmptyStateTitle(),
               style: TextStyle(
-                fontSize: 18 * scale,
+                fontSize: 18,
                 color: AppThemes.getSecondaryTextColor(context),
                 fontWeight: FontWeight.w500,
               ),
             ),
-            SizedBox(height: 8 * scale),
+            const SizedBox(height: 8),
             Text(
               _getEmptyStateSubtitle(),
               style: TextStyle(
-                fontSize: 14 * scale,
+                fontSize: 14,
                 color: AppThemes.getSecondaryTextColor(context),
               ),
             ),
@@ -249,70 +233,69 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
     );
   }
 
-  /// Build individual call tile
-  Widget _buildCallTile(CallRecord call, bool isLast, double scale) {
+  /// Build individual call tile - FIXED: No scaling
+  Widget _buildCallTile(CallRecord call, bool isLast) {
     return InkWell(
-      onTap: () => _showCallDetails(call), // UPDATED: Use shared sheet
+      onTap: () => _showCallDetails(call),
       child: Column(
         children: [
           Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: 16 * scale,
-              vertical: 12 * scale,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
             ),
             child: Row(
               children: [
                 // Contact avatar
-                _buildContactAvatar(call, scale),
-                SizedBox(width: 12 * scale),
+                _buildContactAvatar(call),
+                const SizedBox(width: 12),
 
                 // Call info
-                Expanded(child: _buildCallInfo(call, scale)),
+                Expanded(child: _buildCallInfo(call)),
 
                 // Time and duration
-                _buildTimeInfo(call, scale),
+                _buildTimeInfo(call),
               ],
             ),
           ),
 
           // Divider
-          if (!isLast) _buildDivider(scale),
+          if (!isLast) _buildDivider(),
         ],
       ),
     );
   }
 
-  /// Build contact avatar
-  Widget _buildContactAvatar(CallRecord call, double scale) {
+  /// Build contact avatar - FIXED: No scaling
+  Widget _buildContactAvatar(CallRecord call) {
     return Container(
-      width: 40 * scale,
-      height: 40 * scale,
+      width: 40,
+      height: 40,
       decoration: BoxDecoration(
         color: AppThemes.getSecondaryTextColor(context),
         shape: BoxShape.circle,
       ),
       child: Center(
-        child:
-            call.name != null
-                ? Text(
-                  _getInitials(call.name!),
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16 * scale,
-                    fontWeight: FontWeight.w500,
-                  ),
-                )
-                : Icon(
-                  CupertinoIcons.person_fill,
+        child: call.name != null
+            ? Text(
+                _getInitials(call.name!),
+                style: const TextStyle(
                   color: Colors.white,
-                  size: 20 * scale,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
                 ),
+              )
+            : const Icon(
+                CupertinoIcons.person_fill,
+                color: Colors.white,
+                size: 20,
+              ),
       ),
     );
   }
 
-  /// Build call information
-  Widget _buildCallInfo(CallRecord call, double scale) {
+  /// Build call information - FIXED: No scaling
+  Widget _buildCallInfo(CallRecord call) {
     final isMissed = call.type == CallType.missed;
 
     return Column(
@@ -322,23 +305,21 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
           children: [
             Icon(
               _getCallDirectionIcon(call.type),
-              color:
-                  isMissed
-                      ? const Color(0xFFFF3B30)
-                      : AppThemes.getSecondaryTextColor(context),
-              size: 16 * scale,
+              color: isMissed
+                  ? const Color(0xFFFF3B30)
+                  : AppThemes.getSecondaryTextColor(context),
+              size: 16,
             ),
-            SizedBox(width: 6 * scale),
+            const SizedBox(width: 6),
             Expanded(
               child: Text(
                 call.name ?? call.number,
                 style: TextStyle(
-                  fontSize: 17 * scale,
+                  fontSize: 17,
                   fontWeight: FontWeight.w400,
-                  color:
-                      isMissed
-                          ? const Color(0xFFFF3B30)
-                          : Theme.of(context).colorScheme.onSurface,
+                  color: isMissed
+                      ? const Color(0xFFFF3B30)
+                      : Theme.of(context).colorScheme.onSurface,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -347,11 +328,11 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
           ],
         ),
         if (call.name != null) ...[
-          SizedBox(height: 2 * scale),
+          const SizedBox(height: 2),
           Text(
             call.number,
             style: TextStyle(
-              fontSize: 15 * scale,
+              fontSize: 15,
               color: AppThemes.getSecondaryTextColor(context),
             ),
             maxLines: 1,
@@ -362,24 +343,24 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
     );
   }
 
-  /// Build time information
-  Widget _buildTimeInfo(CallRecord call, double scale) {
+  /// Build time information - FIXED: No scaling
+  Widget _buildTimeInfo(CallRecord call) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Text(
           _formatRelativeTime(call.timestamp),
           style: TextStyle(
-            fontSize: 15 * scale,
+            fontSize: 15,
             color: AppThemes.getSecondaryTextColor(context),
           ),
         ),
         if (call.duration != Duration.zero) ...[
-          SizedBox(height: 2 * scale),
+          const SizedBox(height: 2),
           Text(
             _formatDuration(call.duration),
             style: TextStyle(
-              fontSize: 13 * scale,
+              fontSize: 13,
               color: AppThemes.getSecondaryTextColor(context),
             ),
           ),
@@ -388,22 +369,22 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
     );
   }
 
-  /// Build divider
-  Widget _buildDivider(double scale) {
+  /// Build divider - FIXED: No scaling
+  Widget _buildDivider() {
     return Container(
       height: 0.5,
-      margin: EdgeInsets.only(left: 68 * scale),
+      margin: const EdgeInsets.only(left: 68),
       color: AppThemes.getDividerColor(context),
     );
   }
 
-  // UPDATED: Use shared action sheet helper
+  // Use shared action sheet helper
   void _showCallDetails(CallRecord call) {
     ContactActionSheetHelper.show(
       context: context,
       displayName: call.name ?? call.number,
       phoneNumber: call.number,
-      showDeleteAction: true, // History items have delete action
+      showDeleteAction: true,
       onDelete: () => _deleteCallRecord(call),
       callTimestamp: call.timestamp,
       callDuration: call.duration,
@@ -447,18 +428,15 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
 
       setState(() {
         _allCalls = searchResults;
-        _incomingCalls =
-            searchResults
-                .where((call) => call.type == CallType.incoming)
-                .toList();
-        _outgoingCalls =
-            searchResults
-                .where((call) => call.type == CallType.outgoing)
-                .toList();
-        _missedCalls =
-            searchResults
-                .where((call) => call.type == CallType.missed)
-                .toList();
+        _incomingCalls = searchResults
+            .where((call) => call.type == CallType.incoming)
+            .toList();
+        _outgoingCalls = searchResults
+            .where((call) => call.type == CallType.outgoing)
+            .toList();
+        _missedCalls = searchResults
+            .where((call) => call.type == CallType.missed)
+            .toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -472,7 +450,7 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
     setState(() => _searchQuery = value);
 
     // Debounce search
-    Future.delayed(Duration(milliseconds: 300), () {
+    Future.delayed(const Duration(milliseconds: 300), () {
       if (_searchQuery == value) {
         _searchCalls(value);
       }
@@ -494,8 +472,8 @@ class _HistoryTabState extends State<HistoryTab> with TickerProviderStateMixin {
   // Helper methods
   Color _getTabBarBackgroundColor() {
     return Theme.of(context).brightness == Brightness.dark
-        ? Color(0xFF2C2C2E)
-        : Color(0xFFE5E5EA);
+        ? const Color(0xFF2C2C2E)
+        : const Color(0xFFE5E5EA);
   }
 
   String _getInitials(String name) {

@@ -1,3 +1,5 @@
+// lib/screens/call_screen.dart - FIXED: Null Safety Issues
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -93,11 +95,11 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _getCallScreenBackground(), // UPDATED: Use theme-aware background
+      backgroundColor: _getCallScreenBackground(),
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: _getCallScreenGradient(), // UPDATED: Use theme-aware gradient
+        decoration: _getCallScreenGradient(),
         child: SafeArea(
           child: Column(
             children: [
@@ -119,14 +121,12 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
     );
   }
 
-  // ADD THIS: Get theme-aware call screen background
   Color _getCallScreenBackground() {
     return Theme.of(context).brightness == Brightness.dark 
         ? const Color(0xFF000000) 
         : const Color(0xFF000000); // Keep dark for call screen
   }
 
-  // ADD THIS: Get theme-aware gradient
   BoxDecoration _getCallScreenGradient() {
     if (Theme.of(context).brightness == Brightness.dark) {
       return const BoxDecoration(
@@ -189,7 +189,7 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
             ),
           ),
 
-          // Call duration (for active calls)
+          // Call duration (for active calls) - FIXED: Null safety
           if (widget.sipService.callStartTime != null &&
               widget.sipService.callStatus == CallStatus.active)
             Padding(
@@ -197,9 +197,13 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
               child: StreamBuilder(
                 stream: Stream.periodic(const Duration(seconds: 1)),
                 builder: (context, snapshot) {
-                  final duration = DateTime.now().difference(
-                    widget.sipService.callStartTime!,
-                  );
+                  final callStartTime = widget.sipService.callStartTime;
+                  // FIXED: Add null check to prevent the error
+                  if (callStartTime == null) {
+                    return const SizedBox.shrink();
+                  }
+                  
+                  final duration = DateTime.now().difference(callStartTime);
                   return Text(
                     _formatDuration(duration),
                     style: const TextStyle(
@@ -359,9 +363,9 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
           height: 68,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: isActive ? Colors.white : _getInactiveControlButtonColor(), // UPDATED: Use theme-aware color
+            color: isActive ? Colors.white : _getInactiveControlButtonColor(),
             border: Border.all(
-              color: isActive ? Colors.white : _getControlButtonBorderColor(), // UPDATED: Use theme-aware color
+              color: isActive ? Colors.white : _getControlButtonBorderColor(),
               width: 1,
             ),
             boxShadow: [
@@ -398,14 +402,12 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
     );
   }
 
-  // ADD THIS: Get theme-aware inactive control button color
   Color _getInactiveControlButtonColor() {
     return Theme.of(context).brightness == Brightness.dark 
         ? const Color(0xFF2C2C2E) 
         : const Color(0xFF2C2C2E); // Keep consistent for call screen
   }
 
-  // ADD THIS: Get theme-aware control button border color
   Color _getControlButtonBorderColor() {
     return Theme.of(context).brightness == Brightness.dark 
         ? const Color(0xFF3A3A3C) 

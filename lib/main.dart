@@ -1,4 +1,4 @@
-// lib/main.dart - Updated with MultiAccountManager
+// lib/main.dart - FIXED: Better initialization sequence
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -140,7 +140,7 @@ class DashCallApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (_) => MultiAccountManager()..initialize(),
+          create: (_) => MultiAccountManager(),
         ),
         ChangeNotifierProvider(
           create: (_) => services.ThemeService()..initialize(),
@@ -199,20 +199,26 @@ class _LoginCheckScreenState extends State<LoginCheckScreen> {
 
   Future<void> _checkLoginStatus() async {
     try {
-      // Wait for MultiAccountManager to initialize
+      // FIXED: Get MultiAccountManager from context and initialize
       final multiAccountManager = Provider.of<MultiAccountManager>(context, listen: false);
       
-      // Wait for initialization if not already done
-      if (!multiAccountManager.isInitialized) {
-        await multiAccountManager.initialize();
-      }
+      print('🔄 [LoginCheck] Initializing MultiAccountManager...');
+      await multiAccountManager.initialize();
+      
+      print('✅ [LoginCheck] MultiAccountManager initialized');
+      print('📊 [LoginCheck] Has accounts: ${multiAccountManager.hasAccounts}');
 
       if (mounted) {
         if (multiAccountManager.hasAccounts) {
-          // Connect all accounts on app start
+          print('🔌 [LoginCheck] Connecting all accounts...');
+          // Connect all accounts on app start with a small delay
+          await Future.delayed(const Duration(milliseconds: 500));
           await multiAccountManager.connectAllAccounts();
+          
+          print('📱 [LoginCheck] Navigating to main screen...');
           Navigator.of(context).pushReplacementNamed('/main');
         } else {
+          print('🔑 [LoginCheck] No accounts found, navigating to login...');
           Navigator.of(context).pushReplacementNamed('/qr-login');
         }
       }
@@ -226,9 +232,47 @@ class _LoginCheckScreenState extends State<LoginCheckScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Center(
-        child: CircularProgressIndicator(),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // App logo or icon
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Icon(
+                Icons.phone,
+                color: Colors.white,
+                size: 40,
+              ),
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Loading indicator
+            CircularProgressIndicator(
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Status text
+            Text(
+              'Initializing DashCall...',
+              style: TextStyle(
+                fontSize: 16,
+                color: Theme.of(context).colorScheme.onSurface,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

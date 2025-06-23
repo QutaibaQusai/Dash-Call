@@ -1,8 +1,9 @@
-// lib/screens/settings_tab.dart - Refactored & Clean
+// lib/screens/settings_tab.dart - FIXED: Real-time Status Updates
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
 import '../services/call_history_manager.dart';
 import '../services/multi_account_manager.dart';
 import '../services/sip_service.dart';
@@ -11,7 +12,7 @@ import '../widgets/theme_selector.dart';
 import '../themes/app_themes.dart';
 import '../screens/about_page.dart';
 import '../screens/qr_login_screen.dart';
-import 'account_settings_page.dart'; // Import the separated page
+import 'account_settings_page.dart';
 
 class SettingsTab extends StatefulWidget {
   const SettingsTab({super.key});
@@ -25,7 +26,33 @@ class _SettingsTabState extends State<SettingsTab>
   @override
   bool get wantKeepAlive => true;
 
-  // ADDED: Make setState method accessible to child widgets
+  // FIXED: Add timer for real-time status updates
+  Timer? _statusUpdateTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startStatusUpdateTimer();
+  }
+
+  @override
+  void dispose() {
+    _statusUpdateTimer?.cancel();
+    super.dispose();
+  }
+
+  // FIXED: Start timer to update connection statuses in real-time
+  void _startStatusUpdateTimer() {
+    _statusUpdateTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+      if (mounted) {
+        setState(() {
+          // Force rebuild to show current connection statuses
+        });
+      }
+    });
+  }
+
+  // Make setState method accessible to child widgets
   void refreshState() {
     if (mounted) {
       setState(() {
@@ -61,8 +88,7 @@ class _SettingsTabState extends State<SettingsTab>
                         _AccountsSection(
                           accountManager: accountManager,
                           scale: scale,
-                          parentState:
-                              this, // ADDED: Pass parent state reference
+                          parentState: this,
                         ),
                         SizedBox(height: 32 * scale),
                         _AppSettingsSection(
@@ -158,16 +184,16 @@ class _AppHeader extends StatelessWidget {
   }
 }
 
-// Accounts Section Widget
+// Accounts Section Widget - FIXED: Real-time updates
 class _AccountsSection extends StatelessWidget {
   final MultiAccountManager accountManager;
   final double scale;
-  final _SettingsTabState? parentState; // ADDED: Parent state reference
+  final _SettingsTabState? parentState;
 
   const _AccountsSection({
     required this.accountManager,
     required this.scale,
-    this.parentState, // ADDED: Optional parent state
+    this.parentState,
   });
 
   @override
@@ -181,7 +207,7 @@ class _AccountsSection extends StatelessWidget {
         _AddAccountItem(
           scale: scale,
           parentState: parentState,
-        ), // ADDED: Pass parent state
+        ),
       ],
     );
   }
@@ -196,7 +222,7 @@ class _AccountsSection extends StatelessWidget {
           accountManager: accountManager,
           account: accounts[i],
           scale: scale,
-          parentState: parentState, // ADDED: Pass parent state
+          parentState: parentState,
         ),
       );
 
@@ -209,45 +235,39 @@ class _AccountsSection extends StatelessWidget {
   }
 }
 
-// Individual Account Item Widget
+// Individual Account Item Widget - FIXED: Real-time status updates
 class _AccountItem extends StatelessWidget {
   final MultiAccountManager accountManager;
   final AccountInfo account;
   final double scale;
-  final _SettingsTabState? parentState; // ADDED: Parent state reference
+  final _SettingsTabState? parentState;
 
   const _AccountItem({
     required this.accountManager,
     required this.account,
     required this.scale,
-    this.parentState, // ADDED: Optional parent state
+    this.parentState,
   });
 
   @override
   Widget build(BuildContext context) {
-    // FIXED: Use Consumer to listen to real-time state changes
-    return Consumer<MultiAccountManager>(
-      builder: (context, accountManager, child) {
-        final isActive = accountManager.activeAccountId == account.id;
-        final sipService = accountManager.getSipService(account.id);
-        final connectionStatus =
-            sipService?.status ?? SipConnectionStatus.disconnected;
+    // FIXED: Get real-time status without Consumer to avoid rebuild issues
+    final isActive = accountManager.activeAccountId == account.id;
+    final sipService = accountManager.getSipService(account.id);
+    final connectionStatus = sipService?.status ?? SipConnectionStatus.disconnected;
 
-        return _SettingsItem(
-          icon: CupertinoIcons.person_circle,
-          iconColor: _getAvatarColor(account.id),
-          title: account.displayName,
-          subtitle:
-              '${account.username} • ${_getConnectionStatusText(connectionStatus)}',
-          trailing: _AccountTrailing(
-            isActive: isActive,
-            connectionStatus: connectionStatus,
-            scale: scale,
-          ),
-          onTap: () => _navigateToAccountSettings(context, account),
-          scale: scale,
-        );
-      },
+    return _SettingsItem(
+      icon: CupertinoIcons.person_circle,
+      iconColor: _getAvatarColor(account.id),
+      title: account.displayName,
+      subtitle: '${account.username} • ${_getConnectionStatusText(connectionStatus)}',
+      trailing: _AccountTrailing(
+        isActive: isActive,
+        connectionStatus: connectionStatus,
+        scale: scale,
+      ),
+      onTap: () => _navigateToAccountSettings(context, account),
+      scale: scale,
     );
   }
 
@@ -290,7 +310,7 @@ class _AccountItem extends StatelessWidget {
       ),
     );
 
-    // ADDED: Force refresh after returning from account settings
+    // Force refresh after returning from account settings
     parentState?.refreshState();
   }
 }
@@ -374,11 +394,11 @@ class _AccountTrailing extends StatelessWidget {
 // Add Account Item Widget
 class _AddAccountItem extends StatelessWidget {
   final double scale;
-  final _SettingsTabState? parentState; // ADDED: Parent state reference
+  final _SettingsTabState? parentState;
 
   const _AddAccountItem({
     required this.scale,
-    this.parentState, // ADDED: Optional parent state
+    this.parentState,
   });
 
   @override
@@ -408,7 +428,7 @@ class _AddAccountItem extends StatelessWidget {
       MaterialPageRoute(builder: (context) => const QRLoginScreen()),
     );
 
-    // ADDED: Force refresh after adding new account
+    // Force refresh after adding new account
     parentState?.refreshState();
   }
 }
@@ -553,34 +573,32 @@ class _ClearHistorySettingsItem extends StatelessWidget {
   void _showSuccessDialog(BuildContext context, String message) {
     showCupertinoDialog(
       context: context,
-      builder:
-          (context) => CupertinoAlertDialog(
-            title: const Text('Success'),
-            content: Text(message),
-            actions: [
-              CupertinoDialogAction(
-                child: const Text('OK'),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Success'),
+        content: Text(message),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('OK'),
+            onPressed: () => Navigator.of(context).pop(),
           ),
+        ],
+      ),
     );
   }
 
   void _showErrorDialog(BuildContext context, String message) {
     showCupertinoDialog(
       context: context,
-      builder:
-          (context) => CupertinoAlertDialog(
-            title: const Text('Error'),
-            content: Text(message),
-            actions: [
-              CupertinoDialogAction(
-                child: const Text('OK'),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Error'),
+        content: Text(message),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('OK'),
+            onPressed: () => Navigator.of(context).pop(),
           ),
+        ],
+      ),
     );
   }
 }
