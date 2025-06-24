@@ -1,4 +1,4 @@
-// lib/main.dart - YOUR EXISTING CODE + CallManager Integration
+// lib/main.dart - FIXED: Status Bar Configuration
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,7 +7,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'services/multi_account_manager.dart';
 import 'services/theme_service.dart' as services;
 import 'services/call_history_manager.dart';
-import 'services/call_manager.dart'; // NEW: Add this import
+import 'services/call_manager.dart';
 import 'themes/app_themes.dart';
 import 'screens/main_screen.dart';
 import 'screens/qr_login_screen.dart';
@@ -15,6 +15,23 @@ import 'dart:io';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // FIXED: Configure system UI overlay BEFORE orientation lock
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent, // Keep transparent but ensure visibility
+      statusBarIconBrightness: Brightness.dark, // Default to dark icons
+      statusBarBrightness: Brightness.light, // Default to light status bar
+      systemNavigationBarColor: Colors.white,
+      systemNavigationBarIconBrightness: Brightness.dark,
+    ),
+  );
+
+  // ADDED: Enable edge-to-edge display but keep status bar visible
+  SystemChrome.setEnabledSystemUIMode(
+    SystemUiMode.edgeToEdge,
+    overlays: [SystemUiOverlay.top, SystemUiOverlay.bottom], // Keep both overlays
+  );
 
   // ⛔ Lock orientation to portrait only
   await SystemChrome.setPreferredOrientations([
@@ -29,7 +46,6 @@ void main() async {
 
   runApp(const DashCallApp());
 }
-
 
 // Rest of your existing permission code remains the same...
 Future<void> _requestPermissions() async {
@@ -153,7 +169,6 @@ class DashCallApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => services.ThemeService()..initialize(),
         ),
-        // NEW: Add CallManager provider
         ChangeNotifierProvider(
           create: (_) => CallManager(),
         ),
@@ -172,11 +187,13 @@ class DashCallApp extends StatelessWidget {
             },
             debugShowCheckedModeBanner: false,
             builder: (context, child) {
+              // ADDED: Update status bar based on current theme
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 themeService.handleSystemBrightnessChange();
+                _updateStatusBarForTheme(themeService.isDarkMode);
               });
               
-              // NEW: Handle CallScreen navigation globally
+              // Handle CallScreen navigation globally
               if (callManager.shouldShowCallScreen) {
                 return WillPopScope(
                   onWillPop: () async {
@@ -195,6 +212,19 @@ class DashCallApp extends StatelessWidget {
     );
   }
 
+  // ADDED: Helper method to update status bar for current theme
+  void _updateStatusBarForTheme(bool isDarkMode) {
+    SystemChrome.setSystemUIOverlayStyle(
+      SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent, // Keep transparent
+        statusBarIconBrightness: isDarkMode ? Brightness.light : Brightness.dark,
+        statusBarBrightness: isDarkMode ? Brightness.dark : Brightness.light,
+        systemNavigationBarColor: isDarkMode ? const Color(0xFF000000) : const Color(0xFFFFFFFF),
+        systemNavigationBarIconBrightness: isDarkMode ? Brightness.light : Brightness.dark,
+      ),
+    );
+  }
+
   ThemeMode _convertThemeMode(services.ThemeMode themeMode) {
     switch (themeMode) {
       case services.ThemeMode.light:
@@ -207,7 +237,7 @@ class DashCallApp extends StatelessWidget {
   }
 }
 
-// KEEP ALL YOUR EXISTING LoginCheckScreen CODE - No changes needed
+// KEEP ALL YOUR EXISTING LoginCheckScreen CODE - Just ensure it uses SafeArea properly
 class LoginCheckScreen extends StatefulWidget {
   const LoginCheckScreen({super.key});
 
@@ -322,7 +352,7 @@ class _LoginCheckScreenState extends State<LoginCheckScreen>
         width: double.infinity,
         height: double.infinity,
         decoration: _buildGradientBackground(context),
-        child: SafeArea(
+        child: SafeArea( // IMPORTANT: Always use SafeArea
           child: FadeTransition(
             opacity: _fadeAnimation,
             child: ScaleTransition(
