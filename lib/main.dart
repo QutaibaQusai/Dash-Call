@@ -328,19 +328,11 @@ class _LoginCheckScreenState extends State<LoginCheckScreen>
   Widget _buildAppLogo(BuildContext context) {
     return Column(
       children: [
-        // App icon
         Container(
           width: 120,
           height: 120,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(24),
