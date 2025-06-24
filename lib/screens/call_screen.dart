@@ -3,6 +3,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:auto_size_text/auto_size_text.dart';
 import '../services/sip_service.dart';
 
 class CallScreen extends StatefulWidget {
@@ -184,18 +185,27 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
         children: [
           const Spacer(),
 
-          // Contact name/number - large and prominent
-          Text(
-            widget.sipService.callNumber ?? 'Unknown',
-            style: const TextStyle(
-              fontSize: 48,
-              fontWeight: FontWeight.w300,
-              color: Colors.white,
-              letterSpacing: -0.5,
+          // Contact name/number - large and prominent with auto-sizing
+          Container(
+            width: double.infinity,
+            constraints: const BoxConstraints(
+              maxHeight: 120, // Maximum height for 2 lines
             ),
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
+            child: AutoSizeText(
+              widget.sipService.callNumber ?? 'Unknown',
+              style: const TextStyle(
+                fontSize: 48,
+                fontWeight: FontWeight.w300,
+                color: Colors.white,
+                letterSpacing: -0.5,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              minFontSize: 24, // Minimum font size
+              maxFontSize: 48, // Maximum font size
+              overflow: TextOverflow.ellipsis,
+              stepGranularity: 2, // Font size decreases in steps of 2
+            ),
           ),
 
           const SizedBox(height: 12),
