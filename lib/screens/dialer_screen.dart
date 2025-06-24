@@ -1,9 +1,10 @@
-// lib/screens/dialer_screen.dart - UPDATED: Connection warnings moved to main app bar
+// lib/screens/dialer_screen.dart - UPDATED: Last number recall functionality
 
 import 'package:adaptive_dialog/adaptive_dialog.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // ADD: For storing last number
 import '../services/sip_service.dart';
 import '../services/multi_account_manager.dart';
 import '../services/dtmf_audio_service.dart';
@@ -20,6 +21,9 @@ class DialerTab extends StatefulWidget {
 
 class _DialerTabState extends State<DialerTab> {
   final TextEditingController _phoneController = TextEditingController();
+
+  // ADD: Key for storing last dialed number
+  static const String _lastNumberKey = 'last_dialed_number';
 
   static const List<List<String>> _dialerNumbers = [
     ['1', '2', '3'],
@@ -51,6 +55,30 @@ class _DialerTabState extends State<DialerTab> {
     try {
       await DTMFAudioService.preloadSounds();
     } catch (_) {}
+  }
+
+  // ADD: Save last dialed number to SharedPreferences
+  Future<void> _saveLastDialedNumber(String number) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_lastNumberKey, number);
+      print('💾 [DialerTab] Saved last dialed number: $number');
+    } catch (e) {
+      print('❌ [DialerTab] Error saving last number: $e');
+    }
+  }
+
+  // ADD: Get last dialed number from SharedPreferences
+  Future<String?> _getLastDialedNumber() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final lastNumber = prefs.getString(_lastNumberKey);
+      print('📂 [DialerTab] Retrieved last dialed number: $lastNumber');
+      return lastNumber;
+    } catch (e) {
+      print('❌ [DialerTab] Error getting last number: $e');
+      return null;
+    }
   }
 
   @override
@@ -278,7 +306,7 @@ class _DialerTabState extends State<DialerTab> {
           borderRadius: BorderRadius.circular(size / 2),
           splashColor: Colors.white.withOpacity(0.2),
           highlightColor: Colors.white.withOpacity(0.1),
-          onTap: isEnabled ? () => _makeCall(sipService!) : null,
+          onTap: () => _handleCallButtonPress(sipService), // CHANGED: Updated to handle last number recall
           child: Icon(
             CupertinoIcons.phone_fill,
             color: Colors.white,
@@ -354,16 +382,41 @@ class _DialerTabState extends State<DialerTab> {
     }
   }
 
-  Future<void> _makeCall(SipService sipService) async {
+  // UPDATED: Handle call button press with last number recall functionality
+  Future<void> _handleCallButtonPress(SipService? sipService) async {
+    final currentNumber = _phoneController.text.trim();
+    
+    // NEW: If text field is empty, try to recall last dialed number
+    if (currentNumber.isEmpty) {
+      print('📞 [DialerTab] Text field empty, trying to recall last number...');
+      final lastNumber = await _getLastDialedNumber();
+      
+      if (lastNumber != null && lastNumber.isNotEmpty) {
+        setState(() {
+          _phoneController.text = lastNumber;
+        });
+        print('✅ [DialerTab] Recalled last number: $lastNumber');
+        return; // Just fill the field, don't call yet
+      } else {
+        print('⚠️ [DialerTab] No last number found');
+        return; // No last number to recall
+      }
+    }
+    
+    // If we have a number (either entered or recalled), proceed with call
+    await _makeCall(sipService);
+  }
+
+  Future<void> _makeCall(SipService? sipService) async {
     final number = _phoneController.text.trim();
     if (number.isEmpty) return;
 
-    if (sipService.status != SipConnectionStatus.connected) {
+    if (sipService?.status != SipConnectionStatus.connected) {
       _showErrorDialog('Not connected to server. Please check your connection.');
       return;
     }
 
-    if (sipService.callStatus != CallStatus.idle) {
+    if (sipService!.callStatus != CallStatus.idle) {
       _showErrorDialog('Another call is already in progress.');
       return;
     }
@@ -374,11 +427,13 @@ class _DialerTabState extends State<DialerTab> {
 
     try {
       final success = await sipService.makeCall(number);
-      if (!success && mounted) {
+      if (success) {
+        print('✅ [DialerTab] Call initiated successfully');
+        // NEW: Save this number as last dialed
+        await _saveLastDialedNumber(number);
+      } else {
         final errorMsg = sipService.errorMessage ?? 'Failed to make call';
         _showErrorDialog(errorMsg);
-      } else {
-        print('✅ [DialerTab] Call initiated successfully');
       }
     } catch (e) {
       print('❌ [DialerTab] Exception making call: $e');
