@@ -1,3 +1,5 @@
+// lib/screens/call_screen.dart - Exact iOS Native UI
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -17,6 +19,8 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
   late AnimationController _slideController;
   late Animation<double> _pulseAnimation;
   late Animation<Offset> _slideAnimation;
+  
+  bool _showKeypad = false;
 
   @override
   void initState() {
@@ -75,9 +79,11 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
     }
   }
 
-  void _showKeypad() {
+  void _toggleKeypad() {
     HapticFeedback.lightImpact();
-    // Handle keypad display
+    setState(() {
+      _showKeypad = !_showKeypad;
+    });
   }
 
   void _endCall() {
@@ -141,49 +147,49 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
           ),
         ),
         child: SafeArea(
-          child: Column(
-            children: [
-              // Top section with call info
-              Expanded(
-                child: _buildCallInfoSection(),
-              ),
-
-              // Controls section - Fixed height to prevent overflow
-              Container(
-                height: MediaQuery.of(context).size.height * 0.4,
-                child: SlideTransition(
-                  position: _slideAnimation,
-                  child: _buildControlsSection(),
-                ),
-              ),
-            ],
-          ),
+          child: _showKeypad ? _buildKeypadView() : _buildCallView(),
         ),
       ),
     );
   }
 
-  Widget _buildCallInfoSection() {
-    final size = MediaQuery.of(context).size.height/6;
+  // Main call view - exactly like iOS native
+  Widget _buildCallView() {
+    return Column(
+      children: [
+        // Top section with call info - takes up most space
+        Expanded(
+          flex: 3,
+          child: _buildCallInfoSection(),
+        ),
 
+        // Controls section - bottom part
+        Container(
+          height: 435,
+          child: SlideTransition(
+            position: _slideAnimation,
+            child: _buildControlsSection(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCallInfoSection() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 32),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          
-                     SizedBox(height: size),
+          const Spacer(),
 
-
-    
-
-          // Contact name/number
+          // Contact name/number - large and prominent
           Text(
             widget.sipService.callNumber ?? 'Unknown',
             style: const TextStyle(
-              fontSize: 50,
-              fontWeight: FontWeight.w500,
+              fontSize: 48,
+              fontWeight: FontWeight.w300,
               color: Colors.white,
               letterSpacing: -0.5,
             ),
@@ -192,64 +198,13 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
             overflow: TextOverflow.ellipsis,
           ),
 
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
 
-          // Call status with animation for active calls
-          widget.sipService.callStatus == CallStatus.active
-              ? AnimatedBuilder(
-                  animation: _pulseAnimation,
-                  builder: (context, child) {
-                    return Transform.scale(
-                      scale: _pulseAnimation.value,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                color: Colors.green,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              _getCallStatusText(),
-                              style: const TextStyle(
-                                fontSize: 16,
-                                color: Colors.green,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                )
-              : Text(
-                  _getCallStatusText(),
-                  style: const TextStyle(
-                    fontSize: 18,
-                    color: Color(0xFF8E8E93),
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-
-          // Call duration
+          // Call duration - above status
           if (widget.sipService.callStartTime != null &&
               widget.sipService.callStatus == CallStatus.active)
             Padding(
-              padding: const EdgeInsets.only(top: 12),
+              padding: const EdgeInsets.only(bottom: 8),
               child: StreamBuilder(
                 stream: Stream.periodic(const Duration(seconds: 1)),
                 builder: (context, snapshot) {
@@ -262,15 +217,25 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
                   return Text(
                     _formatDuration(duration),
                     style: const TextStyle(
-                      fontSize: 24,
-                      color: Colors.white70,
-                      fontWeight: FontWeight.w300,
+                      fontSize: 18,
+                      color: Color(0xFF8E8E93),
+                      fontWeight: FontWeight.w400,
                       fontFeatures: [FontFeature.tabularFigures()],
                     ),
                   );
                 },
               ),
             ),
+
+          // Call status
+          Text(
+            _getCallStatusText(),
+            style: const TextStyle(
+              fontSize: 16,
+              color: Color(0xFF8E8E93),
+              fontWeight: FontWeight.w400,
+            ),
+          ),
 
           const Spacer(),
         ],
@@ -293,131 +258,64 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildIncomingCallControls() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        const SizedBox(height: 20),
-        
-        // Additional options for incoming call
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _buildSmallControlButton(
-              icon: CupertinoIcons.chat_bubble_fill,
-              label: 'Message',
-              onPressed: () {
-                // Handle message
-              },
-            ),
-            _buildSmallControlButton(
-              icon: CupertinoIcons.person_add_solid,
-              label: 'Add to contacts',
-              onPressed: () {
-                // Handle add contact
-              },
-            ),
-          ],
-        ),
-
-        // Answer/Decline buttons
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _buildAnswerButton(
-              icon: CupertinoIcons.phone_down_fill,
-              backgroundColor: const Color(0xFFFF3B30),
-              onPressed: _rejectCall,
-              size: 70,
-            ),
-            _buildAnswerButton(
-              icon: CupertinoIcons.phone_fill,
-              backgroundColor: const Color(0xFF34C759),
-              onPressed: _answerCall,
-              size: 70,
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 20),
-      ],
-    );
-  }
-
-  Widget _buildOutgoingCallControls() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          const SizedBox(height: 20),
-          
-          // First row - 3 buttons with only speaker enabled
+          // Additional options for incoming call
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildControlButton(
-                icon: widget.sipService.isMuted
-                    ? CupertinoIcons.mic_slash_fill
-                    : CupertinoIcons.mic_fill,
-                label: 'Mute',
-                isActive: widget.sipService.isMuted,
-                isEnabled: false, // Disabled when calling
-                onPressed: _toggleMute,
+              _buildSmallControlButton(
+                icon: CupertinoIcons.chat_bubble_fill,
+                label: 'Message',
+                onPressed: () {},
               ),
-              _buildControlButton(
-                icon: Icons.dialpad,
-                label: 'Keypad',
-                isActive: false,
-                isEnabled: false, // Disabled when calling
-                onPressed: _showKeypad,
-              ),
-              _buildControlButton(
-                icon: CupertinoIcons.speaker_3_fill,
-                label: 'Speaker',
-                isActive: widget.sipService.isSpeakerOn,
-                isEnabled: true, // Only speaker is enabled when calling
-                onPressed: _toggleSpeaker,
+              _buildSmallControlButton(
+                icon: CupertinoIcons.person_add_solid,
+                label: 'Remind Me',
+                onPressed: () {},
               ),
             ],
           ),
 
-          // Second row - Hold button disabled
+          const SizedBox(height: 40),
+
+          // Answer/Decline buttons
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildControlButton(
-                icon: CupertinoIcons.pause_fill,
-                label: 'Hold',
-                isActive: false,
-                isEnabled: false, // Disabled when calling
-                onPressed: _toggleHold,
+              _buildAnswerButton(
+                icon: CupertinoIcons.phone_down_fill,
+                backgroundColor: const Color(0xFFFF3B30),
+                onPressed: _rejectCall,
+                size: 80,
+              ),
+              _buildAnswerButton(
+                icon: CupertinoIcons.phone_fill,
+                backgroundColor: const Color(0xFF34C759),
+                onPressed: _answerCall,
+                size: 80,
               ),
             ],
           ),
-
-          // End call button
-          _buildAnswerButton(
-            icon: CupertinoIcons.phone_down_fill,
-            backgroundColor: const Color(0xFFFF3B30),
-            onPressed: _endCall,
-            size: 70,
-          ),
-
-          const SizedBox(height: 20),
         ],
       ),
     );
   }
 
+  Widget _buildOutgoingCallControls() {
+    return _buildActiveCallControls();
+  }
+
+  // iOS native call controls layout - Updated with Hold centered
   Widget _buildActiveCallControls() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 30),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          const SizedBox(height: 20),
-          
-          // First row of controls - all enabled when connected
+          // First row - Mute, Speaker, Keypad
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -427,27 +325,28 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
                     : CupertinoIcons.mic_fill,
                 label: 'Mute',
                 isActive: widget.sipService.isMuted,
-                isEnabled: true, // Enabled when connected
                 onPressed: _toggleMute,
+              ),
+              _buildControlButton(
+                icon: widget.sipService.isSpeakerOn
+                    ? CupertinoIcons.speaker_3_fill
+                    : CupertinoIcons.speaker_1_fill,
+                label: 'Speaker',
+                isActive: widget.sipService.isSpeakerOn,
+                onPressed: _toggleSpeaker,
               ),
               _buildControlButton(
                 icon: Icons.dialpad,
                 label: 'Keypad',
-                isActive: false,
-                isEnabled: true, // Enabled when connected
-                onPressed: _showKeypad,
-              ),
-              _buildControlButton(
-                icon: CupertinoIcons.speaker_3_fill,
-                label: 'Speaker',
-                isActive: widget.sipService.isSpeakerOn,
-                isEnabled: true, // Enabled when connected
-                onPressed: _toggleSpeaker,
+                isActive: _showKeypad,
+                onPressed: _toggleKeypad,
               ),
             ],
           ),
 
-          // Second row - Hold button enabled when connected
+          const SizedBox(height: 40),
+
+          // Second row - Hold button centered
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -457,97 +356,225 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
                     : CupertinoIcons.pause_fill,
                 label: widget.sipService.callStatus == CallStatus.held ? 'Resume' : 'Hold',
                 isActive: widget.sipService.callStatus == CallStatus.held,
-                isEnabled: true, // Enabled when connected
                 onPressed: _toggleHold,
               ),
             ],
           ),
 
-          // End call button
-          _buildAnswerButton(
-            icon: CupertinoIcons.phone_down_fill,
-            backgroundColor: const Color(0xFFFF3B30),
-            onPressed: _endCall,
-            size: 70,
-          ),
+          const SizedBox(height: 40),
 
-          const SizedBox(height: 20),
+          // Third row - End Call button centered
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildAnswerButton(
+                icon: CupertinoIcons.phone_down_fill,
+                backgroundColor: const Color(0xFFFF3B30),
+                onPressed: _endCall,
+                size: 80,
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-Widget _buildControlButton({
-  required IconData icon,
-  required String label,
-  required bool isActive,
-  required bool isEnabled,
-  required VoidCallback onPressed,
-}) {
-  const double size = 70; // Same as "End Call" button
-
-  final Color backgroundColor = isActive
-      ? Colors.white
-      : isEnabled
-          ? const Color(0xFF2C2C2E)
-          : const Color(0xFF1C1C1E);
-
-  final Color iconColor = isActive
-      ? Colors.black
-      : isEnabled
-          ? Colors.white
-          : Colors.white.withOpacity(0.3);
-
-  return Column(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: backgroundColor,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.4),
-              blurRadius: 15,
-              offset: const Offset(0, 6),
-            ),
-          ],
+  // iOS native keypad view
+  Widget _buildKeypadView() {
+    return Column(
+      children: [
+        // Top section with number and timer
+        Container(
+          height: 210,
+          child: _buildCallInfoSection(),
         ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-              splashFactory: NoSplash.splashFactory,
-          highlightColor: Colors.transparent,
-          hoverColor: Colors.transparent,
-          splashColor: Colors.transparent,
-            borderRadius: BorderRadius.circular(size / 2),
-            onTap: isEnabled ? onPressed : null,
-            child: Icon(
-              icon,
-              color: iconColor,
-              size: size * 0.35, 
+
+        // Keypad grid
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                // Row 1
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildKeypadButton('1', ''),
+                    _buildKeypadButton('2', 'ABC'),
+                    _buildKeypadButton('3', 'DEF'),
+                  ],
+                ),
+                // Row 2
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildKeypadButton('4', 'GHI'),
+                    _buildKeypadButton('5', 'JKL'),
+                    _buildKeypadButton('6', 'MNO'),
+                  ],
+                ),
+                // Row 3
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildKeypadButton('7', 'PQRS'),
+                    _buildKeypadButton('8', 'TUV'),
+                    _buildKeypadButton('9', 'WXYZ'),
+                  ],
+                ),
+                // Row 4
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildKeypadButton('*', ''),
+                    _buildKeypadButton('0', '+'),
+                    _buildKeypadButton('#', ''),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Bottom section - End call and Hide Keypad
+    Container(
+  height: 140,
+  width: double.infinity,
+  child: Stack(
+    children: [
+      // "Hide Keypad" on the right
+      Positioned(
+        right: 24,
+        top: 0,
+        bottom: 0,
+        child: Center(
+          child: GestureDetector(
+            onTap: _toggleKeypad,
+            child: const Text(
+              'Hide Keypad',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w400,
+              ),
             ),
           ),
         ),
       ),
-      const SizedBox(height: 6),
-      Text(
-        label,
-        style: TextStyle(
-          fontSize: 14,
-          color: isActive
-              ? Colors.white
-              : isEnabled
-                  ? const Color(0xFF8E8E93)
-                  : const Color(0xFF8E8E93).withOpacity(0.5),
-          fontWeight: FontWeight.w400,
+
+      // End Call button centered
+      Align(
+        alignment: Alignment.center,
+        child: _buildAnswerButton(
+          icon: CupertinoIcons.phone_down_fill,
+          backgroundColor: const Color(0xFFFF3B30),
+          onPressed: _endCall,
+          size: 80,
         ),
       ),
     ],
-  );
-}
+  ),
+),
+
+        const SizedBox(height: 30),
+      ],
+    );
+  }
+
+  // iOS native keypad button
+  Widget _buildKeypadButton(String number, String letters) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        widget.sipService.sendDTMF(number);
+      },
+      child: Container(
+        width: 80,
+        height: 80,
+        decoration: const BoxDecoration(
+          color: Color(0xFF2C2C2E),
+          shape: BoxShape.circle,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              number,
+              style: const TextStyle(
+                fontSize: 36,
+                fontWeight: FontWeight.w300,
+                color: Colors.white,
+                height: 1.0,
+              ),
+            ),
+            if (letters.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(
+                letters,
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white70,
+                  letterSpacing: 2,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // iOS native control button
+  Widget _buildControlButton({
+    required IconData icon,
+    required String label,
+    required bool isActive,
+    required VoidCallback onPressed,
+  }) {
+    return Column(
+      children: [
+        Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isActive ? Colors.white : const Color(0xFF2C2C2E),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(40),
+              onTap: onPressed,
+              child: Icon(
+                icon,
+                color: isActive ? Colors.black : Colors.white,
+                size: 32,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            color: isActive ? Colors.white : const Color(0xFF8E8E93),
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+      ],
+    );
+  }
 
   Widget _buildSmallControlButton({
     required IconData icon,
@@ -555,31 +582,30 @@ Widget _buildControlButton({
     required VoidCallback onPressed,
   }) {
     return Column(
-      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 50,
-          height: 50,
+          width: 56,
+          height: 56,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: const Color(0xFF2C2C2E),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.3),
-                blurRadius: 15,
-                offset: const Offset(0, 5),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(25),
+              borderRadius: BorderRadius.circular(28),
               onTap: onPressed,
               child: Icon(
                 icon,
                 color: Colors.white,
-                size: 22,
+                size: 24,
               ),
             ),
           ),
@@ -612,14 +638,14 @@ Widget _buildControlButton({
         boxShadow: [
           BoxShadow(
             color: backgroundColor.withOpacity(0.4),
-            blurRadius: 25,
-            spreadRadius: 3,
-            offset: const Offset(0, 10),
+            blurRadius: 20,
+            spreadRadius: 2,
+            offset: const Offset(0, 8),
           ),
           BoxShadow(
             color: Colors.black.withOpacity(0.6),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -631,7 +657,7 @@ Widget _buildControlButton({
           child: Icon(
             icon,
             color: Colors.white,
-            size: size * 0.35,
+            size: size * 0.4,
           ),
         ),
       ),

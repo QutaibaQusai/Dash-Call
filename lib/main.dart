@@ -1,6 +1,7 @@
 // lib/main.dart - YOUR EXISTING CODE + CallManager Integration
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'services/multi_account_manager.dart';
@@ -15,13 +16,20 @@ import 'dart:io';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize database first
+  // ⛔ Lock orientation to portrait only
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
+  // Initialize database
   await CallHistoryManager.initialize();
 
   await _requestPermissions();
 
   runApp(const DashCallApp());
 }
+
 
 // Rest of your existing permission code remains the same...
 Future<void> _requestPermissions() async {
