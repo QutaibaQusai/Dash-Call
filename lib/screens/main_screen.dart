@@ -1,4 +1,4 @@
-// lib/screens/main_screen.dart - UPDATED: Improved connection indicator with adaptive_dialog
+// lib/screens/main_screen.dart - ENHANCED: Event-driven, no timer
 
 import 'package:adaptive_dialog/adaptive_dialog.dart';
 import 'package:dash_call/screens/dialer_screen.dart';
@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/multi_account_manager.dart';
 import '../services/sip_service.dart';
+import '../services/call_manager.dart'; // NEW IMPORT
 import '../screens/call_screen.dart';
 import '../themes/app_themes.dart';
 import '../widgets/account_switcher_widget.dart';
@@ -26,14 +27,12 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<MultiAccountManager>(
-      builder: (context, accountManager, child) {
-        // Check for call screen requirement
-        SipService? callingSipService = _findServiceRequiringFlutterCallScreen(accountManager);
-
-        if (callingSipService != null) {
-          print('📱 [MainScreen] Showing Flutter CallScreen for service: ${callingSipService.username}');
-          return CallScreen(sipService: callingSipService);
+    return Consumer2<MultiAccountManager, CallManager>(
+      builder: (context, accountManager, callManager, child) {
+        // ✅ IMMEDIATE: Check if we should show CallScreen
+        if (callManager.shouldShowCallScreen && callManager.activeCallService != null) {
+          print('📱 [MainScreen] Showing CallScreen for: ${callManager.activeCallService!.username}');
+          return CallScreen(sipService: callManager.activeCallService!);
         }
 
         final activeSipService = accountManager.activeSipService;
@@ -46,26 +45,6 @@ class _MainScreenState extends State<MainScreen> {
         );
       },
     );
-  }
-
-  SipService? _findServiceRequiringFlutterCallScreen(MultiAccountManager accountManager) {
-    for (final sipService in accountManager.allSipServices.values) {
-      if (sipService.shouldShowFlutterCallScreen) {
-        print('🔍 [MainScreen] Service ${sipService.username} requires Flutter call screen');
-        print('   - Call Status: ${sipService.callStatus}');
-        print('   - Should Show Flutter Screen: ${sipService.shouldShowFlutterCallScreen}');
-        return sipService;
-      }
-    }
-    
-    for (final sipService in accountManager.allSipServices.values) {
-      if (sipService.callStatus == CallStatus.calling) {
-        print('🔍 [MainScreen] Service ${sipService.username} has outgoing call - showing Flutter UI');
-        return sipService;
-      }
-    }
-    
-    return null;
   }
 
   Color _getBackgroundColor() {
@@ -91,9 +70,9 @@ class _MainScreenState extends State<MainScreen> {
         ),
       ),
       actions: [
-        // NEW: Improved connection status indicator (icon only)
-        if (accountManager.hasAccounts && accountManager.activeSipService != null)
-          _buildConnectionStatusIndicator(accountManager.activeSipService!),
+        // Connection status for all accounts
+        if (accountManager.hasAccounts)
+          _buildConnectionStatusRow(accountManager),
         
         // Account Switcher - show on all tabs except Settings
         if (_currentIndex != 3 && accountManager.hasAccounts) ...[
@@ -102,7 +81,6 @@ class _MainScreenState extends State<MainScreen> {
             child: AccountSwitcherWidget(),
           ),
         ] else if (_currentIndex != 3 && !accountManager.hasAccounts) ...[
-          // Show "No Account" indicator when no accounts are configured
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: _buildNoAccountIndicator(),
@@ -112,31 +90,56 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  // NEW: Improved connection status indicator - icon only
-  Widget _buildConnectionStatusIndicator(SipService sipService) {
+  // NEW: Show status for all accounts (dual-SIM style)
+  Widget _buildConnectionStatusRow(MultiAccountManager accountManager) {
+    final allServices = accountManager.allSipServices.values.toList();
+    
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (int i = 0; i < allServices.length && i < 2; i++) ...[
+          _buildConnectionStatusIndicator(allServices[i], i + 1),
+          if (i < allServices.length - 1 && i < 1) const SizedBox(width: 4),
+        ],
+        const SizedBox(width: 8),
+      ],
+    );
+  }
+
+  Widget _buildConnectionStatusIndicator(SipService sipService, int simNumber) {
     final statusIcon = _getConnectionStatusIcon(sipService.status);
     final statusColor = _getConnectionStatusColor(sipService.status);
 
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: GestureDetector(
-        onTap: () => _showConnectionStatusDialog(sipService),
-        child: Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: statusColor.withOpacity(0.1),
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: statusColor.withOpacity(0.3),
-              width: 1.5,
+    return GestureDetector(
+      onTap: () => _showConnectionStatusDialog(sipService, simNumber),
+      child: Container(
+        width: 28,
+        height: 28,
+        decoration: BoxDecoration(
+          color: statusColor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: statusColor.withOpacity(0.3),
+            width: 1.5,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              statusIcon,
+              color: statusColor,
+              size: 14,
             ),
-          ),
-          child: Icon(
-            statusIcon,
-            color: statusColor,
-            size: 18,
-          ),
+            Text(
+              '$simNumber',
+              style: TextStyle(
+                fontSize: 8,
+                fontWeight: FontWeight.bold,
+                color: statusColor,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -145,7 +148,6 @@ class _MainScreenState extends State<MainScreen> {
   Widget _buildNoAccountIndicator() {
     return GestureDetector(
       onTap: () {
-        // Navigate to settings to add account
         setState(() {
           _currentIndex = 3;
         });
@@ -170,7 +172,6 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  // NEW: Cupertino icons for connection status
   IconData _getConnectionStatusIcon(SipConnectionStatus status) {
     switch (status) {
       case SipConnectionStatus.connecting:
@@ -210,15 +211,14 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  // NEW: Updated connection status dialog with adaptive_dialog
-  Future<void> _showConnectionStatusDialog(SipService sipService) async {
+  Future<void> _showConnectionStatusDialog(SipService sipService, int simNumber) async {
     final statusText = _getConnectionStatusText(sipService.status);
     
     switch (sipService.status) {
       case SipConnectionStatus.connected:
         await showOkAlertDialog(
           context: context,
-          title: statusText,
+          title: 'SIM $simNumber - $statusText',
           message: 'Account is connected and ready to make calls.\n\nAccount: ${sipService.username}',
         );
         break;
@@ -226,7 +226,7 @@ class _MainScreenState extends State<MainScreen> {
       case SipConnectionStatus.connecting:
         await showOkAlertDialog(
           context: context,
-          title: statusText,
+          title: 'SIM $simNumber - $statusText',
           message: 'Connecting to server...\n\nAccount: ${sipService.username}',
         );
         break;
@@ -234,7 +234,7 @@ class _MainScreenState extends State<MainScreen> {
       case SipConnectionStatus.error:
         final result = await showOkCancelAlertDialog(
           context: context,
-          title: statusText,
+          title: 'SIM $simNumber - $statusText',
           message: 'Connection failed. Check your account settings and internet connection.\n\nAccount: ${sipService.username}',
           okLabel: 'Settings',
           cancelLabel: 'Cancel',
@@ -250,7 +250,7 @@ class _MainScreenState extends State<MainScreen> {
       case SipConnectionStatus.disconnected:
         final result = await showOkCancelAlertDialog(
           context: context,
-          title: statusText,
+          title: 'SIM $simNumber - $statusText',
           message: 'Not connected to server. Check your internet connection.\n\nAccount: ${sipService.username}',
           okLabel: 'Settings',
           cancelLabel: 'Cancel',

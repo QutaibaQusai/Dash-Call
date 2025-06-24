@@ -1,4 +1,4 @@
-// lib/main.dart - Updated with Loading States
+// lib/main.dart - YOUR EXISTING CODE + CallManager Integration
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -6,6 +6,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'services/multi_account_manager.dart';
 import 'services/theme_service.dart' as services;
 import 'services/call_history_manager.dart';
+import 'services/call_manager.dart'; // NEW: Add this import
 import 'themes/app_themes.dart';
 import 'screens/main_screen.dart';
 import 'screens/qr_login_screen.dart';
@@ -144,9 +145,13 @@ class DashCallApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => services.ThemeService()..initialize(),
         ),
+        // NEW: Add CallManager provider
+        ChangeNotifierProvider(
+          create: (_) => CallManager(),
+        ),
       ],
-      child: Consumer<services.ThemeService>(
-        builder: (context, themeService, child) {
+      child: Consumer2<services.ThemeService, CallManager>(
+        builder: (context, themeService, callManager, child) {
           return MaterialApp(
             title: 'DashCall',
             theme: AppThemes.lightTheme,
@@ -162,6 +167,18 @@ class DashCallApp extends StatelessWidget {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 themeService.handleSystemBrightnessChange();
               });
+              
+              // NEW: Handle CallScreen navigation globally
+              if (callManager.shouldShowCallScreen) {
+                return WillPopScope(
+                  onWillPop: () async {
+                    // Prevent back navigation during active calls
+                    return false;
+                  },
+                  child: child!,
+                );
+              }
+              
               return child!;
             },
           );
@@ -182,7 +199,7 @@ class DashCallApp extends StatelessWidget {
   }
 }
 
-// UPDATED: LoginCheckScreen with enhanced loading states
+// KEEP ALL YOUR EXISTING LoginCheckScreen CODE - No changes needed
 class LoginCheckScreen extends StatefulWidget {
   const LoginCheckScreen({super.key});
 
