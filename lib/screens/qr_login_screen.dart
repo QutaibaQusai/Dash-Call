@@ -1,4 +1,4 @@
-// lib/screens/qr_login_screen.dart - Updated with Custom Design
+// lib/screens/qr_login_screen.dart - Updated with Loading States
 
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -8,7 +8,7 @@ import '../themes/app_themes.dart';
 import 'dart:math' as math;
 
 class QRLoginScreen extends StatefulWidget {
-  final bool autoStartScanning; // NEW: Option to start scanning immediately
+  final bool autoStartScanning;
 
   const QRLoginScreen({super.key, this.autoStartScanning = false});
 
@@ -22,6 +22,10 @@ class _QRLoginScreenState extends State<QRLoginScreen>
   bool isProcessing = false;
   bool showScanner = false;
   String? errorMessage;
+
+  // Loading states
+  bool isLoading = false;
+  String loadingMessage = '';
 
   late AnimationController _floatingController;
   late AnimationController _slideController;
@@ -53,7 +57,6 @@ class _QRLoginScreenState extends State<QRLoginScreen>
       CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
     );
 
-    // NEW: Auto-start scanning if requested
     if (widget.autoStartScanning) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _startScanning();
@@ -63,33 +66,117 @@ class _QRLoginScreenState extends State<QRLoginScreen>
 
   @override
   Widget build(BuildContext context) {
-    // FIXED: Use app theme colors instead of custom gradient
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: Container(
-        decoration: _buildThemedBackground(context),
-        child: Stack(
-          children: [
-            // FIXED: Reduced floating particles for cleaner look
-            ...List.generate(
-              8, // Reduced from 20 to 8
-              (index) =>
-                  _buildFloatingParticle(index, MediaQuery.of(context).size),
+      body: Stack(
+        children: [
+          // Background and main content
+          Container(
+            decoration: _buildThemedBackground(context),
+            child: Stack(
+              children: [
+                ...List.generate(
+                  8,
+                  (index) =>
+                      _buildFloatingParticle(index, MediaQuery.of(context).size),
+                ),
+                SafeArea(
+                  child:
+                      !showScanner
+                          ? _buildWelcomeScreen(context)
+                          : _buildScannerScreen(context),
+                ),
+              ],
             ),
+          ),
 
-            SafeArea(
-              child:
-                  !showScanner
-                      ? _buildWelcomeScreen(context)
-                      : _buildScannerScreen(context),
+          // Full-screen loading overlay
+          if (isLoading)
+            Container(
+              color: Colors.black.withOpacity(0.7),
+              child: Center(
+                child: _buildLoadingWidget(),
+              ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
 
-  // FIXED: Use app theme for background
+  // Loading widget
+  Widget _buildLoadingWidget() {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: AppThemes.getCardBackgroundColor(context),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Animated loading indicator
+          SizedBox(
+            width: 60,
+            height: 60,
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(
+                Theme.of(context).colorScheme.primary,
+              ),
+              strokeWidth: 4,
+            ),
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // Loading message
+          Text(
+            loadingMessage,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          
+          const SizedBox(height: 8),
+          
+          Text(
+            'Please wait...',
+            style: TextStyle(
+              fontSize: 14,
+              color: AppThemes.getSecondaryTextColor(context),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Show loading with message
+  void _showLoading(String message) {
+    setState(() {
+      isLoading = true;
+      loadingMessage = message;
+    });
+  }
+
+  // Hide loading
+  void _hideLoading() {
+    setState(() {
+      isLoading = false;
+      loadingMessage = '';
+    });
+  }
+
   BoxDecoration _buildThemedBackground(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -144,7 +231,6 @@ class _QRLoginScreenState extends State<QRLoginScreen>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Theme.of(context).colorScheme.primary,
-           
                 ),
               ),
             ),
@@ -160,13 +246,12 @@ class _QRLoginScreenState extends State<QRLoginScreen>
       child: Column(
         children: [
           const Spacer(),
-
           Column(
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(16),
                 child: Image.asset(
-                  'assets/icon/dashcall_icon.png',
+                  'assets/images/dashcall_icon.png',
                   width: 150,
                   height: 150,
                   fit: BoxFit.cover,
@@ -187,10 +272,7 @@ class _QRLoginScreenState extends State<QRLoginScreen>
                   },
                 ),
               ),
-
               const SizedBox(height: 40),
-
-              // FIXED: Removed "Hello! 👋" and simplified
               Text(
                 'Welcome to',
                 style: TextStyle(
@@ -201,10 +283,7 @@ class _QRLoginScreenState extends State<QRLoginScreen>
                   ).colorScheme.onSurface.withOpacity(0.8),
                 ),
               ),
-
               const SizedBox(height: 8),
-
-              // App name with themed styling
               Text(
                 'DashCall',
                 style: TextStyle(
@@ -214,10 +293,7 @@ class _QRLoginScreenState extends State<QRLoginScreen>
                   letterSpacing: 2,
                 ),
               ),
-
               const SizedBox(height: 16),
-
-              // Subtitle
               Text(
                 'Work Remotely, Anywhere',
                 style: TextStyle(
@@ -226,14 +302,10 @@ class _QRLoginScreenState extends State<QRLoginScreen>
                   color: AppThemes.getSecondaryTextColor(context),
                 ),
               ),
-
               const SizedBox(height: 24),
             ],
           ),
-
           const Spacer(),
-
-          // FIXED: Themed feature section
           Container(
             padding: const EdgeInsets.all(24),
             margin: const EdgeInsets.only(bottom: 40),
@@ -243,7 +315,6 @@ class _QRLoginScreenState extends State<QRLoginScreen>
               border: Border.all(
                 color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
               ),
-            
             ),
             child: Column(
               children: [
@@ -267,8 +338,6 @@ class _QRLoginScreenState extends State<QRLoginScreen>
               ],
             ),
           ),
-
-          // FIXED: Themed scan button
           AnimatedBuilder(
             animation: _floatingAnimation,
             builder: (context, child) {
@@ -286,7 +355,6 @@ class _QRLoginScreenState extends State<QRLoginScreen>
                       ],
                     ),
                     borderRadius: BorderRadius.circular(30),
-               
                   ),
                   child: Material(
                     color: Colors.transparent,
@@ -357,13 +425,11 @@ class _QRLoginScreenState extends State<QRLoginScreen>
         color: Theme.of(context).scaffoldBackgroundColor,
         child: Column(
           children: [
-            // Header
             Container(
               padding: const EdgeInsets.all(24),
               color: Theme.of(context).scaffoldBackgroundColor,
               child: Row(
                 children: [
-                  // Back button
                   Container(
                     decoration: BoxDecoration(
                       color: AppThemes.getCardBackgroundColor(context),
@@ -382,14 +448,10 @@ class _QRLoginScreenState extends State<QRLoginScreen>
                       ),
                     ),
                   ),
-
                   const SizedBox(width: 16),
-
-                  // Left-aligned text
                   Expanded(
                     child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start, // Align text to left
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
@@ -410,7 +472,6 @@ class _QRLoginScreenState extends State<QRLoginScreen>
                       ],
                     ),
                   ),
-
                   const SizedBox(width: 48),
                 ],
               ),
@@ -426,7 +487,6 @@ class _QRLoginScreenState extends State<QRLoginScreen>
                     ).colorScheme.primary.withOpacity(0.3),
                     width: 2,
                   ),
-           
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(30),
@@ -444,8 +504,6 @@ class _QRLoginScreenState extends State<QRLoginScreen>
                           }
                         },
                       ),
-
-                      // Scanning overlay
                       Container(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(30),
@@ -457,8 +515,6 @@ class _QRLoginScreenState extends State<QRLoginScreen>
                           size: Size.infinite,
                         ),
                       ),
-
-                      // Processing overlay
                       if (isProcessing)
                         Container(
                           decoration: BoxDecoration(
@@ -514,7 +570,6 @@ class _QRLoginScreenState extends State<QRLoginScreen>
                 ),
               ),
             ),
-
             Container(
               padding: const EdgeInsets.all(24),
               color: Theme.of(context).scaffoldBackgroundColor,
@@ -656,6 +711,7 @@ class _QRLoginScreenState extends State<QRLoginScreen>
     });
   }
 
+  // QR processing with loading states
   Future<void> _processQRCode(String qrCode) async {
     if (isProcessing) return;
 
@@ -669,9 +725,14 @@ class _QRLoginScreenState extends State<QRLoginScreen>
     try {
       await controller?.stop();
 
+      // Show validation loading
+      _showLoading('Validating QR Code...');
+
+      // Add small delay to show loading
+      await Future.delayed(const Duration(milliseconds: 500));
+
       final parts = qrCode.split(';');
 
-      // Validate QR code format: username;password;domain;port;protocol;firstname lastname;company
       if (parts.length != 7) {
         throw Exception(
           'Invalid QR code format. Expected 7 values separated by semicolons.',
@@ -686,7 +747,6 @@ class _QRLoginScreenState extends State<QRLoginScreen>
       final fullName = parts[5].trim();
       final company = parts[6].trim();
 
-      // Validate required fields
       if (username.isEmpty) throw Exception('Username cannot be empty');
       if (password.isEmpty) throw Exception('Password cannot be empty');
       if (domain.isEmpty) throw Exception('Domain cannot be empty');
@@ -705,7 +765,10 @@ class _QRLoginScreenState extends State<QRLoginScreen>
 
       print('✅ [QRLogin] QR code validation successful');
 
-      // Use MultiAccountManager to add the account
+      // Update loading message
+      _showLoading('Setting up account...');
+      await Future.delayed(const Duration(milliseconds: 300));
+
       final accountManager = Provider.of<MultiAccountManager>(
         context,
         listen: false,
@@ -725,14 +788,25 @@ class _QRLoginScreenState extends State<QRLoginScreen>
         throw Exception('This account is already active.');
       }
 
-      // Connect the newly added account
+      // Update loading message
+      _showLoading('Connecting to server...');
+      await Future.delayed(const Duration(milliseconds: 300));
+
       await accountManager.connectAllAccounts();
+
+      // Success message
+      _showLoading('Account added successfully!');
+      await Future.delayed(const Duration(milliseconds: 800));
+
+      _hideLoading();
 
       if (mounted) {
         Navigator.of(context).pushReplacementNamed('/main');
       }
     } catch (e) {
       print('❌ [QRLogin] QR code processing failed: $e');
+      _hideLoading();
+      
       setState(() {
         errorMessage = e.toString().replaceFirst('Exception: ', '');
       });

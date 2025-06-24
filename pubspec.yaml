@@ -43,10 +43,9 @@ flutter:
   assets:
     - assets/images/
     - assets/icon/
-    - assets/sounds/dtmf/
 
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: assets/icon/dashcall_icon.png
+  image_path: assets/icon/icon.png
   remove_alpha_ios: true

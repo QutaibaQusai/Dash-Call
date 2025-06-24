@@ -100,7 +100,7 @@ class AboutPage extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(24 * scale),
               child: Image.asset(
-                'assets/icon/dashcall_icon.png',
+                'assets/images/dashcall_icon.png',
                 width: 120 * scale,
                 height: 120 * scale,
                 fit: BoxFit.cover,
@@ -157,7 +157,7 @@ class AboutPage extends StatelessWidget {
       children: [
         _buildInfoItem(
           context: context,
-          imagePath: 'assets/images/mujeer_logo.jpg', 
+          imagePath: 'assets/images/mujeer_logo.png', 
           iconColor: Colors.blue, 
           title: 'Built with',
           subtitle: 'MUJEER Company',

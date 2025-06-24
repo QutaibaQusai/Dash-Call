@@ -1,5 +1,6 @@
-// lib/screens/main_screen.dart - UPDATED: Connection status in app bar
+// lib/screens/main_screen.dart - UPDATED: Improved connection indicator with adaptive_dialog
 
+import 'package:adaptive_dialog/adaptive_dialog.dart';
 import 'package:dash_call/screens/dialer_screen.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -27,10 +28,9 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Consumer<MultiAccountManager>(
       builder: (context, accountManager, child) {
-        // FIXED: Better call status detection using shouldShowFlutterCallScreen
+        // Check for call screen requirement
         SipService? callingSipService = _findServiceRequiringFlutterCallScreen(accountManager);
 
-        // FIXED: Only show Flutter call screen when explicitly needed
         if (callingSipService != null) {
           print('📱 [MainScreen] Showing Flutter CallScreen for service: ${callingSipService.username}');
           return CallScreen(sipService: callingSipService);
@@ -48,10 +48,8 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  // FIXED: Only return service if it should show Flutter call screen
   SipService? _findServiceRequiringFlutterCallScreen(MultiAccountManager accountManager) {
     for (final sipService in accountManager.allSipServices.values) {
-      // FIXED: Use the new shouldShowFlutterCallScreen getter
       if (sipService.shouldShowFlutterCallScreen) {
         print('🔍 [MainScreen] Service ${sipService.username} requires Flutter call screen');
         print('   - Call Status: ${sipService.callStatus}');
@@ -60,7 +58,6 @@ class _MainScreenState extends State<MainScreen> {
       }
     }
     
-    // Also check for outgoing calls that need Flutter UI
     for (final sipService in accountManager.allSipServices.values) {
       if (sipService.callStatus == CallStatus.calling) {
         print('🔍 [MainScreen] Service ${sipService.username} has outgoing call - showing Flutter UI');
@@ -94,7 +91,7 @@ class _MainScreenState extends State<MainScreen> {
         ),
       ),
       actions: [
-        // Connection status indicator
+        // NEW: Improved connection status indicator (icon only)
         if (accountManager.hasAccounts && accountManager.activeSipService != null)
           _buildConnectionStatusIndicator(accountManager.activeSipService!),
         
@@ -115,45 +112,30 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
+  // NEW: Improved connection status indicator - icon only
   Widget _buildConnectionStatusIndicator(SipService sipService) {
     final statusIcon = _getConnectionStatusIcon(sipService.status);
     final statusColor = _getConnectionStatusColor(sipService.status);
-    final statusText = _getConnectionStatusText(sipService.status);
 
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: GestureDetector(
         onTap: () => _showConnectionStatusDialog(sipService),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          width: 32,
+          height: 32,
           decoration: BoxDecoration(
             color: statusColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
+            shape: BoxShape.circle,
             border: Border.all(
               color: statusColor.withOpacity(0.3),
-              width: 1,
+              width: 1.5,
             ),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                statusIcon,
-                color: statusColor,
-                size: 16,
-              ),
-              if (sipService.status != SipConnectionStatus.connected) ...[
-                const SizedBox(width: 4),
-                Text(
-                  statusText,
-                  style: TextStyle(
-                    color: statusColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ],
+          child: Icon(
+            statusIcon,
+            color: statusColor,
+            size: 18,
           ),
         ),
       ),
@@ -169,48 +151,36 @@ class _MainScreenState extends State<MainScreen> {
         });
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        width: 32,
+        height: 32,
         decoration: BoxDecoration(
           color: Colors.orange.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
+          shape: BoxShape.circle,
           border: Border.all(
             color: Colors.orange.withOpacity(0.3),
-            width: 1,
+            width: 1.5,
           ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.warning,
-              color: Colors.orange,
-              size: 16,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              'No Account',
-              style: TextStyle(
-                color: Colors.orange,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
+        child: const Icon(
+          CupertinoIcons.exclamationmark_triangle,
+          color: Colors.orange,
+          size: 16,
         ),
       ),
     );
   }
 
+  // NEW: Cupertino icons for connection status
   IconData _getConnectionStatusIcon(SipConnectionStatus status) {
     switch (status) {
       case SipConnectionStatus.connecting:
-        return Icons.sync;
+        return CupertinoIcons.arrow_2_circlepath;
       case SipConnectionStatus.error:
-        return Icons.error;
+        return CupertinoIcons.exclamationmark_circle;
       case SipConnectionStatus.disconnected:
-        return Icons.signal_wifi_off;
+        return CupertinoIcons.wifi_slash;
       case SipConnectionStatus.connected:
-        return Icons.signal_wifi_4_bar;
+        return CupertinoIcons.wifi;
     }
   }
 
@@ -240,72 +210,59 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  void _showConnectionStatusDialog(SipService sipService) {
+  // NEW: Updated connection status dialog with adaptive_dialog
+  Future<void> _showConnectionStatusDialog(SipService sipService) async {
     final statusText = _getConnectionStatusText(sipService.status);
-    final statusColor = _getConnectionStatusColor(sipService.status);
     
-    String message;
     switch (sipService.status) {
       case SipConnectionStatus.connected:
-        message = 'Account is connected and ready to make calls';
+        await showOkAlertDialog(
+          context: context,
+          title: statusText,
+          message: 'Account is connected and ready to make calls.\n\nAccount: ${sipService.username}',
+        );
         break;
+        
       case SipConnectionStatus.connecting:
-        message = 'Connecting to server...';
+        await showOkAlertDialog(
+          context: context,
+          title: statusText,
+          message: 'Connecting to server...\n\nAccount: ${sipService.username}',
+        );
         break;
+        
       case SipConnectionStatus.error:
-        message = 'Connection failed. Check your account settings and internet connection.';
+        final result = await showOkCancelAlertDialog(
+          context: context,
+          title: statusText,
+          message: 'Connection failed. Check your account settings and internet connection.\n\nAccount: ${sipService.username}',
+          okLabel: 'Settings',
+          cancelLabel: 'Cancel',
+        );
+        
+        if (result == OkCancelResult.ok) {
+          setState(() {
+            _currentIndex = 3; 
+          });
+        }
         break;
+        
       case SipConnectionStatus.disconnected:
-        message = 'Not connected to server. Check your internet connection.';
+        final result = await showOkCancelAlertDialog(
+          context: context,
+          title: statusText,
+          message: 'Not connected to server. Check your internet connection.\n\nAccount: ${sipService.username}',
+          okLabel: 'Settings',
+          cancelLabel: 'Cancel',
+        );
+        
+        if (result == OkCancelResult.ok) {
+          setState(() {
+            _currentIndex = 3; 
+          });
+        }
         break;
     }
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(
-              _getConnectionStatusIcon(sipService.status),
-              color: statusColor,
-              size: 24,
-            ),
-            const SizedBox(width: 8),
-            Text(statusText),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(message),
-            const SizedBox(height: 8),
-            Text(
-              'Account: ${sipService.username}',
-              style: TextStyle(
-                color: AppThemes.getSecondaryTextColor(context),
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-          if (sipService.status != SipConnectionStatus.connected)
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                // You can add retry logic here
-                sipService;
-              },
-              child: const Text('Retry'),
-            ),
-        ],
-      ),
-    );
   }
 
   Widget _buildBody(SipService? activeSipService) {

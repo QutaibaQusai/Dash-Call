@@ -1,5 +1,6 @@
 // lib/screens/settings_tab.dart - FIXED: Real-time Status Updates
 
+import 'package:dash_call/screens/qr_scanner_screen.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -11,7 +12,6 @@ import '../services/theme_service.dart' as services;
 import '../widgets/theme_selector.dart';
 import '../themes/app_themes.dart';
 import '../screens/about_page.dart';
-import '../screens/qr_login_screen.dart';
 import 'account_settings_page.dart';
 
 class SettingsTab extends StatefulWidget {
@@ -41,22 +41,18 @@ class _SettingsTabState extends State<SettingsTab>
     super.dispose();
   }
 
-  // FIXED: Start timer to update connection statuses in real-time
   void _startStatusUpdateTimer() {
     _statusUpdateTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
       if (mounted) {
         setState(() {
-          // Force rebuild to show current connection statuses
         });
       }
     });
   }
 
-  // Make setState method accessible to child widgets
   void refreshState() {
     if (mounted) {
       setState(() {
-        // Force rebuild to show updated connection states
       });
     }
   }
@@ -422,16 +418,14 @@ class _AddAccountItem extends StatelessWidget {
     );
   }
 
-  Future<void> _navigateToAddAccount(BuildContext context) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const QRLoginScreen()),
-    );
-
-    // Force refresh after adding new account
-    parentState?.refreshState();
-  }
-}
+Future<void> _navigateToAddAccount(BuildContext context) async {
+  await Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => const QRScannerScreen()),
+  );
+  // Force refresh after adding new account
+  parentState?.refreshState();
+}}
 
 // App Settings Section Widget
 class _AppSettingsSection extends StatelessWidget {
