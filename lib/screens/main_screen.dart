@@ -91,7 +91,7 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  // UPDATED: Show status for only the active account
+  // UPDATED: Show WiFi icon only for the active account
   Widget _buildActiveAccountStatus(MultiAccountManager accountManager) {
     final activeSipService = accountManager.activeSipService;
     final activeAccount = accountManager.activeAccount;
@@ -114,27 +114,10 @@ class _MainScreenState extends State<MainScreen> {
               width: 1,
             ),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: _getConnectionStatusColor(activeSipService.status),
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                _getConnectionStatusText(activeSipService.status),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: _getConnectionStatusColor(activeSipService.status),
-                ),
-              ),
-            ],
+          child: Icon(
+            _getConnectionStatusIcon(activeSipService.status),
+            size: 20,
+            color: _getConnectionStatusColor(activeSipService.status),
           ),
         ),
       ),
@@ -168,7 +151,19 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-
+  // NEW: Method to get WiFi icons based on connection status
+  IconData _getConnectionStatusIcon(SipConnectionStatus status) {
+    switch (status) {
+      case SipConnectionStatus.connecting:
+        return CupertinoIcons.wifi_exclamationmark;
+      case SipConnectionStatus.error:
+        return CupertinoIcons.wifi_slash;
+      case SipConnectionStatus.disconnected:
+        return CupertinoIcons.wifi_slash;
+      case SipConnectionStatus.connected:
+        return CupertinoIcons.wifi;
+    }
+  }
 
   String _getConnectionStatusText(SipConnectionStatus status) {
     switch (status) {
@@ -196,6 +191,7 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
+  // UPDATED: Removed server information from dialogs
   Future<void> _showActiveAccountStatusDialog(AccountInfo account, SipService sipService) async {
     final statusText = _getConnectionStatusText(sipService.status);
     
@@ -204,7 +200,7 @@ class _MainScreenState extends State<MainScreen> {
         await showOkAlertDialog(
           context: context,
           title: '$statusText - ${account.displayName}',
-          message: 'Account is connected and ready to make calls.\n\nUsername: ${account.username}\nServer: ${account.sipServer}',
+          message: 'Account is connected and ready to make calls.\n\nUsername: ${account.username}',
         );
         break;
         
@@ -212,7 +208,7 @@ class _MainScreenState extends State<MainScreen> {
         await showOkAlertDialog(
           context: context,
           title: '$statusText - ${account.displayName}',
-          message: 'Connecting to server...\n\nUsername: ${account.username}\nServer: ${account.sipServer}',
+          message: 'Connecting to server...\n\nUsername: ${account.username}',
         );
         break;
         
@@ -220,7 +216,7 @@ class _MainScreenState extends State<MainScreen> {
         final result = await showOkCancelAlertDialog(
           context: context,
           title: '$statusText - ${account.displayName}',
-          message: 'Connection failed. Check your account settings and internet connection.\n\nUsername: ${account.username}\nServer: ${account.sipServer}',
+          message: 'Connection failed. Check your account settings and internet connection.\n\nUsername: ${account.username}',
           okLabel: 'Settings',
           cancelLabel: 'Cancel',
         );
@@ -236,7 +232,7 @@ class _MainScreenState extends State<MainScreen> {
         final result = await showOkCancelAlertDialog(
           context: context,
           title: '$statusText - ${account.displayName}',
-          message: 'Not connected to server. Check your internet connection.\n\nUsername: ${account.username}\nServer: ${account.sipServer}',
+          message: 'Not connected to server. Check your internet connection.\n\nUsername: ${account.username}',
           okLabel: 'Settings',
           cancelLabel: 'Cancel',
         );

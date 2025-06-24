@@ -518,12 +518,16 @@ Widget _buildControlButton({
         child: Material(
           color: Colors.transparent,
           child: InkWell(
+              splashFactory: NoSplash.splashFactory,
+          highlightColor: Colors.transparent,
+          hoverColor: Colors.transparent,
+          splashColor: Colors.transparent,
             borderRadius: BorderRadius.circular(size / 2),
             onTap: isEnabled ? onPressed : null,
             child: Icon(
               icon,
               color: iconColor,
-              size: size * 0.35, // ~24px for size 70
+              size: size * 0.35, 
             ),
           ),
         ),
