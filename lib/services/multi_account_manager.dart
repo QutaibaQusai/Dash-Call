@@ -1,4 +1,4 @@
-// lib/services/multi_account_manager.dart - FIXED: Connection Status Updates
+// lib/services/multi_account_manager.dart - UPDATED: Single Active Account Mode
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -80,7 +80,6 @@ class MultiAccountManager extends ChangeNotifier {
   String? _activeAccountId;
   bool _isInitialized = false;
   
-  // FIXED: Add periodic status checker
   Timer? _statusUpdateTimer;
 
   // Getters
@@ -107,7 +106,7 @@ class MultiAccountManager extends ChangeNotifier {
     try {
       await _loadAccounts();
       await _initializeSipServices();
-      _startStatusUpdateTimer(); // FIXED: Start status monitoring
+      _startStatusUpdateTimer();
       _isInitialized = true;
       
       print('✅ [MultiAccountManager] Initialized with ${_accounts.length} accounts');
@@ -118,15 +117,12 @@ class MultiAccountManager extends ChangeNotifier {
     }
   }
 
-  // FIXED: Add status update timer to monitor connection changes
   void _startStatusUpdateTimer() {
     _statusUpdateTimer?.cancel();
     _statusUpdateTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
-      // Check if any SIP service status changed and notify listeners
       bool shouldNotify = false;
       
       for (final sipService in _sipServices.values) {
-        // Listen to SIP service changes and trigger UI updates
         if (sipService.hasListeners) {
           shouldNotify = true;
           break;
@@ -207,7 +203,7 @@ class MultiAccountManager extends ChangeNotifier {
     }
   }
 
-  /// Initialize SipServices for all accounts
+  /// Initialize SipServices for all accounts (but don't connect them)
   Future<void> _initializeSipServices() async {
     for (final account in _accounts.values) {
       await _createSipService(account);
@@ -222,10 +218,8 @@ class MultiAccountManager extends ChangeNotifier {
       final sipService = SipService();
       await sipService.initialize();
       
-      // FIXED: Set up listener to monitor SIP service changes
       sipService.addListener(() {
         print('📡 [MultiAccountManager] SipService status changed for ${account.displayName}: ${sipService.status}');
-        // Trigger UI update when any SIP service status changes
         notifyListeners();
       });
       
@@ -277,7 +271,7 @@ class MultiAccountManager extends ChangeNotifier {
 
       if (existingAccount.id.isNotEmpty) {
         print('⚠️ [MultiAccountManager] Account already exists: $identifier');
-        return false; // Account already exists
+        return false;
       }
 
       // Create new account
@@ -300,11 +294,14 @@ class MultiAccountManager extends ChangeNotifier {
       // Create SipService for new account
       await _createSipService(newAccount);
 
-      // Set as active if it's the first account
-      if (_activeAccountId == null) {
-        _activeAccountId = accountId;
-        await _saveActiveAccount();
+      // UPDATED: Disconnect current active account before setting new one
+      if (_activeAccountId != null) {
+        await _disconnectAccount(_activeAccountId!);
       }
+
+      // Set as active account
+      _activeAccountId = accountId;
+      await _saveActiveAccount();
 
       // Save to storage
       await _saveAccounts();
@@ -341,6 +338,11 @@ class MultiAccountManager extends ChangeNotifier {
       if (_activeAccountId == accountId) {
         _activeAccountId = _accounts.isNotEmpty ? _accounts.keys.first : null;
         await _saveActiveAccount();
+        
+        // UPDATED: Connect to new active account if exists
+        if (_activeAccountId != null) {
+          await _connectAccount(_activeAccountId!);
+        }
       }
 
       // Save to storage
@@ -355,7 +357,7 @@ class MultiAccountManager extends ChangeNotifier {
     }
   }
 
-  /// Switch active account
+  /// UPDATED: Switch active account with single-account logic
   Future<void> setActiveAccount(String accountId) async {
     if (!_accounts.containsKey(accountId)) {
       print('❌ [MultiAccountManager] Account not found: $accountId');
@@ -367,61 +369,88 @@ class MultiAccountManager extends ChangeNotifier {
       return;
     }
 
+    print('🔄 [MultiAccountManager] Switching account...');
+
+    // STEP 1: Disconnect current active account
+    if (_activeAccountId != null) {
+      print('📤 [MultiAccountManager] Disconnecting current account: ${_accounts[_activeAccountId]?.displayName}');
+      await _disconnectAccount(_activeAccountId!);
+    }
+
+    // STEP 2: Set new active account
     final oldAccountId = _activeAccountId;
     _activeAccountId = accountId;
-    
     await _saveActiveAccount();
-    
+
+    // STEP 3: Connect new active account
+    print('📥 [MultiAccountManager] Connecting new active account: ${_accounts[accountId]?.displayName}');
+    await _connectAccount(accountId);
+
     final newAccount = _accounts[accountId]!;
-    print('🔄 [MultiAccountManager] Switched to account: ${newAccount.displayName}');
+    print('✅ [MultiAccountManager] Successfully switched to account: ${newAccount.displayName}');
     
     notifyListeners();
   }
 
-  /// Connect all accounts to their servers
+  /// UPDATED: Connect only the active account
   Future<void> connectAllAccounts() async {
-    print('🌐 [MultiAccountManager] Connecting all accounts...');
+    print('🌐 [MultiAccountManager] Connecting active account...');
     
-    for (final entry in _sipServices.entries) {
-      final accountId = entry.key;
-      final sipService = entry.value;
-      final account = _accounts[accountId];
-      
-      if (account != null) {
-        try {
-          print('🔌 [MultiAccountManager] Connecting ${account.displayName}...');
-          await sipService.register();
-          
-          // FIXED: Wait a bit and then notify listeners to update UI
-          await Future.delayed(const Duration(milliseconds: 100));
-          notifyListeners();
-        } catch (e) {
-          print('❌ [MultiAccountManager] Failed to connect ${account.displayName}: $e');
-        }
-      }
+    if (_activeAccountId != null) {
+      await _connectAccount(_activeAccountId!);
+    } else {
+      print('⚠️ [MultiAccountManager] No active account to connect');
     }
     
-    // FIXED: Final notification after all connections attempted
     notifyListeners();
   }
 
-  /// Disconnect all accounts
+  /// NEW: Connect a specific account
+  Future<void> _connectAccount(String accountId) async {
+    final sipService = _sipServices[accountId];
+    final account = _accounts[accountId];
+    
+    if (sipService != null && account != null) {
+      try {
+        print('🔌 [MultiAccountManager] Connecting ${account.displayName}...');
+        await sipService.register();
+        
+        await Future.delayed(const Duration(milliseconds: 100));
+        notifyListeners();
+        
+        print('✅ [MultiAccountManager] Connected ${account.displayName}');
+      } catch (e) {
+        print('❌ [MultiAccountManager] Failed to connect ${account.displayName}: $e');
+      }
+    }
+  }
+
+  /// NEW: Disconnect a specific account
+  Future<void> _disconnectAccount(String accountId) async {
+    final sipService = _sipServices[accountId];
+    final account = _accounts[accountId];
+    
+    if (sipService != null && account != null) {
+      try {
+        print('📤 [MultiAccountManager] Disconnecting ${account.displayName}...');
+        await sipService.unregister();
+        
+        await Future.delayed(const Duration(milliseconds: 100));
+        notifyListeners();
+        
+        print('✅ [MultiAccountManager] Disconnected ${account.displayName}');
+      } catch (e) {
+        print('❌ [MultiAccountManager] Failed to disconnect ${account.displayName}: $e');
+      }
+    }
+  }
+
+  /// UPDATED: Disconnect all accounts
   Future<void> disconnectAllAccounts() async {
     print('🔌 [MultiAccountManager] Disconnecting all accounts...');
     
     for (final entry in _sipServices.entries) {
-      final accountId = entry.key;
-      final sipService = entry.value;
-      final account = _accounts[accountId];
-      
-      if (account != null) {
-        try {
-          print('📤 [MultiAccountManager] Disconnecting ${account.displayName}...');
-          await sipService.unregister();
-        } catch (e) {
-          print('❌ [MultiAccountManager] Failed to disconnect ${account.displayName}: $e');
-        }
-      }
+      await _disconnectAccount(entry.key);
     }
     
     notifyListeners();
@@ -442,7 +471,7 @@ class MultiAccountManager extends ChangeNotifier {
     return _accounts.values.any((account) => account.identifier == identifier);
   }
 
-  /// FIXED: Force refresh UI (useful for settings page)
+  /// Force refresh UI
   void forceNotifyListeners() {
     notifyListeners();
   }
@@ -451,7 +480,6 @@ class MultiAccountManager extends ChangeNotifier {
   void dispose() {
     print('🗑️ [MultiAccountManager] Disposing...');
     
-    // FIXED: Cancel status update timer
     _statusUpdateTimer?.cancel();
     
     // Dispose all SipServices
